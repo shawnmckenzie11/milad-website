@@ -2,7 +2,9 @@
 
 ## What this is
 
-An interactive scientific illustration for the Milad Lab website (milad.mckenzian.com). A person stands outdoors in Ottawa. Five clickable exposure pathways — cannabis, cigarette smoke, general air (COPD-relevant particulates), bacteria, viruses — each transition the scene into a shared schematic lung/airway cutaway, highlighting the specific cells and structures that pathway's research addresses.
+An interactive scientific illustration for the Milad Lab website (milad.mckenzian.com). A person stands outdoors in Ottawa. Five clickable exposure pathways — cannabis, cigarette smoke, general air (COPD-relevant particulates), vaping, viruses — each transition the scene into a shared schematic lung/airway cutaway, highlighting the specific cells and structures that pathway's research addresses.
+
+**Phase 0 lock:** bacteria was swapped for vaping. Canonical pathway captions live in `src/data/lungHealthVisual.ts`.
 
 **This is a multi-session build. Do not attempt the full interaction, all five pathway states, and final polish in one pass.** Work phase by phase (below), and stop for my review at each checkpoint before continuing. If you think you're about to implement something not explicitly approved in this brief or in my last message, stop and ask instead of guessing.
 
@@ -16,7 +18,7 @@ An interactive scientific illustration for the Milad Lab website (milad.mckenzia
 
 | Phase | Deliverable | Stop and check in on |
 |---|---|---|
-| 0 | Content lock: final list of 5 pathways confirmed, one caption per pathway sourced from real project evidence | Confirm the final 5 pathways with me before writing any code — bacteria's research backing is currently thin and may need to be reframed or swapped |
+| 0 | Content lock: final list of 5 pathways confirmed, one caption per pathway sourced from real project evidence | **Done** — locked in `src/data/lungHealthVisual.ts` (vaping replaces bacteria). Phase 1 plan: `lung-health-visual-phase1.md` |
 | 1 | Static outdoor scene + 5 hotspots, placeholder shapes, no anatomy zoom | Interaction pattern and copy layout |
 | 2 | Zoom/transition from outdoor scene into the shared cutaway | Transition feel (speed, easing, camera behavior) |
 | 3 | Per-pathway cellular highlight states on the shared cutaway | One pathway state fully built first — approve it as the template before I build the other four |
@@ -28,7 +30,7 @@ Do not start a phase until I've explicitly approved the previous one.
 ## Content rules
 
 - All pathway captions and highlighted structures must trace back to real content on milad.mckenzian.com/projects (or content I give you directly). Do not invent findings, cell types, or mechanisms to fill a gap.
-- If a pathway's research backing is thin (bacteria is the known risk here), flag it to me rather than filling it in with plausible-sounding biology.
+- If a pathway's research backing is thin, flag it rather than filling it in with plausible-sounding biology. (Bacteria was removed in Phase 0; general air remains the softest fit.)
 - Keep caption copy plain and direct — no corporate/marketing tone, no padding.
 
 ## Image/asset generation — optimize for consistency, not speed
