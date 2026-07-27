@@ -1,7 +1,7 @@
 /**
- * Phase 0 content lock for the interactive lung-health visualization.
+ * Phase 0/1 content for the interactive lung-health visualization.
  * Captions and pathway metadata are evidence-bound to /projects programs.
- * Interaction UI ships in later phases — do not invent biology beyond this file.
+ * Do not invent biology beyond this file.
  */
 
 /** Stable pathway ids used by the visualization and future highlight layers. */
@@ -12,12 +12,12 @@ export type LungHealthPathwayId =
 	| 'vaping'
 	| 'viruses';
 
-/** Where the visualization mounts once Phase 1+ UI exists. */
+/** Where the visualization mounts for the current review phase. */
 export interface LungHealthPlacement {
 	/** Site route that hosts the visualization. */
-	route: '/projects';
-	/** Position relative to existing Projects page sections. */
-	anchor: 'above-program-cards';
+	route: '/visualization' | '/projects';
+	/** Position relative to page sections when mounted on Projects. */
+	anchor: 'above-program-cards' | 'page';
 }
 
 /** One exposure pathway with evidence-bound caption and program links. */
@@ -41,8 +41,8 @@ export interface LungHealthPathway {
 
 /** Structured content for the lung-health visualization. */
 export interface LungHealthVisualContent {
-	/** Content-lock version for this phased build. */
-	phase: 0;
+	/** Current build phase reflected by shipped UI. */
+	phase: 1;
 	/** Approved placement on the live site. */
 	placement: LungHealthPlacement;
 	/** Scene framing for the outdoor Ottawa intake (Phase 1+). */
@@ -57,14 +57,14 @@ export interface LungHealthVisualContent {
 }
 
 /**
- * Phase 0 locked content: five pathways (bacteria swapped for vaping).
- * Public UI must not surface these notes, ORCID, or sync mechanics.
+ * Locked pathway content with Phase 1 review placement on `/visualization`.
+ * Public UI must not surface maintainer notes, ORCID, or sync mechanics.
  */
 export const lungHealthVisual: LungHealthVisualContent = {
-	phase: 0,
+	phase: 1,
 	placement: {
-		route: '/projects',
-		anchor: 'above-program-cards',
+		route: '/visualization',
+		anchor: 'page',
 	},
 	sceneSummary:
 		'A person stands outdoors in Ottawa. Five exposure pathways lead into one shared schematic lung/airway cutaway.',

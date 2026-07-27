@@ -11,7 +11,7 @@ Static outdoor Ottawa scene + five hotspots (placeholder shapes), caption panel 
 - Add `@astrojs/react`, React, and `framer-motion` to the Astro site.
 - Build one React island (`client:load`), e.g. `src/components/LungHealthVisual.tsx`.
 - Drive labels/captions from `lungHealthVisual` data — no hardcoded pathway copy in JSX.
-- Mount on `/projects` above program cards ([`src/pages/projects.astro`](src/pages/projects.astro)), matching `placement` in the data file.
+- Mount on `/visualization` (nav tab) for Phase 1 review. Placement field in the data file tracks this temporary review route.
 - Asset strategy for Phase 1: hand-built SVG placeholders + CSS scene (no AI art). Propose Phase 2–3 cutaway/highlight asset strategy before generating final art.
 - Keyboard focusable hotspots; selected pathway shows its locked caption beside/below the scene.
 - No shared lung cutaway, no zoom transition, no methods layer (Phases 2–4).
