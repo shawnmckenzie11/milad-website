@@ -1,0 +1,343 @@
+---
+import fs from 'node:fs';
+import path from 'node:path';
+import { airwayScene } from '../data/airwayScene';
+import { getProjects } from '../lib/research';
+import { getProjectPresentation } from '../lib/projectPresentation';
+
+const svgPath = path.join(process.cwd(), 'public', 'figures', 'projects', 'airway-scene.svg');
+const sceneSvg = fs.readFileSync(svgPath, 'utf-8');
+
+const presentations: Record<string, { shortLabel: string; question: string }> = {};
+for (const project of getProjects()) {
+	if (!airwayScene.nodes.some((node) => node.projectId === project.id)) continue;
+	const presentation = getProjectPresentation(project);
+	presentations[project.id] = {
+		shortLabel: presentation.shortLabel,
+		question: presentation.question,
+	};
+}
+
+const explorerOptions = JSON.stringify({ presentations });
+---
+
+<div
+	class="airway-explorer"
+	data-airway-explorer
+	data-explorer-options={explorerOptions}
+	tabindex="0"
+	aria-label="Interactive inhale-path map from person to inhaled agents, lung issues, and systemic effects. Use plus and minus to zoom, zero to reset, and drag to pan."
+>
+	<div class="airway-explorer__toolbar" role="toolbar" aria-label="Map controls">
+		<button type="button" class="airway-explorer__btn" data-explorer-zoom-in aria-label="Zoom in">
+			<span aria-hidden="true">+</span>
+		</button>
+		<button type="button" class="airway-explorer__btn" data-explorer-zoom-out aria-label="Zoom out">
+			<span aria-hidden="true">−</span>
+		</button>
+		<button type="button" class="airway-explorer__btn airway-explorer__btn--text" data-explorer-reset>
+			Reset
+		</button>
+	</div>
+
+	<div class="airway-explorer__frame">
+		<div class="airway-explorer__viewport" data-explorer-viewport>
+			<div class="airway-explorer__svg" data-explorer-svg set:html={sceneSvg} />
+		</div>
+
+		<aside class="airway-explorer__chip" data-explorer-chip hidden aria-hidden="true" tabindex="-1">
+			<p class="airway-explorer__chip-label" data-explorer-chip-label></p>
+			<p class="airway-explorer__chip-question" data-explorer-chip-question></p>
+			<a class="airway-explorer__chip-link" data-explorer-chip-link hidden>View program</a>
+		</aside>
+	</div>
+
+	<ul class="airway-explorer__legend" aria-label="Map legend">
+		<li><span class="airway-explorer__swatch airway-explorer__swatch--person" aria-hidden="true"></span> Person</li>
+		<li><span class="airway-explorer__swatch airway-explorer__swatch--in" aria-hidden="true"></span> INs</li>
+		<li><span class="airway-explorer__swatch airway-explorer__swatch--lung" aria-hidden="true"></span> Lung issues</li>
+		<li><span class="airway-explorer__swatch airway-explorer__swatch--elsewhere" aria-hidden="true"></span> Elsewhere</li>
+		<li><span class="airway-explorer__swatch airway-explorer__swatch--methods" aria-hidden="true"></span> Methods</li>
+	</ul>
+
+	<p class="airway-explorer__hint">Drag to pan · scroll or pinch to zoom · click a region for details</p>
+	<p class="visually-hidden" data-explorer-live aria-live="polite"></p>
+</div>
+
+<script>
+	import { mountAirwayExplorers } from '../scripts/airwayExplorer';
+
+	mountAirwayExplorers();
+</script>
+
+<style>
+	.airway-explorer {
+		--explorer-ink: var(--color-ink);
+		--explorer-muted: var(--color-muted);
+		--explorer-accent: var(--color-accent);
+		--explorer-line: var(--color-line);
+		position: relative;
+		outline: none;
+	}
+
+	.airway-explorer:focus-visible {
+		box-shadow: 0 0 0 2px color-mix(in srgb, var(--explorer-accent) 45%, transparent);
+	}
+
+	.airway-explorer__toolbar {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+		margin-bottom: 0.65rem;
+	}
+
+	.airway-explorer__btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 2.1rem;
+		height: 2.1rem;
+		padding: 0 0.55rem;
+		border: 1px solid var(--explorer-line);
+		border-radius: var(--radius);
+		background: #fff;
+		color: var(--explorer-ink);
+		font-family: var(--font-display);
+		font-size: 1rem;
+		font-weight: 600;
+		line-height: 1;
+		cursor: pointer;
+		transition:
+			border-color 160ms var(--ease-out),
+			background-color 160ms var(--ease-out),
+			color 160ms var(--ease-out);
+	}
+
+	.airway-explorer__btn:hover {
+		border-color: var(--explorer-accent);
+		color: var(--explorer-accent);
+		background: var(--color-accent-soft);
+	}
+
+	.airway-explorer__btn:focus-visible {
+		outline: 2px solid color-mix(in srgb, var(--explorer-accent) 55%, transparent);
+		outline-offset: 2px;
+	}
+
+	.airway-explorer__btn--text {
+		font-size: 0.72rem;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		padding-inline: 0.75rem;
+	}
+
+	.airway-explorer__frame {
+		position: relative;
+		border: 1px solid var(--explorer-line);
+		border-radius: var(--radius);
+		background:
+			linear-gradient(180deg, #ffffff 0%, #f4f6f7 100%);
+		overflow: hidden;
+	}
+
+	.airway-explorer__viewport {
+		position: relative;
+		width: 100%;
+		aspect-ratio: 1200 / 800;
+		touch-action: none;
+		cursor: grab;
+		overflow: hidden;
+	}
+
+	.airway-explorer__viewport.is-panning {
+		cursor: grabbing;
+	}
+
+	.airway-explorer__svg,
+	.airway-explorer__svg :global(svg) {
+		display: block;
+		width: 100%;
+		height: 100%;
+	}
+
+	.airway-explorer__svg :global(.hotspot) {
+		transition: opacity 160ms var(--ease-out);
+	}
+
+	.airway-explorer__svg :global(.hotspot.is-selected) {
+		filter: drop-shadow(0 0 0.5px var(--explorer-accent));
+	}
+
+	.airway-explorer__svg :global(.hotspot.is-selected circle),
+	.airway-explorer__svg :global(.hotspot.is-selected ellipse),
+	.airway-explorer__svg :global(.hotspot.is-selected path),
+	.airway-explorer__svg :global(.hotspot.is-selected rect) {
+		stroke: var(--explorer-accent);
+		stroke-width: 2.25px;
+	}
+
+	.airway-explorer__svg :global(.hotspot--context) {
+		opacity: 0.62;
+	}
+
+	.airway-explorer__svg :global(.hotspot--context.is-selected) {
+		opacity: 1;
+	}
+
+	.airway-explorer__svg :global(.edge) {
+		opacity: 0.85;
+		transition: opacity 160ms var(--ease-out), stroke 160ms var(--ease-out);
+	}
+
+	.airway-explorer__svg :global(.edge--studies),
+	.airway-explorer__svg :global(.edge--context) {
+		opacity: 0.55;
+	}
+
+	.airway-explorer__svg :global(.edge.is-active) {
+		opacity: 1;
+		stroke: var(--explorer-accent);
+	}
+
+	.airway-explorer__svg :global(.edge.is-active path) {
+		stroke: var(--explorer-accent);
+		stroke-width: 2;
+	}
+
+	.airway-explorer__svg :global(.edge-label) {
+		pointer-events: none;
+		transition: opacity 160ms var(--ease-out);
+	}
+
+	.airway-explorer__chip {
+		position: absolute;
+		left: 0.75rem;
+		right: 0.75rem;
+		bottom: 0.75rem;
+		max-width: 22rem;
+		padding: 0.75rem 0.9rem;
+		border: 1px solid var(--explorer-line);
+		border-radius: var(--radius);
+		background: rgba(255, 255, 255, 0.96);
+		box-shadow: var(--shadow-soft);
+		z-index: 2;
+	}
+
+	.airway-explorer__chip:focus-visible {
+		outline: 2px solid color-mix(in srgb, var(--explorer-accent) 55%, transparent);
+		outline-offset: 2px;
+	}
+
+	.airway-explorer__chip-label {
+		margin: 0;
+		font-family: var(--font-display);
+		font-size: 0.78rem;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--explorer-accent);
+	}
+
+	.airway-explorer__chip-question {
+		margin: 0.35rem 0 0;
+		font-size: 0.95rem;
+		line-height: 1.4;
+		color: var(--explorer-ink);
+	}
+
+	.airway-explorer__chip-link {
+		display: inline-block;
+		margin-top: 0.55rem;
+		font-family: var(--font-display);
+		font-size: 0.72rem;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		text-decoration: none;
+		border-bottom: 1px solid currentColor;
+		padding-bottom: 0.05rem;
+	}
+
+	.airway-explorer__legend {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.55rem 1.1rem;
+		list-style: none;
+		margin: 0.7rem 0 0;
+		padding: 0;
+		font-size: 0.85rem;
+		color: var(--explorer-muted);
+	}
+
+	.airway-explorer__legend li {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+	}
+
+	.airway-explorer__swatch {
+		width: 0.7rem;
+		height: 0.7rem;
+		border: 1.5px solid var(--explorer-accent);
+		background: #fff;
+		flex: 0 0 auto;
+	}
+
+	.airway-explorer__swatch--person {
+		border-radius: 50% 50% 40% 40%;
+		background: #f4f6f7;
+	}
+
+	.airway-explorer__swatch--in {
+		border-radius: 50%;
+	}
+
+	.airway-explorer__swatch--lung {
+		background: #fff;
+	}
+
+	.airway-explorer__swatch--elsewhere {
+		background: #f4f6f7;
+	}
+
+	.airway-explorer__swatch--methods {
+		width: 1rem;
+		height: 0.45rem;
+	}
+
+	.airway-explorer__hint {
+		margin: 0.55rem 0 0;
+		font-size: 0.82rem;
+		color: var(--explorer-muted);
+	}
+
+	.visually-hidden {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
+	}
+
+	@media (min-width: 720px) {
+		.airway-explorer__chip {
+			left: auto;
+			right: 1rem;
+			bottom: 1rem;
+			width: min(22rem, calc(100% - 2rem));
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.airway-explorer__btn,
+		.airway-explorer__svg :global(.hotspot),
+		.airway-explorer__svg :global(.edge),
+		.airway-explorer__svg :global(.edge-label) {
+			transition: none;
+		}
+	}
+</style>

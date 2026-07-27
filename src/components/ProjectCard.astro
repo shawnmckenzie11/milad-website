@@ -1,0 +1,344 @@
+---
+import type { Project } from '../lib/research';
+import { getProjectPresentation, parseRelatedPublications } from '../lib/projectPresentation';
+import ProjectIcon from './ProjectIcon.astro';
+
+interface Props {
+	project: Project;
+	/** Visual weight: primary programs vs quieter prior/adjacent work. */
+	variant?: 'primary' | 'secondary';
+	/** Desktop figure placement for figure-led primary blocks. */
+	figureSide?: 'left' | 'right';
+}
+
+const { project, variant = 'primary', figureSide = 'left' } = Astro.props;
+const presentation = getProjectPresentation(project);
+const related = parseRelatedPublications(project.body);
+const flagship = related[0];
+const moreCount = Math.max(related.length - 1, 0);
+const isFigureLed = variant === 'primary';
+---
+
+<article
+	class:list={[
+		'program',
+		`program--${variant}`,
+		`program--${project.status}`,
+		'program--has-figure',
+		isFigureLed && 'program--figure-led',
+		isFigureLed && `program--figure-${figureSide}`,
+	]}
+	id={project.id}
+	tabindex="-1"
+	style={`--program-accent: ${presentation.accent};`}
+>
+	<figure class="program__figure">
+		<img
+			class="program__img"
+			src={presentation.figure}
+			alt={presentation.figureAlt}
+			width="960"
+			height="720"
+			loading="lazy"
+			decoding="async"
+		/>
+		<figcaption>{presentation.figureCaption}</figcaption>
+	</figure>
+
+	<div class="program__body">
+		<header class="program__header">
+			<p class="program__meta">
+				<span class:list={['status-dot', `status-dot--${project.status}`]} aria-hidden="true" />
+				<span class="program__status">{project.status}</span>
+				{
+					project.startYear ? (
+						<>
+							<span aria-hidden="true">·</span>
+							<span>{project.startYear}–</span>
+						</>
+					) : null
+				}
+			</p>
+			<div class="program__title-row">
+				<span class="program__icon" aria-hidden="true">
+					<ProjectIcon name={presentation.icon} size={22} />
+				</span>
+				<h2 class="program__title">{project.title}</h2>
+			</div>
+			<p class="program__question">{presentation.question}</p>
+		</header>
+
+		{
+			presentation.domains.length > 0 ? (
+				<p class="program__domains">
+					{presentation.domains.map((domain, index) => (
+						<>
+							{index > 0 ? <span aria-hidden="true"> · </span> : null}
+							<span>{domain}</span>
+						</>
+					))}
+				</p>
+			) : null
+		}
+
+		{
+			presentation.methods.length > 0 ? (
+				<p class="program__methods">
+					<span class="program__methods-label">Approaches</span>
+					{presentation.methods.join(' · ')}
+				</p>
+			) : null
+		}
+
+		{presentation.audience ? <p class="program__audience">{presentation.audience}</p> : null}
+
+		{
+			flagship ? (
+				<div class="program__evidence">
+					<p class="program__evidence-heading">
+						<span>Evidence snapshot</span>
+						{moreCount > 0 ? (
+							<span class="program__evidence-count">+{moreCount} related</span>
+						) : null}
+					</p>
+					<ol class="program__papers">
+						{related.slice(0, 3).map((paper) => (
+							<li>
+								{paper.year ? <span class="program__year">{paper.year}</span> : null}
+								<span class="program__paper-title">{paper.title}</span>
+							</li>
+						))}
+					</ol>
+					<p class="program__pubs-link">
+						<a href="/publications">Browse full publication list</a>
+					</p>
+				</div>
+			) : null
+		}
+	</div>
+</article>
+
+<style>
+	.program {
+		--program-accent: var(--color-accent);
+		display: flex;
+		flex-direction: column;
+		gap: 0.7rem;
+		padding: 1.15rem 0 1.35rem;
+		border-top: 1px solid var(--color-line);
+		height: 100%;
+	}
+
+	.program--figure-led {
+		gap: 1.1rem;
+		padding: 1.5rem 0 1.75rem;
+		padding-left: 0.9rem;
+		border-top: 1px solid var(--color-line);
+		border-left: 3px solid var(--program-accent);
+		height: auto;
+	}
+
+	.program--secondary {
+		opacity: 0.92;
+		padding-left: 0.75rem;
+		border-left: 2px solid color-mix(in srgb, var(--program-accent) 55%, transparent);
+	}
+
+	.program__figure {
+		position: relative;
+		margin: 0;
+		min-width: 0;
+	}
+
+	.program__img {
+		display: block;
+		width: 100%;
+		height: auto;
+		max-height: 22rem;
+		object-fit: contain;
+		object-position: center;
+		background: color-mix(in srgb, var(--program-accent) 6%, var(--color-paper));
+	}
+
+	.program--secondary .program__img {
+		max-height: 14rem;
+	}
+
+	.program__figure figcaption {
+		margin-top: 0.45rem;
+		font-size: 0.82rem;
+		line-height: 1.4;
+		color: var(--color-muted);
+		font-style: italic;
+	}
+
+	.program__body {
+		display: flex;
+		flex-direction: column;
+		gap: 0.7rem;
+		min-width: 0;
+	}
+
+	.program__header {
+		display: grid;
+		gap: 0.45rem;
+	}
+
+	.program__meta {
+		margin: 0;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		font-size: 0.82rem;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--color-muted);
+	}
+
+	.program__status {
+		text-transform: uppercase;
+	}
+
+	.status-dot {
+		width: 0.45rem;
+		height: 0.45rem;
+		border-radius: 50%;
+		background: var(--color-muted);
+	}
+
+	.status-dot--active {
+		background: var(--program-accent);
+	}
+
+	.status-dot--completed {
+		background: var(--color-ink-soft);
+	}
+
+	.program__title-row {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.55rem;
+	}
+
+	.program__icon {
+		display: grid;
+		place-items: center;
+		margin-top: 0.2rem;
+		color: var(--program-accent);
+	}
+
+	.program__title {
+		margin: 0;
+		font-size: clamp(1.2rem, 2vw, 1.45rem);
+	}
+
+	.program__question {
+		margin: 0;
+		font-family: var(--font-display);
+		font-size: 1.05rem;
+		line-height: 1.35;
+		color: var(--color-ink);
+		max-width: 36rem;
+	}
+
+	.program__domains,
+	.program__methods,
+	.program__audience {
+		margin: 0;
+		font-size: 0.92rem;
+		color: var(--color-muted);
+		max-width: 36rem;
+	}
+
+	.program__methods-label {
+		display: inline-block;
+		margin-right: 0.45rem;
+		font-weight: 600;
+		color: var(--color-ink-soft);
+	}
+
+	.program__audience {
+		color: var(--color-ink-soft);
+	}
+
+	.program__evidence {
+		margin-top: 0.25rem;
+		border-top: 1px solid var(--color-line);
+		padding-top: 0.65rem;
+	}
+
+	.program__evidence-heading {
+		margin: 0;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		font-size: 0.9rem;
+		font-weight: 600;
+		color: var(--program-accent);
+	}
+
+	.program__evidence-count {
+		font-weight: 500;
+		color: var(--color-muted);
+	}
+
+	.program__papers {
+		margin: 0.75rem 0 0;
+		padding: 0;
+		list-style: none;
+		display: grid;
+		gap: 0.55rem;
+	}
+
+	.program__papers li {
+		display: grid;
+		grid-template-columns: 3.2rem 1fr;
+		gap: 0.55rem;
+		font-size: 0.92rem;
+		color: var(--color-ink-soft);
+	}
+
+	.program__year {
+		font-variant-numeric: tabular-nums;
+		font-weight: 600;
+		color: var(--color-muted);
+	}
+
+	.program__paper-title {
+		line-height: 1.4;
+	}
+
+	.program__pubs-link {
+		margin: 0.7rem 0 0;
+		font-size: 0.9rem;
+	}
+
+	@media (min-width: 820px) {
+		.program--figure-led {
+			display: grid;
+			grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.15fr);
+			align-items: start;
+			gap: 1.75rem 2rem;
+			padding: 1.75rem 0 2rem 1rem;
+		}
+
+		.program--figure-right {
+			grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.05fr);
+		}
+
+		.program--figure-right .program__figure {
+			order: 2;
+		}
+
+		.program--figure-right .program__body {
+			order: 1;
+		}
+
+		.program--figure-led .program__img {
+			max-height: 26rem;
+		}
+	}
+
+</style>

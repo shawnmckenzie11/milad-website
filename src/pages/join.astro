@@ -1,0 +1,50 @@
+---
+import { getEntry, render } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { site } from '../lib/site';
+
+const joinPage = await getEntry('pages', 'join');
+
+if (!joinPage) {
+	throw new Error('Missing content/pages/join.md — required for the /join route.');
+}
+
+const { Content } = await render(joinPage);
+const description = joinPage.data.description ?? `Prospective students and researchers — ${site.name}.`;
+---
+
+<BaseLayout title={joinPage.data.title} description={description} narrow>
+	<header class="page-header fade-in">
+		<p class="eyebrow">Prospective researchers</p>
+		<h1>{joinPage.data.title}</h1>
+	</header>
+
+	<article class="prose fade-in-delay">
+		<Content />
+	</article>
+
+	<aside class="tool-callout fade-in-delay">
+		<p>
+			<strong>For fellow cannabis researchers:</strong>
+			<a href={site.scraper.href} target="_blank" rel="noopener noreferrer">{site.scraper.label}</a>
+			is available as a shared literature workflow.
+		</p>
+	</aside>
+</BaseLayout>
+
+<style>
+	.page-header {
+		margin-bottom: var(--space-lg);
+	}
+
+	.tool-callout {
+		margin-top: var(--space-xl);
+		padding-top: var(--space-lg);
+		border-top: 1px solid var(--color-line);
+	}
+
+	.tool-callout p {
+		margin: 0;
+		max-width: 38rem;
+	}
+</style>

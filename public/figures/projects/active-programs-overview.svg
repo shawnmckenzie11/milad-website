@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 320" role="img" aria-labelledby="overviewTitle overviewDesc">
+  <title id="overviewTitle">Active research programs and how they connect</title>
+  <desc id="overviewDesc">
+    Four active programs around a shared focus on lung immunity: cannabis, vaping, and smoke exposures
+    feed into lung immune homeostasis, supported by open airway methods.
+  </desc>
+  <rect width="720" height="320" fill="transparent"/>
+
+  <!-- Connecting lines (drawn first) -->
+  <g fill="none" stroke="#9aa8b3" stroke-width="1.25" stroke-linecap="round">
+    <path d="M180 88 L360 150"/>
+    <path d="M540 88 L360 150"/>
+    <path d="M180 248 L360 170"/>
+    <path d="M540 248 L360 170"/>
+  </g>
+
+  <!-- Hub -->
+  <circle cx="360" cy="160" r="52" fill="#f4f6f7" stroke="#4a6274" stroke-width="1.75"/>
+  <text x="360" y="154" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="12" font-weight="600" fill="#3d5160">Lung immune</text>
+  <text x="360" y="172" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="12" font-weight="600" fill="#3d5160">homeostasis</text>
+
+  <!-- Cannabis -->
+  <g>
+    <circle cx="180" cy="78" r="36" fill="#ffffff" stroke="#4a6274" stroke-width="1.5"/>
+    <text x="180" y="74" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="11" font-weight="600" fill="#4a6274">Cannabis</text>
+    <text x="180" y="90" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="10" fill="#8a97a1">exposure</text>
+  </g>
+
+  <!-- Vaping -->
+  <g>
+    <circle cx="540" cy="78" r="36" fill="#ffffff" stroke="#5a7386" stroke-width="1.5"/>
+    <text x="540" y="74" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="11" font-weight="600" fill="#5a7386">Vaping</text>
+    <text x="540" y="90" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="10" fill="#8a97a1">chemistry</text>
+  </g>
+
+  <!-- Smoke -->
+  <g>
+    <circle cx="180" cy="248" r="36" fill="#ffffff" stroke="#6d7f8c" stroke-width="1.5"/>
+    <text x="180" y="244" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="11" font-weight="600" fill="#6d7f8c">Smoke</text>
+    <text x="180" y="260" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="10" fill="#8a97a1">inflammation</text>
+  </g>
+
+  <!-- Methods -->
+  <g>
+    <circle cx="540" cy="248" r="36" fill="#ffffff" stroke="#4a6274" stroke-width="1.5"/>
+    <text x="540" y="244" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="11" font-weight="600" fill="#4a6274">Airway</text>
+    <text x="540" y="260" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="10" fill="#8a97a1">methods</text>
+  </g>
+
+  <!-- Small label for methods relationship -->
+  <text x="450" y="210" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="10" fill="#8a97a1">enables</text>
+  <text x="270" y="210" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="10" fill="#8a97a1">exposures</text>
+</svg>

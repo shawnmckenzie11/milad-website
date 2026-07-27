@@ -1,0 +1,96 @@
+---
+import type { Publication } from '../lib/research';
+import { publicationHref } from '../lib/research';
+
+interface Props {
+	publications: Publication[];
+	emptyMessage?: string;
+	/** When false, omit the year from each item (e.g. when grouped under a year heading). */
+	showYear?: boolean;
+}
+
+const {
+	publications,
+	emptyMessage = 'No publications listed yet.',
+	showYear = true,
+} = Astro.props;
+---
+
+{
+	publications.length === 0 ? (
+		<p class="pub-empty">{emptyMessage}</p>
+	) : (
+		<ul class="pub-list">
+			{publications.map((pub) => {
+				const href = publicationHref(pub);
+				return (
+					<li class="pub-item">
+						<p class="pub-item__title">
+							{href ? (
+								<a href={href} target="_blank" rel="noopener noreferrer">
+									{pub.title}
+								</a>
+							) : (
+								pub.title
+							)}
+						</p>
+						<p class="pub-item__meta">
+							<span>{pub.authors}</span>
+							{showYear && (
+								<>
+									<span aria-hidden="true"> · </span>
+									<span>{pub.year}</span>
+								</>
+							)}
+							<span aria-hidden="true"> · </span>
+							<span>{pub.venue}</span>
+							<span aria-hidden="true"> · </span>
+							<span class="pub-item__type">{pub.type}</span>
+						</p>
+					</li>
+				);
+			})}
+		</ul>
+	)
+}
+
+<style>
+	.pub-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: grid;
+		gap: var(--space-md);
+	}
+
+	.pub-item__title {
+		margin: 0 0 0.25rem;
+		font-family: var(--font-display);
+		font-size: 1.08rem;
+		color: var(--color-ink);
+	}
+
+	.pub-item__title a {
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.pub-item__title a:hover {
+		color: var(--color-accent);
+		text-decoration: underline;
+	}
+
+	.pub-item__meta {
+		margin: 0;
+		font-size: 0.95rem;
+		color: var(--color-muted);
+	}
+
+	.pub-item__type {
+		text-transform: capitalize;
+	}
+
+	.pub-empty {
+		color: var(--color-muted);
+	}
+</style>

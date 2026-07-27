@@ -1,0 +1,97 @@
+{
+  "syncedAt": "2026-07-26T17:43:46.413Z",
+  "windowYears": 5,
+  "cutoffYear": 2021,
+  "sourcePublicationCount": 23,
+  "projects": [
+    {
+      "id": "cannabis-respiratory-health",
+      "title": "Cannabis exposure and respiratory health",
+      "status": "active",
+      "summary": "Investigating how cannabis smoke and dried cannabis use intersect with antiviral immunity, tobacco co-use, and respiratory outcomes.",
+      "startYear": 2023,
+      "order": 1,
+      "publicationIds": [
+        "10-26828-cannabis-2024-000248",
+        "10-1183-23120541-00219-2023"
+      ],
+      "body": "Selected publications:\n- 2024 — Dried Cannabis Use, Tobacco Smoking, and COVID-19 Infection: Findings from a Longitudinal Observational Cohort Study\n- 2023 — Cannabis smoke suppresses antiviral immune responses to influenza A in mice"
+    },
+    {
+      "id": "vaping-toxicology",
+      "title": "Vaping product chemistry and airway immunity",
+      "status": "active",
+      "summary": "Studying how constituents of vaping liquids—including flavor chemicals and glycerol—shape pulmonary immune responses and metabolic effects.",
+      "startYear": 2022,
+      "order": 2,
+      "publicationIds": [
+        "10-1152-ajplung-00305-2024",
+        "10-14814-phy2-15146"
+      ],
+      "body": "Selected publications:\n- 2025 — Flavor chemicals in vaping products induce pulmonary dendritic cell maturation\n- 2022 — Glycerol contained in vaping liquids affects the liver and aspects of energy homeostasis in a sex‐dependent manner"
+    },
+    {
+      "id": "smoke-lung-inflammation",
+      "title": "Cigarette smoke, inflammation, and lung homeostasis",
+      "status": "active",
+      "summary": "Mechanistic work on smoke-driven lung inflammation, genetic emphysema risk, immune cell signaling, surfactant biology, and treatment responses in preclinical and tissue models.",
+      "startYear": 2021,
+      "order": 3,
+      "publicationIds": [
+        "10-1093-jimmun-vkag162",
+        "10-18632-aging-206312",
+        "10-1165-rcmb-2023-0416le",
+        "10-1152-ajplung-00027-2022",
+        "10-3389-fphar-2022-971238",
+        "10-1016-j-chest-2020-12-005",
+        "10-4049-jimmunol-2001182",
+        "10-1183-16000617-0077-2021"
+      ],
+      "body": "Selected publications:\n- 2026 — A mutation in PTPN6 associated to emphysema alters B-lymphocyte biology in humans and mice\n- 2025 — Bleomycin promotes cellular senescence and activation of the cGAS-STING pathway without direct effect on fibrosis in an idiopathic pulmonary fibrosis model\n- 2024 — Lung Tissue Transcriptomics Reveal Associations Between Thymic Stromal Lymphopoietin Signaling, Mast Cells, and Airway Obstruction in Active Smokers\n- 2022 — Recombinant human β-defensin 2 delivery improves smoking-induced lung neutrophilia and bacterial exacerbation\n- 2022 — Smoking status impacts treatment efficacy in smoke-induced lung inflammation: A pre-clinical study"
+    },
+    {
+      "id": "airway-methods",
+      "title": "Open methods for airway exposure studies",
+      "status": "active",
+      "summary": "Building accessible experimental tools and methods for human airway epithelial research, including exposure systems and epithelial physiology assays.",
+      "startYear": 2025,
+      "order": 4,
+      "publicationIds": [
+        "10-14814-phy2-70747",
+        "10-3389-fphar-2025-1527053",
+        "10-1183-23120541-00703-2024"
+      ],
+      "body": "Selected publications:\n- 2026 — Effects of cAMP and CFTR modulation on apical fluid pH in human airway Calu‐3 cells\n- 2025 — Editorial: Methods in respiratory pharmacology 2023\n- 2025 — Open-source, three-dimensionally printed manifolds for exposure studies using human airway epithelial cells"
+    },
+    {
+      "id": "neuromuscular-vascular",
+      "title": "Neuromuscular and vascular disease models",
+      "status": "completed",
+      "summary": "Collaborative work on muscular dystrophy, Marfan-related vascular remodeling, and related metabolic or pharmacological interventions.",
+      "startYear": 2021,
+      "order": 5,
+      "publicationIds": [
+        "10-3233-jnd-230126",
+        "10-1002-jcsm-12879",
+        "10-1038-s41598-022-13772-3",
+        "10-14814-phy2-14877",
+        "10-3389-fphys-2021-675322"
+      ],
+      "body": "Selected publications:\n- 2023 — Humanization of the mdx Mouse Phenotype for Duchenne Muscular Dystrophy Modeling: A Metabolic Perspective\n- 2022 — Cholesterol absorption blocker ezetimibe prevents muscle wasting in severe dysferlin‐deficient and mdx mice\n- 2022 — Pleiotropic activation of endothelial function by angiotensin II receptor blockers is crucial to their protective anti-vascular remodeling effects\n- 2021 — Blood pressure‐independent inhibition of Marfan aortic root widening by the angiotensin II receptor blocker valsartan\n- 2021 — Effect of Dysferlin Deficiency on Atherosclerosis and Plasma Lipoprotein Composition Under Normal and Hyperlipidemic Conditions"
+    },
+    {
+      "id": "other-recent",
+      "title": "Collaborative respiratory research",
+      "status": "active",
+      "summary": "Collaborative studies in respiratory physiology and related clinical research.",
+      "startYear": 2022,
+      "order": 99,
+      "publicationIds": [
+        "10-21203-rs-3-rs-10076753-v1",
+        "10-21203-rs-3-rs-9546936-v1",
+        "10-3389-fphys-2022-873465"
+      ],
+      "body": "Selected publications:\n- 2026 — CD146⁺ endothelial and pericyte populations define a repair-associated neovascularization program in rheumatoid arthritis pannus\n- 2026 — Neovascularization in rheumatoid arthritis pannus is orchestrated by endothelial-pericyte signaling\n- 2022 — Role of progression of training volume on intramuscular adaptations in patients with chronic obstructive pulmonary disease"
+    }
+  ]
+}

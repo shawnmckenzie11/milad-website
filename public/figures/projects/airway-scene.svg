@@ -1,0 +1,341 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-labelledby="airwaySceneTitle airwaySceneDesc">
+  <title id="airwaySceneTitle">Inhale path from person to lung and systemic issues</title>
+  <desc id="airwaySceneDesc">
+    A clinical map of the inhale path: a person inhaling, inhaled agents (INs), lung issues,
+    downstream effects elsewhere in the body, and open airway methods as a research overlay.
+  </desc>
+  <defs>
+    <linearGradient id="personFill" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f4f6f7"/>
+      <stop offset="100%" stop-color="#e4eaee"/>
+    </linearGradient>
+    <linearGradient id="zoneFill" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#fafbfc"/>
+      <stop offset="100%" stop-color="#f2f5f7"/>
+    </linearGradient>
+    <marker id="arrowSoft" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 Z" fill="#9aa8b3"/>
+    </marker>
+    <marker id="arrowMuted" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 Z" fill="#b7c2ca"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="800" fill="transparent"/>
+  <rect x="32" y="28" width="1136" height="744" rx="4" fill="url(#zoneFill)" stroke="rgba(74,98,116,0.12)" stroke-width="1"/>
+
+  <!-- Zone captions -->
+  <g class="zone-labels" fill="#8a97a1" font-family="Montserrat, Segoe UI, sans-serif" font-size="11" font-weight="600" letter-spacing="0.1em">
+    <text x="110" y="56" text-anchor="middle">PERSON</text>
+    <text x="340" y="56" text-anchor="middle">INs</text>
+    <text x="620" y="56" text-anchor="middle">LUNG ISSUES</text>
+    <text x="920" y="56" text-anchor="middle">ELSEWHERE</text>
+    <text x="600" y="658" text-anchor="middle">METHODS</text>
+  </g>
+
+  <!-- Soft inhale path guide (non-interactive) -->
+  <g class="inhale-guide" fill="none" stroke="rgba(74,98,116,0.18)" stroke-width="1.25" stroke-linecap="round">
+    <path d="M168 250 C220 230 250 210 280 190"/>
+    <path d="M168 300 C230 300 260 300 290 300"/>
+    <path d="M168 350 C220 370 250 390 280 410"/>
+  </g>
+
+  <!-- Layer: edges -->
+  <g id="layer-edges" class="layer layer-edges" data-layer="edges" fill="none" stroke="#9aa8b3" stroke-width="1.5" stroke-linecap="round">
+    <g class="edge" data-edge-id="cannabis-antiviral" data-from="cannabis-smoke" data-to="antiviral-impairment">
+      <path d="M400 160 L540 160" marker-end="url(#arrowSoft)"/>
+      <text class="edge-label" x="470" y="150" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="11" fill="#8a97a1" opacity="0">enters</text>
+    </g>
+    <g class="edge" data-edge-id="cannabis-epithelial" data-from="cannabis-smoke" data-to="epithelial-disruption">
+      <path d="M400 180 C470 220 520 380 540 460" marker-end="url(#arrowSoft)"/>
+      <text class="edge-label" x="470" y="300" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="11" fill="#8a97a1" opacity="0">enters</text>
+    </g>
+    <g class="edge" data-edge-id="cigarette-neutrophil" data-from="cigarette-smoke" data-to="neutrophilic-inflammation">
+      <path d="M400 300 L540 320" marker-end="url(#arrowSoft)"/>
+      <text class="edge-label" x="470" y="300" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="11" fill="#8a97a1" opacity="0">enters</text>
+    </g>
+    <g class="edge" data-edge-id="cigarette-epithelial" data-from="cigarette-smoke" data-to="epithelial-disruption">
+      <path d="M400 320 C470 360 520 420 540 470" marker-end="url(#arrowSoft)"/>
+      <text class="edge-label" x="470" y="400" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="11" fill="#8a97a1" opacity="0">enters</text>
+    </g>
+    <g class="edge" data-edge-id="vape-epithelial" data-from="vape-aerosols" data-to="epithelial-disruption">
+      <path d="M400 440 L540 480" marker-end="url(#arrowSoft)"/>
+      <text class="edge-label" x="470" y="450" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="11" fill="#8a97a1" opacity="0">enters</text>
+    </g>
+    <g class="edge edge--context" data-edge-id="viruses-antiviral" data-from="viruses" data-to="antiviral-impairment" stroke="#b7c2ca">
+      <path d="M360 110 C450 110 500 140 540 150" marker-end="url(#arrowMuted)" stroke-dasharray="3 4"/>
+      <text class="edge-label" x="450" y="118" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="11" fill="#a8b3bc" opacity="0">enters</text>
+    </g>
+    <g class="edge edge--context" data-edge-id="bacteria-neutrophil" data-from="bacteria" data-to="neutrophilic-inflammation" stroke="#b7c2ca">
+      <path d="M360 530 C450 480 500 380 540 340" marker-end="url(#arrowMuted)" stroke-dasharray="3 4"/>
+      <text class="edge-label" x="450" y="470" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="11" fill="#a8b3bc" opacity="0">enters</text>
+    </g>
+    <g class="edge edge--context" data-edge-id="other-epithelial" data-from="other-airborne" data-to="epithelial-disruption" stroke="#b7c2ca">
+      <path d="M420 580 C480 560 520 520 550 500" marker-end="url(#arrowMuted)" stroke-dasharray="3 4"/>
+      <text class="edge-label" x="490" y="555" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="11" fill="#a8b3bc" opacity="0">enters</text>
+    </g>
+    <g class="edge" data-edge-id="antiviral-clinical" data-from="antiviral-impairment" data-to="clinical-outcomes">
+      <path d="M700 180 C780 220 820 400 850 470" marker-end="url(#arrowSoft)"/>
+      <text class="edge-label" x="780" y="300" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="11" fill="#8a97a1" opacity="0">leads to</text>
+    </g>
+    <g class="edge" data-edge-id="neutrophil-clinical" data-from="neutrophilic-inflammation" data-to="clinical-outcomes">
+      <path d="M700 340 C780 380 820 440 850 480" marker-end="url(#arrowSoft)"/>
+      <text class="edge-label" x="780" y="400" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="11" fill="#8a97a1" opacity="0">leads to</text>
+    </g>
+    <g class="edge" data-edge-id="epithelial-metabolic" data-from="epithelial-disruption" data-to="metabolic-hepatic">
+      <path d="M700 460 C780 360 820 220 850 180" marker-end="url(#arrowSoft)"/>
+      <text class="edge-label" x="780" y="300" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="11" fill="#8a97a1" opacity="0">leads to</text>
+    </g>
+    <g class="edge" data-edge-id="neutrophil-vascular" data-from="neutrophilic-inflammation" data-to="vascular-muscle">
+      <path d="M700 320 L850 320" marker-end="url(#arrowSoft)"/>
+      <text class="edge-label" x="775" y="310" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="11" fill="#8a97a1" opacity="0">leads to</text>
+    </g>
+    <g class="edge edge--studies" data-edge-id="methods-cannabis" data-from="airway-methods" data-to="cannabis-smoke" stroke="#b7c2ca" stroke-width="1.25">
+      <path d="M520 690 C420 620 360 280 350 200" stroke-dasharray="5 4" marker-end="url(#arrowMuted)"/>
+      <text class="edge-label" x="420" y="480" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="11" fill="#a8b3bc" opacity="0">studies</text>
+    </g>
+    <g class="edge edge--studies" data-edge-id="methods-cigarette" data-from="airway-methods" data-to="cigarette-smoke" stroke="#b7c2ca" stroke-width="1.25">
+      <path d="M560 690 C480 560 400 400 360 330" stroke-dasharray="5 4" marker-end="url(#arrowMuted)"/>
+      <text class="edge-label" x="460" y="530" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="11" fill="#a8b3bc" opacity="0">studies</text>
+    </g>
+    <g class="edge edge--studies" data-edge-id="methods-vape" data-from="airway-methods" data-to="vape-aerosols" stroke="#b7c2ca" stroke-width="1.25">
+      <path d="M600 690 C520 620 420 520 370 460" stroke-dasharray="5 4" marker-end="url(#arrowMuted)"/>
+      <text class="edge-label" x="500" y="600" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="11" fill="#a8b3bc" opacity="0">studies</text>
+    </g>
+    <g class="edge edge--studies" data-edge-id="methods-epithelial" data-from="airway-methods" data-to="epithelial-disruption" stroke="#b7c2ca" stroke-width="1.25">
+      <path d="M640 690 C640 620 630 540 620 510" stroke-dasharray="5 4" marker-end="url(#arrowMuted)"/>
+      <text class="edge-label" x="660" y="600" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="11" fill="#a8b3bc" opacity="0">studies</text>
+    </g>
+    <g class="edge edge--studies" data-edge-id="methods-neutrophil" data-from="airway-methods" data-to="neutrophilic-inflammation" stroke="#b7c2ca" stroke-width="1.25">
+      <path d="M680 690 C700 560 680 420 660 360" stroke-dasharray="5 4" marker-end="url(#arrowMuted)"/>
+      <text class="edge-label" x="710" y="540" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="11" fill="#a8b3bc" opacity="0">studies</text>
+    </g>
+  </g>
+
+  <!-- Layer: person -->
+  <g id="layer-person" class="layer layer-person" data-layer="person">
+    <g
+      class="hotspot"
+      data-node-id="person-inhale"
+      data-emphasis="primary"
+      role="button"
+      tabindex="0"
+      aria-label="Person inhaling: start of the inhale path"
+    >
+      <!-- Clinical silhouette facing right -->
+      <ellipse cx="110" cy="168" rx="28" ry="32" fill="url(#personFill)" stroke="#4a6274" stroke-width="1.75"/>
+      <path
+        d="M110 200
+           C78 210 62 250 64 300
+           C66 360 74 420 82 470
+           L98 470 L98 360
+           L122 360 L122 470 L138 470
+           C146 420 154 360 156 300
+           C158 250 142 210 110 200 Z"
+        fill="url(#personFill)"
+        stroke="#4a6274"
+        stroke-width="1.75"
+      />
+      <!-- Inhale breath marks -->
+      <g fill="none" stroke="#4a6274" stroke-width="1.5" stroke-linecap="round" opacity="0.55">
+        <path d="M142 175 C158 168 172 162 186 158"/>
+        <path d="M144 188 C162 184 178 180 194 178"/>
+        <path d="M142 201 C158 200 174 200 190 202"/>
+      </g>
+      <text x="110" y="510" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="12" font-weight="600" fill="#4a6274" letter-spacing="0.04em">Inhaling</text>
+    </g>
+  </g>
+
+  <!-- Layer: INs -->
+  <g id="layer-ins" class="layer layer-ins" data-layer="ins">
+    <g
+      class="hotspot hotspot--context"
+      data-node-id="viruses"
+      data-emphasis="context"
+      role="button"
+      tabindex="0"
+      aria-label="Viruses: field-relevant inhaled agents"
+    >
+      <circle cx="300" cy="90" r="36" fill="#f7f8f9" stroke="#9aa8b3" stroke-width="1.25" stroke-dasharray="3 3"/>
+      <text x="300" y="94" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="12" font-weight="600" fill="#8a97a1">Viruses</text>
+    </g>
+
+    <g
+      class="hotspot"
+      data-node-id="cannabis-smoke"
+      data-emphasis="primary"
+      role="button"
+      tabindex="0"
+      aria-label="Cannabis smoke"
+    >
+      <circle cx="340" cy="160" r="48" fill="#ffffff" stroke="#4a6274" stroke-width="1.75"/>
+      <circle cx="340" cy="160" r="40" fill="none" stroke="rgba(74,98,116,0.15)" stroke-width="1"/>
+      <text x="340" y="154" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="13" font-weight="600" fill="#4a6274">Cannabis</text>
+      <text x="340" y="172" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="11" fill="#8a97a1">smoke</text>
+    </g>
+
+    <g
+      class="hotspot"
+      data-node-id="cigarette-smoke"
+      data-emphasis="primary"
+      role="button"
+      tabindex="0"
+      aria-label="Cigarette smoke"
+    >
+      <circle cx="340" cy="300" r="48" fill="#ffffff" stroke="#4a6274" stroke-width="1.75"/>
+      <circle cx="340" cy="300" r="40" fill="none" stroke="rgba(74,98,116,0.15)" stroke-width="1"/>
+      <text x="340" y="294" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="13" font-weight="600" fill="#4a6274">Cigarette</text>
+      <text x="340" y="312" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="11" fill="#8a97a1">smoke</text>
+    </g>
+
+    <g
+      class="hotspot"
+      data-node-id="vape-aerosols"
+      data-emphasis="primary"
+      role="button"
+      tabindex="0"
+      aria-label="Vape aerosols"
+    >
+      <circle cx="340" cy="440" r="48" fill="#ffffff" stroke="#4a6274" stroke-width="1.75"/>
+      <circle cx="340" cy="440" r="40" fill="none" stroke="rgba(74,98,116,0.15)" stroke-width="1"/>
+      <text x="340" y="434" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="13" font-weight="600" fill="#4a6274">Vape</text>
+      <text x="340" y="452" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="11" fill="#8a97a1">aerosols</text>
+    </g>
+
+    <g
+      class="hotspot hotspot--context"
+      data-node-id="bacteria"
+      data-emphasis="context"
+      role="button"
+      tabindex="0"
+      aria-label="Bacteria: field-relevant inhaled agents"
+    >
+      <circle cx="300" cy="540" r="36" fill="#f7f8f9" stroke="#9aa8b3" stroke-width="1.25" stroke-dasharray="3 3"/>
+      <text x="300" y="544" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="12" font-weight="600" fill="#8a97a1">Bacteria</text>
+    </g>
+
+    <g
+      class="hotspot hotspot--context"
+      data-node-id="other-airborne"
+      data-emphasis="context"
+      role="button"
+      tabindex="0"
+      aria-label="Other airborne exposures"
+    >
+      <circle cx="400" cy="580" r="34" fill="#f7f8f9" stroke="#9aa8b3" stroke-width="1.25" stroke-dasharray="3 3"/>
+      <text x="400" y="576" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="11" font-weight="600" fill="#8a97a1">Other</text>
+      <text x="400" y="590" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="10" fill="#a8b3bc">airborne</text>
+    </g>
+  </g>
+
+  <!-- Layer: lung issues -->
+  <g id="layer-lung-issues" class="layer layer-lung-issues" data-layer="lung-issues">
+    <g
+      class="hotspot"
+      data-node-id="antiviral-impairment"
+      data-emphasis="primary"
+      role="button"
+      tabindex="0"
+      aria-label="Antiviral impairment"
+    >
+      <rect x="545" y="118" width="150" height="84" rx="2" fill="#ffffff" stroke="#4a6274" stroke-width="1.75"/>
+      <text x="620" y="150" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="13" font-weight="600" fill="#4a6274">Antiviral</text>
+      <text x="620" y="170" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="13" font-weight="600" fill="#4a6274">impairment</text>
+    </g>
+
+    <g
+      class="hotspot"
+      data-node-id="neutrophilic-inflammation"
+      data-emphasis="primary"
+      role="button"
+      tabindex="0"
+      aria-label="Neutrophilic inflammation"
+    >
+      <rect x="545" y="278" width="150" height="84" rx="2" fill="#ffffff" stroke="#4a6274" stroke-width="1.75"/>
+      <text x="620" y="310" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="13" font-weight="600" fill="#4a6274">Neutrophilic</text>
+      <text x="620" y="330" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="13" font-weight="600" fill="#4a6274">inflammation</text>
+    </g>
+
+    <g
+      class="hotspot"
+      data-node-id="epithelial-disruption"
+      data-emphasis="primary"
+      role="button"
+      tabindex="0"
+      aria-label="Epithelial and surfactant disruption"
+    >
+      <rect x="545" y="438" width="150" height="84" rx="2" fill="#ffffff" stroke="#4a6274" stroke-width="1.75"/>
+      <text x="620" y="468" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="13" font-weight="600" fill="#4a6274">Epithelial /</text>
+      <text x="620" y="488" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="13" font-weight="600" fill="#4a6274">surfactant</text>
+    </g>
+  </g>
+
+  <!-- Layer: systemic / elsewhere -->
+  <g id="layer-systemic" class="layer layer-systemic" data-layer="systemic">
+    <g
+      class="hotspot"
+      data-node-id="metabolic-hepatic"
+      data-emphasis="primary"
+      role="button"
+      tabindex="0"
+      aria-label="Metabolic and hepatic effects"
+    >
+      <rect x="850" y="118" width="150" height="84" rx="2" fill="#f4f6f7" stroke="#4a6274" stroke-width="1.75"/>
+      <text x="925" y="150" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="13" font-weight="600" fill="#3d5160">Metabolic /</text>
+      <text x="925" y="170" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="13" font-weight="600" fill="#3d5160">hepatic</text>
+    </g>
+
+    <g
+      class="hotspot"
+      data-node-id="vascular-muscle"
+      data-emphasis="primary"
+      role="button"
+      tabindex="0"
+      aria-label="Vascular and muscle effects"
+    >
+      <rect x="850" y="278" width="150" height="84" rx="2" fill="#f4f6f7" stroke="#4a6274" stroke-width="1.75"/>
+      <text x="925" y="310" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="13" font-weight="600" fill="#3d5160">Vascular–</text>
+      <text x="925" y="330" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="13" font-weight="600" fill="#3d5160">muscle</text>
+    </g>
+
+    <g
+      class="hotspot"
+      data-node-id="clinical-outcomes"
+      data-emphasis="primary"
+      role="button"
+      tabindex="0"
+      aria-label="Clinical respiratory outcomes"
+    >
+      <rect x="850" y="438" width="150" height="84" rx="2" fill="#f4f6f7" stroke="#4a6274" stroke-width="1.75"/>
+      <text x="925" y="468" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="13" font-weight="600" fill="#3d5160">Clinical</text>
+      <text x="925" y="488" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="13" font-weight="600" fill="#3d5160">outcomes</text>
+    </g>
+  </g>
+
+  <!-- Layer: methods overlay (bottom strip) -->
+  <g id="layer-methods" class="layer layer-methods" data-layer="methods">
+    <g
+      class="hotspot"
+      data-node-id="airway-methods"
+      data-emphasis="primary"
+      role="button"
+      tabindex="0"
+      aria-label="Open airway methods"
+    >
+      <rect x="360" y="672" width="480" height="72" rx="2" fill="#ffffff" stroke="#4a6274" stroke-width="1.75"/>
+      <path
+        d="M390 708
+           L402 690
+           L426 690
+           L438 708
+           L426 726
+           L402 726 Z"
+        fill="none"
+        stroke="#4a6274"
+        stroke-width="1.25"
+      />
+      <text x="620" y="700" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="14" font-weight="600" fill="#4a6274">Open airway methods</text>
+      <text x="620" y="720" text-anchor="middle" font-family="Montserrat, Segoe UI, sans-serif" font-size="11" fill="#8a97a1">how we study the path</text>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,48 @@
+---
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+import { site } from '../lib/site';
+import '../styles/global.css';
+
+interface Props {
+	title?: string;
+	description?: string;
+	narrow?: boolean;
+}
+
+const {
+	title,
+	description = `${site.name} — ${site.affiliation}. ${site.researchFocus}.`,
+	narrow = false,
+} = Astro.props;
+
+const pageTitle = title ? `${title} · Milad Lab` : `Milad Lab · ${site.affiliation}`;
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<link rel="icon" href="/favicon.ico" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="generator" content={Astro.generator} />
+		<meta name="description" content={description} />
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap"
+			rel="stylesheet"
+		/>
+		<title>{pageTitle}</title>
+	</head>
+	<body>
+		<div class="site-shell">
+			<Nav />
+			<main class:list={['site-main', { narrow }]}>
+				<slot />
+			</main>
+			<Footer />
+		</div>
+	</body>
+</html>

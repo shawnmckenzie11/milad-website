@@ -1,0 +1,44 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout>
+	<section class="hero fade-in">
+		<img
+			class="hero__banner"
+			src="/images/milad-lab-banner.jpg"
+			alt="Milad Lab, University of Ottawa"
+			width="1024"
+			height="455"
+		/>
+		<div class="cta-row fade-in-delay">
+			<a class="btn btn-primary" href="/publications">Publications</a>
+			<a class="btn btn-secondary" href="/projects">Current projects</a>
+			<a class="btn btn-secondary" href="/join">Join the lab</a>
+		</div>
+	</section>
+</BaseLayout>
+
+<style>
+	.hero {
+		min-height: calc(100vh - 11rem);
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		padding: var(--space-lg) 0 var(--space-xl);
+		max-width: min(100%, 52rem);
+	}
+
+	.hero__banner {
+		width: 100%;
+		height: auto;
+		margin: 0 0 var(--space-lg);
+	}
+
+	@media (max-width: 640px) {
+		.hero {
+			min-height: auto;
+			padding-top: var(--space-md);
+		}
+	}
+</style>
