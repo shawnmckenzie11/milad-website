@@ -1,0 +1,32 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import LungHealthVisual from '../components/LungHealthVisual';
+import { site } from '../lib/site';
+
+const description = `Interactive exposure-pathway visualization for research programs led by ${site.name}.`;
+---
+
+<BaseLayout title="Visualization" description={description}>
+	<header class="page-header fade-in">
+		<p class="eyebrow">Research pathways</p>
+		<h1>Visualization</h1>
+		<p class="lede">
+			Explore how outdoor exposures connect to lung health themes in the lab’s peer-reviewed
+			research.
+		</p>
+	</header>
+
+	<section class="viz-section fade-in-delay" aria-label="Lung health pathways">
+		<LungHealthVisual client:load />
+	</section>
+</BaseLayout>
+
+<style>
+	.page-header {
+		margin-bottom: var(--space-lg);
+	}
+
+	.viz-section {
+		margin-top: var(--space-md);
+	}
+</style>
