@@ -39,6 +39,28 @@ export interface LungHealthPathway {
 	notes?: string;
 }
 
+/** Percentage-based bubble hotspot over the outdoor scene image. */
+export interface LungHealthHotspotLayout {
+	/** Pathway this bubble activates. */
+	id: LungHealthPathwayId;
+	/** Bubble center x as % of image width. */
+	x: number;
+	/** Bubble center y as % of image height. */
+	y: number;
+	/** Bubble diameter as % of image width. */
+	size: number;
+}
+
+/** Outdoor scene asset and interactive bubble layout for Phase 1. */
+export interface LungHealthScene {
+	/** Public path to the authored Ottawa outdoor scene. */
+	imageSrc: string;
+	/** Accessible description of the scene image. */
+	imageAlt: string;
+	/** Clickable/keyboard bubbles aligned to artwork callouts. */
+	hotspots: LungHealthHotspotLayout[];
+}
+
 /** Structured content for the lung-health visualization. */
 export interface LungHealthVisualContent {
 	/** Current build phase reflected by shipped UI. */
@@ -47,6 +69,8 @@ export interface LungHealthVisualContent {
 	placement: LungHealthPlacement;
 	/** Scene framing for the outdoor Ottawa intake (Phase 1+). */
 	sceneSummary: string;
+	/** Outdoor scene image + bubble hotspot layout. */
+	scene: LungHealthScene;
 	/** Locked pathways in display order. */
 	pathways: LungHealthPathway[];
 	/**
@@ -68,6 +92,19 @@ export const lungHealthVisual: LungHealthVisualContent = {
 	},
 	sceneSummary:
 		'A person stands outdoors in Ottawa. Five exposure pathways lead into one shared schematic lung/airway cutaway.',
+	scene: {
+		imageSrc: '/images/initial-scene.png',
+		imageAlt:
+			'Person overlooking Parliament Hill in Ottawa in autumn, with five circular exposure callouts for cannabis, cigarette smoke, vaping, air pollution, and viruses.',
+		// Percent positions tuned to the bubble callouts in initial-scene.png.
+		hotspots: [
+			{ id: 'cannabis', x: 16.5, y: 24, size: 15.5 },
+			{ id: 'cigarette', x: 15.5, y: 78, size: 15.5 },
+			{ id: 'vaping', x: 58, y: 16, size: 15.5 },
+			{ id: 'air', x: 86.5, y: 20, size: 15.5 },
+			{ id: 'viruses', x: 83.5, y: 78.5, size: 15.5 },
+		],
+	},
 	pathways: [
 		{
 			id: 'cannabis',

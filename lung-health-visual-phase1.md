@@ -12,7 +12,8 @@ Static outdoor Ottawa scene + five hotspots (placeholder shapes), caption panel 
 - Build one React island (`client:load`), e.g. `src/components/LungHealthVisual.tsx`.
 - Drive labels/captions from `lungHealthVisual` data — no hardcoded pathway copy in JSX.
 - Mount on `/visualization` (nav tab) for Phase 1 review. Placement field in the data file tracks this temporary review route.
-- Asset strategy for Phase 1: hand-built SVG placeholders + CSS scene (no AI art). Propose Phase 2–3 cutaway/highlight asset strategy before generating final art.
+- Outdoor scene asset: `public/images/initial-scene.png` (copy from local `Initial Scene.png` via `scripts/use-initial-scene.sh`). Bubble callouts are the clickable/keyboard hotspots.
+- Propose Phase 2–3 cutaway/highlight asset strategy before generating final anatomy art.
 - Keyboard focusable hotspots; selected pathway shows its locked caption beside/below the scene.
 - No shared lung cutaway, no zoom transition, no methods layer (Phases 2–4).
 
