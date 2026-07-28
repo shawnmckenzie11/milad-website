@@ -1,0 +1,93 @@
+{
+  "annotations": [
+    {
+      "id": "B3:545:884",
+      "code": "B3",
+      "cx": 545,
+      "cy": 884,
+      "score": 0.82,
+      "label": "confirmed",
+      "reassignedCode": null,
+      "note": "smoke",
+      "updatedAt": "2026-07-28T05:49:03.080Z"
+    },
+    {
+      "id": "A1:515:60.5",
+      "code": "A1",
+      "cx": 515,
+      "cy": 60.5,
+      "score": 0.45278292894363403,
+      "label": "false-positive",
+      "reassignedCode": null,
+      "note": "",
+      "updatedAt": "2026-07-28T06:30:40.002Z"
+    },
+    {
+      "id": "B9:630:102",
+      "code": "B9",
+      "cx": 630,
+      "cy": 102,
+      "score": 0.9326056838035583,
+      "label": "confirmed",
+      "reassignedCode": null,
+      "note": "",
+      "updatedAt": "2026-07-28T05:53:42.045Z"
+    },
+    {
+      "id": "A2:300.5:90.5",
+      "code": "A2",
+      "cx": 300.5,
+      "cy": 90.5,
+      "score": 0.5096397399902344,
+      "label": "false-positive",
+      "reassignedCode": null,
+      "note": "",
+      "updatedAt": "2026-07-28T06:30:27.341Z"
+    },
+    {
+      "id": "B5:711.5:334",
+      "code": "B5",
+      "cx": 711.5,
+      "cy": 334,
+      "score": 0.7130800485610962,
+      "label": "confirmed",
+      "reassignedCode": null,
+      "note": "",
+      "updatedAt": "2026-07-28T05:54:25.843Z"
+    },
+    {
+      "id": "B3:508.5:800.5",
+      "code": "B3",
+      "cx": 508.5,
+      "cy": 800.5,
+      "score": 0.85,
+      "label": "confirmed",
+      "reassignedCode": null,
+      "note": "smoke",
+      "updatedAt": "2026-07-28T06:29:20.504Z"
+    },
+    {
+      "id": "A2:690.5:248.5",
+      "code": "A2",
+      "cx": 690.5,
+      "cy": 248.5,
+      "score": 0.5116947889328003,
+      "label": "false-positive",
+      "reassignedCode": null,
+      "note": "",
+      "updatedAt": "2026-07-28T06:30:17.368Z"
+    },
+    {
+      "id": "A1:513.3:64.2",
+      "code": "A1",
+      "cx": 513.3,
+      "cy": 64.2,
+      "score": 0.45278292894363403,
+      "label": "false-positive",
+      "reassignedCode": null,
+      "note": "",
+      "updatedAt": "2026-07-28T06:31:43.056Z"
+    }
+  ],
+  "updatedAt": "2026-07-28T06:31:43.056Z"
+}

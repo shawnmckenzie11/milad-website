@@ -11,6 +11,13 @@
     "preview": "astro preview",
     "astro": "astro",
     "sync:research": "node scripts/sync-research.mjs",
+    "lung:validate-layers": "node scripts/generate-lung-cutaway.mjs --validate",
+    "lung:generate": "node scripts/generate-lung-cutaway.mjs",
+    "lung:extract-legend": "node scripts/run-lung-python.mjs scripts/lung_legend_observability.py --extract-only",
+    "lung:classify-legend": "node scripts/run-lung-python.mjs scripts/lung_legend_observability.py --self-test",
+    "lung:findings": "node scripts/run-lung-python.mjs scripts/lung_findings_db.py",
+    "lung:lab": "npm --prefix tools/lung-legend-lab start",
+    "lung:lab:install": "npm --prefix tools/lung-legend-lab install",
     "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
@@ -23,6 +30,8 @@
   "devDependencies": {
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "sharp": "^0.35.3",
+    "svgo": "^4.0.0",
     "wrangler": "^4.114.0"
   }
 }

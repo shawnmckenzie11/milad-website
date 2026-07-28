@@ -1,0 +1,58 @@
+---
+/**
+ * Static SSR placeholder shown while the LungHealthVisual React island loads.
+ * Matches outdoor stage aspect so layout does not shift.
+ */
+import '../components/LungHealthVisual.css';
+import { lungHealthVisual } from '../data/lungHealthVisual';
+
+const { scene, transition } = lungHealthVisual;
+---
+
+<div class="lhv lhv--placeholder" aria-busy="true" aria-label="Loading lung health pathways">
+	<div class="lhv__layout">
+		<figure class="lhv__scene">
+			<div
+				class="lhv__stage"
+				style={`aspect-ratio: ${transition.outdoorStageAspect}; background-color: ${transition.backgroundOutdoor}`}
+			>
+				<img
+					class="lhv__image"
+					src={scene.imageSrc}
+					alt={scene.imageAlt}
+					width={1536}
+					height={1024}
+					decoding="async"
+					draggable={false}
+				/>
+			</div>
+		</figure>
+		<aside class="lhv__panel">
+			<div class="lhv__panel-card">
+				<p class="lhv__panel-eyebrow">Exposure pathway</p>
+				<h2 class="lhv__panel-title">Select a pathway</h2>
+				<p class="lhv__panel-caption">
+					Hover a source to preview the related research program, then click to explore
+					the airway cutaway.
+				</p>
+			</div>
+		</aside>
+	</div>
+</div>
+
+<style>
+	.lhv--placeholder .lhv__image {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		object-fit: fill;
+		pointer-events: none;
+	}
+
+	.lhv--placeholder .lhv__stage {
+		position: relative;
+		width: 100%;
+		overflow: hidden;
+	}
+</style>

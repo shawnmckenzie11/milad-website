@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+  viewBox="0 0 1024 953" width="1024" height="953"
+  role="img" aria-labelledby="cutawayTitle">
+  <title id="cutawayTitle">Lung and airway cutaway</title>
+  <circle id="cutaway-entry-anchor" cx="512" cy="48" r="1" fill="none" aria-hidden="true"/>
+  <defs><clipPath id="clip-trachea-conducting-airway-0"><path d="M 468 36 L 556 36 L 562 208 L 462 208 Z"/></clipPath>
+<clipPath id="clip-bronchial-branches-0"><path d="M 448 200 L 576 200 L 620 280 L 780 420 L 840 520 L 720 560 L 640 480 L 512 320 L 384 480 L 304 560 L 184 520 L 244 420 L 404 280 Z"/></clipPath>
+<clipPath id="clip-alveolar-fields-0"><path d="M 20 748 A 128 158 0 1 0 276 748 A 128 158 0 1 0 20 748 Z"/></clipPath>
+<clipPath id="clip-alveolar-fields-1"><path d="M 744 708 A 132 168 0 1 0 1008 708 A 132 168 0 1 0 744 708 Z"/></clipPath>
+<clipPath id="clip-airway-lumen-0"><path d="M 670 178 A 148 148 0 1 0 966 178 A 148 148 0 1 0 670 178 Z"/></clipPath>
+<clipPath id="clip-airway-lumen-1"><path d="M 488 48 L 536 48 L 536 188 L 488 188 Z"/></clipPath>
+<clipPath id="clip-airway-epithelium-0"><path d="M 698 228 L 938 228 L 928 278 L 708 278 Z"/></clipPath>
+<clipPath id="clip-airway-immune-compartment-0"><path d="M 688 278 L 948 278 L 938 338 L 698 338 Z"/></clipPath>
+<clipPath id="clip-airway-immune-compartment-1"><path d="M 318 380 L 388 380 L 378 430 L 308 430 Z"/></clipPath>
+<clipPath id="clip-airway-immune-compartment-2"><path d="M 636 380 L 706 380 L 696 430 L 626 430 Z"/></clipPath>
+<clipPath id="clip-neutrophils-0"><path d="M 740 302 A 38 32 0 1 0 816 302 A 38 32 0 1 0 740 302 Z"/></clipPath>
+<clipPath id="clip-neutrophils-1"><path d="M 400 748 A 28 24 0 1 0 456 748 A 28 24 0 1 0 400 748 Z"/></clipPath>
+<clipPath id="clip-alveolar-macrophages-0"><path d="M 434 778 A 34 30 0 1 0 502 778 A 34 30 0 1 0 434 778 Z"/></clipPath>
+<clipPath id="clip-alveolar-macrophages-1"><path d="M 520 812 A 28 26 0 1 0 576 812 A 28 26 0 1 0 520 812 Z"/></clipPath>
+<clipPath id="clip-dendritic-cells-0"><path d="M 820 318 A 42 38 0 1 0 904 318 A 42 38 0 1 0 820 318 Z"/></clipPath>
+<clipPath id="clip-dendritic-cells-1"><path d="M 352 728 A 36 32 0 1 0 424 728 A 36 32 0 1 0 352 728 Z"/></clipPath>
+<clipPath id="clip-antiviral-immune-mediators-0"><path d="M 710 98 L 930 98 L 920 218 L 720 218 Z"/></clipPath>
+<clipPath id="clip-inflammatory-signaling-0"><path d="M 318 668 L 688 668 L 678 848 L 328 848 Z"/></clipPath>
+<clipPath id="clip-copd-inflammatory-structures-0"><path d="M 420 488 L 604 488 L 594 628 L 430 628 Z"/></clipPath>
+<clipPath id="clip-copd-inflammatory-structures-1"><path d="M 196 588 A 52 44 0 1 0 300 588 A 52 44 0 1 0 196 588 Z"/></clipPath>
+<clipPath id="clip-copd-inflammatory-structures-2"><path d="M 724 568 A 52 44 0 1 0 828 568 A 52 44 0 1 0 724 568 Z"/></clipPath>
+<clipPath id="clip-infection-antiviral-pathway-0"><path d="M 728 108 L 868 108 L 858 198 L 738 198 Z"/></clipPath></defs>
+  <g id="layer-composite-base">
+    <image href="/figures/lung-health/cutaway-neutral.png" width="1024" height="953" preserveAspectRatio="none"/>
+  </g>
+  <g id="layer-trachea-conducting-airway" data-group="base" clip-path="url(#clip-trachea-conducting-airway-0)">
+          <image href="/figures/lung-health/cutaway-neutral.png" width="1024" height="953" preserveAspectRatio="none"/>
+        </g>
+<g id="layer-bronchial-branches" data-group="base" clip-path="url(#clip-bronchial-branches-0)">
+          <image href="/figures/lung-health/cutaway-neutral.png" width="1024" height="953" preserveAspectRatio="none"/>
+        </g>
+<g id="layer-alveolar-fields" data-group="base" clip-path="url(#clip-alveolar-fields-0)">
+          <image href="/figures/lung-health/cutaway-neutral.png" width="1024" height="953" preserveAspectRatio="none"/>
+        </g>
+<g id="layer-airway-lumen" data-group="base" clip-path="url(#clip-airway-lumen-0)">
+          <image href="/figures/lung-health/cutaway-neutral.png" width="1024" height="953" preserveAspectRatio="none"/>
+        </g>
+  <g id="layer-airway-epithelium" data-group="highlight" clip-path="url(#clip-airway-epithelium-0)">
+          <image href="/figures/lung-health/cutaway-neutral.png" width="1024" height="953" preserveAspectRatio="none"/>
+        </g>
+<g id="layer-airway-immune-compartment" data-group="highlight" clip-path="url(#clip-airway-immune-compartment-0), url(#clip-airway-immune-compartment-1), url(#clip-airway-immune-compartment-2)">
+          <image href="/figures/lung-health/cutaway-neutral.png" width="1024" height="953" preserveAspectRatio="none"/>
+        </g>
+<g id="layer-neutrophils" data-group="highlight" clip-path="url(#clip-neutrophils-0), url(#clip-neutrophils-1)">
+          <image href="/figures/lung-health/cutaway-neutral.png" width="1024" height="953" preserveAspectRatio="none"/>
+        </g>
+<g id="layer-alveolar-macrophages" data-group="highlight" clip-path="url(#clip-alveolar-macrophages-0), url(#clip-alveolar-macrophages-1)">
+          <image href="/figures/lung-health/cutaway-neutral.png" width="1024" height="953" preserveAspectRatio="none"/>
+        </g>
+<g id="layer-dendritic-cells" data-group="highlight" clip-path="url(#clip-dendritic-cells-0), url(#clip-dendritic-cells-1)">
+          <image href="/figures/lung-health/cutaway-neutral.png" width="1024" height="953" preserveAspectRatio="none"/>
+        </g>
+<g id="layer-antiviral-immune-mediators" data-group="highlight" clip-path="url(#clip-antiviral-immune-mediators-0)">
+          <image href="/figures/lung-health/cutaway-neutral.png" width="1024" height="953" preserveAspectRatio="none"/>
+        </g>
+<g id="layer-inflammatory-signaling" data-group="highlight" clip-path="url(#clip-inflammatory-signaling-0)">
+          <image href="/figures/lung-health/cutaway-neutral.png" width="1024" height="953" preserveAspectRatio="none"/>
+        </g>
+<g id="layer-copd-inflammatory-structures" data-group="highlight" clip-path="url(#clip-copd-inflammatory-structures-0), url(#clip-copd-inflammatory-structures-1), url(#clip-copd-inflammatory-structures-2)">
+          <image href="/figures/lung-health/cutaway-neutral.png" width="1024" height="953" preserveAspectRatio="none"/>
+        </g>
+<g id="layer-infection-antiviral-pathway" data-group="highlight" clip-path="url(#clip-infection-antiviral-pathway-0)">
+          <image href="/figures/lung-health/cutaway-neutral.png" width="1024" height="953" preserveAspectRatio="none"/>
+        </g>
+</svg>

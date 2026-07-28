@@ -1,0 +1,25 @@
+{
+  "name": "lung-legend-lab",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Maintainer-only UI for lung legend extract / classify / template-match",
+  "scripts": {
+    "dev": "concurrently -k -n api,ui -c teal,cyan \"node server/index.mjs\" \"vite\"",
+    "start": "npm run dev",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.0.0",
+    "concurrently": "^9.2.0",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.0"
+  }
+}

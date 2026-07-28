@@ -104,12 +104,38 @@ export interface LungHealthTransitionArc {
 	endY: number;
 }
 
-/** Motion parameters for the outdoor → cutaway camera (Phase 2). */
+/** Per-phase durations for the cinematic outdoor → cutaway transition. */
+export interface LungHealthPhaseDurations {
+	/** Bubble focus toward clicked hotspot (seconds). */
+	bubbleFocusSec: number;
+	/** Bezier travel from bubble to nose portal (seconds). */
+	travelSec: number;
+	/** Expanding circular portal at the nose (seconds). */
+	portalSec: number;
+	/** Cutaway scale-in from trachea entry anchor (seconds). */
+	cutawayRevealSec: number;
+}
+
+/** Motion parameters for the outdoor → cutaway camera (Phase 2+). */
 export interface LungHealthTransition {
-	/** Zoom/crossfade duration in seconds. */
+	/** @deprecated Use `phases` total; kept for backward-compatible panel timing. */
 	durationSec: number;
+	/** Per-phase cinematic durations (~2.0s total forward). */
+	phases: LungHealthPhaseDurations;
 	/** Outdoor scale factor when exiting toward the subject zoom focus. */
 	outdoorZoomScale: number;
+	/** Scale at end of bubble-focus phase. */
+	bubbleFocusScale: number;
+	/** Initial cutaway scale at portal handoff. */
+	cutawayRevealStartScale: number;
+	/** Portal mask radius at nose before expansion (% of stage min dimension). */
+	portalStartRadiusPercent: number;
+	/** Portal mask radius when fully open (% of stage min dimension). */
+	portalMaxRadiusPercent: number;
+	/** Outdoor stage background at rest. */
+	backgroundOutdoor: string;
+	/** Cutaway stage background at rest. */
+	backgroundCutaway: string;
 	/** Arc drifts applied while scaling into the subject’s nose. */
 	arc: LungHealthTransitionArc;
 	/**
@@ -182,9 +208,20 @@ export const lungHealthVisual: LungHealthVisualContent = {
 		height: 953,
 	},
 	transition: {
-		// 1.2s zoom into the face + 0.3s hold/fade.
-		durationSec: 1.5,
-		outdoorZoomScale: 3.15,
+		durationSec: 2.0,
+		phases: {
+			bubbleFocusSec: 0.4,
+			travelSec: 0.6,
+			portalSec: 0.5,
+			cutawayRevealSec: 0.5,
+		},
+		outdoorZoomScale: 2.8,
+		bubbleFocusScale: 1.18,
+		cutawayRevealStartScale: 0.3,
+		portalStartRadiusPercent: 4,
+		portalMaxRadiusPercent: 150,
+		backgroundOutdoor: '#d7e4ef',
+		backgroundCutaway: '#f4f6f7',
 		// Curves from a wider framing inward toward the nose.
 		arc: {
 			midX: 1.8,

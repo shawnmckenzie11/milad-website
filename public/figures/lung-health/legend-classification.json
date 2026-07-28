@@ -1,0 +1,140 @@
+{
+  "source": "public/figures/lung-health/Lung Cutaway Legend Template.png",
+  "guidelines": "Observability of mask — how clearly a legend glyph can be found in the cutaway:\n\n1. Top tier (obvious to see; find with high confidence first):\n   Exact legend replicas in the diagram. (A structure may match the legend\n   exactly but still be absent from the figure — do not search those.)\n\n2. Middle tier (eventually find; not 100% replicas):\n   - Explicitly present marks (mediators / signaling clusters)\n   - Structures that appear as adjacent multiples in the legend but may show\n     in the diagram as individuals or a long row (~70% similarity to neighbors)\n\n3. Lowest tier (present but very difficult to identify accurately):\n   - Fractal / scale continuations of a larger parent structure\n   - Large fields that greatly differ in scale and are <60% similar to the glyph\n\n4. Not properly diagrammed in the legend (or absent from the figure):\n   Do not search.",
+  "subTierHelp": {
+    "exact-replica": "Tier 1 — shows exactly as in the legend; searchable with high confidence",
+    "exact-replica-absent": "Tier 1 style but not present in the diagram → treat as non-searchable",
+    "explicitly-present": "Tier 2 — mark is explicitly present (not a perfect cell replica)",
+    "partial-neighbor-similarity": "Tier 2 — legend shows adjacent multiples; diagram may show individuals/rows (~70% similarity)",
+    "fractal-scale-continuation": "Tier 3 — parent structure 'turns into' these at larger scale",
+    "scale-divergent-low-similarity": "Tier 3 — greatly differs in scale and <60% glyph similarity",
+    "not-diagrammed-in-legend": "Tier 0 — not properly diagrammed; do not search",
+    "absent-from-figure": "Tier 0 — may look exact in the legend but is not in the cutaway; do not search"
+  },
+  "iconInterpretationHelp": {
+    "1-discrete": "Single glyph in the legend row — crop one template",
+    "2-discrete": "Two different glyph types side-by-side in one legend icon — crop each independently and search both (union outlines)",
+    "multiple-adjacent-as-one": "Adjacent multiples treated as one template (tier-2 style like A1/B1)"
+  },
+  "classifications": {
+    "A1": {
+      "tier": 2,
+      "subTier": "partial-neighbor-similarity",
+      "iconInterpretation": "multiple-adjacent-as-one",
+      "searchable": true,
+      "group": "base",
+      "slug": "trachea-conducting-airway",
+      "note": null
+    },
+    "A2": {
+      "tier": 3,
+      "subTier": "fractal-scale-continuation",
+      "iconInterpretation": "multiple-adjacent-as-one",
+      "searchable": true,
+      "group": "base",
+      "slug": "bronchial-branches",
+      "note": null
+    },
+    "A3": {
+      "tier": 3,
+      "subTier": "scale-divergent-low-similarity",
+      "iconInterpretation": "multiple-adjacent-as-one",
+      "searchable": true,
+      "group": "base",
+      "slug": "alveolar-fields",
+      "note": null
+    },
+    "A4": {
+      "tier": 0,
+      "subTier": "not-diagrammed-in-legend",
+      "iconInterpretation": "1-discrete",
+      "searchable": false,
+      "group": "base",
+      "slug": "airway-lumen",
+      "note": null
+    },
+    "B1": {
+      "tier": 2,
+      "subTier": "partial-neighbor-similarity",
+      "iconInterpretation": "multiple-adjacent-as-one",
+      "searchable": true,
+      "group": "highlight",
+      "slug": "airway-epithelium",
+      "note": null
+    },
+    "B2": {
+      "tier": 0,
+      "subTier": "not-diagrammed-in-legend",
+      "iconInterpretation": "1-discrete",
+      "searchable": false,
+      "group": "highlight",
+      "slug": "airway-immune-compartment",
+      "note": null
+    },
+    "B3": {
+      "tier": 1,
+      "subTier": "exact-replica",
+      "iconInterpretation": "1-discrete",
+      "searchable": true,
+      "group": "highlight",
+      "slug": "neutrophils",
+      "note": null
+    },
+    "B4": {
+      "tier": 1,
+      "subTier": "exact-replica",
+      "iconInterpretation": "1-discrete",
+      "searchable": true,
+      "group": "highlight",
+      "slug": "alveolar-macrophages",
+      "note": null
+    },
+    "B5": {
+      "tier": 1,
+      "subTier": "exact-replica",
+      "iconInterpretation": "1-discrete",
+      "searchable": true,
+      "group": "highlight",
+      "slug": "dendritic-cells",
+      "note": null
+    },
+    "B6": {
+      "tier": 2,
+      "subTier": "explicitly-present",
+      "iconInterpretation": "2-discrete",
+      "searchable": true,
+      "group": "highlight",
+      "slug": "antiviral-immune-mediators",
+      "note": null
+    },
+    "B7": {
+      "tier": 2,
+      "subTier": "explicitly-present",
+      "iconInterpretation": "1-discrete",
+      "searchable": true,
+      "group": "highlight",
+      "slug": "inflammatory-signaling",
+      "note": null
+    },
+    "B8": {
+      "tier": 0,
+      "subTier": "absent-from-figure",
+      "iconInterpretation": "1-discrete",
+      "searchable": false,
+      "group": "highlight",
+      "slug": "copd-inflammatory-structures",
+      "note": "Exact legend style, but not in the cutaway diagram"
+    },
+    "B9": {
+      "tier": 1,
+      "subTier": "exact-replica",
+      "iconInterpretation": "1-discrete",
+      "searchable": true,
+      "group": "highlight",
+      "slug": "infection-antiviral-pathway",
+      "note": null
+    }
+  },
+  "updatedAt": "2026-07-28T06:23:57.332Z",
+  "updatedBy": "lung-legend-lab"
+}

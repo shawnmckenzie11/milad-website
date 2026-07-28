@@ -6,6 +6,15 @@ dist/
 # dependencies
 node_modules/
 
+# lung cutaway OpenCV venv
+.venv-lung/
+
+# lung legend lab (maintainer UI) local uploads + deps
+tools/lung-legend-lab/node_modules/
+tools/lung-legend-lab/dist/
+tools/lung-legend-lab/workspace/*
+!tools/lung-legend-lab/workspace/.gitkeep
+
 # logs
 npm-debug.log*
 yarn-debug.log*
@@ -22,3 +31,13 @@ pnpm-debug.log*
 
 # jetbrains setting folder
 .idea/
+
+# python
+scripts/__pycache__/
+*.pyc
+
+# scratch
+scripts/tmp-*.mjs
+
+# cursor debug dumps
+.cursor/debug-*.log

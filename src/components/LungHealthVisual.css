@@ -68,6 +68,7 @@
 	background: #d7e4ef;
 	overflow: hidden;
 	isolation: isolate;
+	transition: background-color 350ms var(--ease-out);
 }
 
 .lhv__layout.is-cutaway .lhv__stage {
@@ -79,43 +80,114 @@
 	inset: 0;
 	z-index: 0;
 	backface-visibility: hidden;
-	pointer-events: none;
+	pointer-events: none !important;
+}
+
+.lhv__view--outdoor {
+	z-index: 1;
 }
 
 .lhv__view--cutaway {
+	z-index: 0;
 	display: flex;
 	align-items: stretch;
 	justify-content: flex-start;
-	background: #f4f6f7;
+	background: transparent;
 	padding: 0;
 }
 
-.lhv__image {
+.lhv__portal-wrap {
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	pointer-events: none;
+}
+
+.lhv__portal-wrap .lhv__portal {
+	position: absolute;
+	inset: 0;
+}
+
+.lhv__portal {
+	position: absolute;
+	inset: 0;
+	background: var(--lhv-portal-bg, #f4f6f7);
+	-webkit-mask-image: radial-gradient(
+		circle at var(--lhv-portal-x) var(--lhv-portal-y),
+		transparent 0,
+		transparent calc(var(--lhv-portal-r) * 0.92),
+		#000 calc(var(--lhv-portal-r) * 0.98)
+	);
+	mask-image: radial-gradient(
+		circle at var(--lhv-portal-x) var(--lhv-portal-y),
+		transparent 0,
+		transparent calc(var(--lhv-portal-r) * 0.92),
+		#000 calc(var(--lhv-portal-r) * 0.98)
+	);
+}
+
+.lhv__image,
+.lhv__cutaway-image,
+.lhv__cutaway-stack,
+.lhv__cutaway-svg-wrap {
+	position: absolute;
+	inset: 0;
+	display: block;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	user-select: none;
+}
+
+.lhv__cutaway-stack {
+	position: absolute;
+	inset: 0;
+	overflow: hidden;
+}
+
+.lhv__cutaway-base,
+.lhv__cutaway-layer,
+.lhv__cutaway-outline {
 	position: absolute;
 	inset: 0;
 	display: block;
 	width: 100%;
 	height: 100%;
 	object-fit: fill;
+	object-position: center center;
 	pointer-events: none;
-	user-select: none;
 }
 
-/* Fill the stage; aspect ratio matches artwork so no side gutter remains. */
+.lhv__cutaway-outline {
+	transition: opacity 0.28s ease, filter 0.28s ease;
+	z-index: 2;
+	mix-blend-mode: normal;
+}
+
+.lhv__cutaway-outline.is-active {
+	z-index: 3;
+}
+
+.lhv__image,
 .lhv__cutaway-image {
+	object-fit: fill;
+	object-position: center center;
+}
+
+.lhv__cutaway-svg-wrap svg {
 	display: block;
 	width: 100%;
 	height: 100%;
-	object-fit: contain;
-	object-position: center center;
-	pointer-events: none;
-	user-select: none;
+}
+
+.lhv__cutaway-svg-wrap [id^='layer-'] {
+	transition: opacity 0.28s ease;
 }
 
 .lhv__hotspots {
 	position: absolute;
 	inset: 0;
-	z-index: 2;
+	z-index: 5;
 	pointer-events: none;
 }
 
@@ -134,7 +206,7 @@
 	appearance: none;
 	-webkit-appearance: none;
 	pointer-events: auto;
-	z-index: 3;
+	z-index: 6;
 }
 
 .lhv__hotspot-ring {
@@ -151,10 +223,19 @@
 }
 
 .lhv__hotspot:hover .lhv__hotspot-ring,
-.lhv__hotspot:focus-visible .lhv__hotspot-ring {
+.lhv__hotspot:focus-visible .lhv__hotspot-ring,
+.lhv__hotspot.is-bubble-focus .lhv__hotspot-ring {
 	border-color: rgba(74, 98, 116, 0.95);
 	box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85);
 	background: rgba(255, 255, 255, 0.08);
+}
+
+.lhv__hotspot.is-bubble-focus .lhv__hotspot-ring {
+	transform: scale(1.12);
+	box-shadow:
+		0 0 0 4px rgba(255, 255, 255, 0.9),
+		0 0 0 7px rgba(74, 98, 116, 0.35);
+	transition: transform 400ms var(--ease-out), box-shadow 400ms var(--ease-out);
 }
 
 .lhv__hotspot:focus-visible {
@@ -266,7 +347,13 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.lhv__hotspot-ring {
+	.lhv__hotspot-ring,
+	.lhv__stage {
+		transition: none;
+	}
+
+	.lhv__hotspot.is-bubble-focus .lhv__hotspot-ring {
+		transform: none;
 		transition: none;
 	}
 }

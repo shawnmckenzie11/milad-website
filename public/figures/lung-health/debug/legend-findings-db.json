@@ -1,0 +1,1908 @@
+{
+  "meta": {
+    "updatedAt": "2026-07-28T06:24:00+00:00",
+    "runId": "2026-07-28T06:24:00+00:00",
+    "phase": "Tier-1 refinement in progress (exact replicas: B3/B4/B5/B9). Tier-2 next (B6/B7/A1/B1).",
+    "focusTier": [
+      1
+    ],
+    "nextTier": 2,
+    "sources": {
+      "classification": "public/figures/lung-health/legend-classification.json",
+      "extract": "public/figures/lung-health/debug/legend-extract.json",
+      "matchReport": "public/figures/lung-health/debug/template-match-report.json"
+    }
+  },
+  "criteria": {
+    "guidelines": "Observability of mask \u2014 how clearly a legend glyph can be found in the cutaway:\n\n1. Top tier (obvious to see; find with high confidence first):\n   Exact legend replicas in the diagram. (A structure may match the legend\n   exactly but still be absent from the figure \u2014 do not search those.)\n\n2. Middle tier (eventually find; not 100% replicas):\n   - Explicitly present marks (mediators / signaling clusters)\n   - Structures that appear as adjacent multiples in the legend but may show\n     in the diagram as individuals or a long row (~70% similarity to neighbors)\n\n3. Lowest tier (present but very difficult to identify accurately):\n   - Fractal / scale continuations of a larger parent structure\n   - Large fields that greatly differ in scale and are <60% similar to the glyph\n\n4. Not properly diagrammed in the legend (or absent from the figure):\n   Do not search.",
+    "tiers": [
+      {
+        "tier": 1,
+        "label": "Top \u2014 exact replicas",
+        "summary": "Exact legend replicas in the diagram; find with high confidence first. A structure may match the legend exactly but still be absent from the figure \u2014 do not search those.",
+        "focus": true
+      },
+      {
+        "tier": 2,
+        "label": "Middle \u2014 partial / explicit marks",
+        "summary": "Eventually find; not 100% replicas. Explicitly present marks (mediators / signaling) and structures that appear as adjacent multiples in the legend but may show as individuals or a long row (~70% similarity).",
+        "focus": false
+      },
+      {
+        "tier": 3,
+        "label": "Lowest \u2014 scale / fractal hard",
+        "summary": "Present but difficult: fractal/scale continuations of a parent structure, or large fields that greatly differ in scale and are <60% similar to the glyph.",
+        "focus": false
+      },
+      {
+        "tier": 0,
+        "label": "Skip \u2014 not searchable",
+        "summary": "Not properly diagrammed in the legend, or absent from the figure. Do not search.",
+        "focus": false
+      }
+    ],
+    "subTierHelp": {
+      "exact-replica": "Tier 1 \u2014 shows exactly as in the legend; searchable with high confidence",
+      "exact-replica-absent": "Tier 1 style but not present in the diagram \u2192 treat as non-searchable",
+      "explicitly-present": "Tier 2 \u2014 mark is explicitly present (not a perfect cell replica)",
+      "partial-neighbor-similarity": "Tier 2 \u2014 legend shows adjacent multiples; diagram may show individuals/rows (~70% similarity)",
+      "fractal-scale-continuation": "Tier 3 \u2014 parent structure 'turns into' these at larger scale",
+      "scale-divergent-low-similarity": "Tier 3 \u2014 greatly differs in scale and <60% glyph similarity",
+      "not-diagrammed-in-legend": "Tier 0 \u2014 not properly diagrammed; do not search",
+      "absent-from-figure": "Tier 0 \u2014 may look exact in the legend but is not in the cutaway; do not search"
+    },
+    "iconInterpretationHelp": {
+      "1-discrete": "Single glyph in the legend row \u2014 crop one template",
+      "2-discrete": "Two different glyph types side-by-side in one legend icon \u2014 crop each independently and search both (union outlines)",
+      "multiple-adjacent-as-one": "Adjacent multiples treated as one template (tier-2 style like A1/B1)"
+    }
+  },
+  "stats": {
+    "tier0": {
+      "expected": 0,
+      "found": 0,
+      "missed": 0,
+      "skipped": 3,
+      "instanceTotal": 0,
+      "meanBestScore": null
+    },
+    "tier1": {
+      "expected": 4,
+      "found": 4,
+      "missed": 0,
+      "skipped": 0,
+      "instanceTotal": 8,
+      "meanBestScore": 0.8966
+    },
+    "tier2": {
+      "expected": 4,
+      "found": 4,
+      "missed": 0,
+      "skipped": 0,
+      "instanceTotal": 10,
+      "meanBestScore": 0.6582
+    },
+    "tier3": {
+      "expected": 2,
+      "found": 2,
+      "missed": 0,
+      "skipped": 0,
+      "instanceTotal": 7,
+      "meanBestScore": 0.5252
+    },
+    "tier1_mean_score_report": 0.8966
+  },
+  "items": {
+    "A1": {
+      "code": "A1",
+      "name": "TRACHEA / CONDUCTING AIRWAY",
+      "slug": "trachea-conducting-airway",
+      "tier": 2,
+      "subTier": "partial-neighbor-similarity",
+      "iconInterpretation": "multiple-adjacent-as-one",
+      "searchable": true,
+      "group": "base",
+      "status": "found",
+      "firstFoundAt": "2026-07-28T05:13:19+00:00",
+      "lastFoundAt": "2026-07-28T06:24:00+00:00",
+      "findCount": 1,
+      "instanceCount": 1,
+      "cumulativeFindCount": 17,
+      "bestScore": 0.45278292894363403,
+      "meanScore": 0.4528,
+      "minScore": 0.45,
+      "instances": [
+        {
+          "cx": 515.0,
+          "cy": 60.5,
+          "score": 0.45278292894363403,
+          "scale": 0.4,
+          "mode": "gray",
+          "w": 16,
+          "h": 23,
+          "runId": "2026-07-28T06:24:00+00:00",
+          "timestamp": "2026-07-28T06:24:00+00:00"
+        }
+      ]
+    },
+    "A2": {
+      "code": "A2",
+      "name": "BRONCHIAL BRANCHES",
+      "slug": "bronchial-branches",
+      "tier": 3,
+      "subTier": "fractal-scale-continuation",
+      "iconInterpretation": "multiple-adjacent-as-one",
+      "searchable": true,
+      "group": "base",
+      "status": "found",
+      "firstFoundAt": "2026-07-28T05:13:19+00:00",
+      "lastFoundAt": "2026-07-28T06:24:00+00:00",
+      "findCount": 3,
+      "instanceCount": 3,
+      "cumulativeFindCount": 51,
+      "bestScore": 0.5566663146018982,
+      "meanScore": 0.526,
+      "minScore": 0.48,
+      "instances": [
+        {
+          "cx": 304.0,
+          "cy": 295.0,
+          "score": 0.5566663146018982,
+          "scale": 0.55,
+          "mode": "gray",
+          "w": 28,
+          "h": 32,
+          "runId": "2026-07-28T06:24:00+00:00",
+          "timestamp": "2026-07-28T06:24:00+00:00"
+        },
+        {
+          "cx": 690.5,
+          "cy": 248.5,
+          "score": 0.5116947889328003,
+          "scale": 0.45,
+          "mode": "gray",
+          "w": 23,
+          "h": 27,
+          "runId": "2026-07-28T06:24:00+00:00",
+          "timestamp": "2026-07-28T06:24:00+00:00"
+        },
+        {
+          "cx": 300.5,
+          "cy": 90.5,
+          "score": 0.5096397399902344,
+          "scale": 0.45,
+          "mode": "gray",
+          "w": 23,
+          "h": 27,
+          "runId": "2026-07-28T06:24:00+00:00",
+          "timestamp": "2026-07-28T06:24:00+00:00"
+        }
+      ]
+    },
+    "A3": {
+      "code": "A3",
+      "name": "ALVEOLAR FIELDS",
+      "slug": "alveolar-fields",
+      "tier": 3,
+      "subTier": "scale-divergent-low-similarity",
+      "iconInterpretation": "multiple-adjacent-as-one",
+      "searchable": true,
+      "group": "base",
+      "status": "found",
+      "firstFoundAt": "2026-07-28T05:13:19+00:00",
+      "lastFoundAt": "2026-07-28T06:24:00+00:00",
+      "findCount": 4,
+      "instanceCount": 4,
+      "cumulativeFindCount": 68,
+      "bestScore": 0.49370378255844116,
+      "meanScore": 0.4785,
+      "minScore": 0.42,
+      "instances": [
+        {
+          "cx": 857.0,
+          "cy": 633.0,
+          "score": 0.49370378255844116,
+          "scale": 0.35,
+          "mode": "gray",
+          "w": 18,
+          "h": 20,
+          "runId": "2026-07-28T06:24:00+00:00",
+          "timestamp": "2026-07-28T06:24:00+00:00"
+        },
+        {
+          "cx": 269.0,
+          "cy": 804.0,
+          "score": 0.47860395908355713,
+          "scale": 0.35,
+          "mode": "gray",
+          "w": 18,
+          "h": 20,
+          "runId": "2026-07-28T06:24:00+00:00",
+          "timestamp": "2026-07-28T06:24:00+00:00"
+        },
+        {
+          "cx": 236.0,
+          "cy": 599.0,
+          "score": 0.481433629989624,
+          "scale": 0.35,
+          "mode": "gray",
+          "w": 18,
+          "h": 20,
+          "runId": "2026-07-28T06:24:00+00:00",
+          "timestamp": "2026-07-28T06:24:00+00:00"
+        },
+        {
+          "cx": 884.0,
+          "cy": 766.0,
+          "score": 0.4604446291923523,
+          "scale": 0.43,
+          "mode": "gray",
+          "w": 22,
+          "h": 24,
+          "runId": "2026-07-28T06:24:00+00:00",
+          "timestamp": "2026-07-28T06:24:00+00:00"
+        }
+      ]
+    },
+    "A4": {
+      "code": "A4",
+      "name": "AIRWAY LUMEN",
+      "slug": "airway-lumen",
+      "tier": 0,
+      "subTier": "not-diagrammed-in-legend",
+      "iconInterpretation": "1-discrete",
+      "searchable": false,
+      "group": "base",
+      "status": "skipped",
+      "firstFoundAt": null,
+      "lastFoundAt": null,
+      "findCount": 0,
+      "instanceCount": 0,
+      "cumulativeFindCount": 0,
+      "bestScore": null,
+      "meanScore": null,
+      "minScore": null,
+      "instances": []
+    },
+    "B1": {
+      "code": "B1",
+      "name": "AIRWAY EPITHELIUM",
+      "slug": "airway-epithelium",
+      "tier": 2,
+      "subTier": "partial-neighbor-similarity",
+      "iconInterpretation": "multiple-adjacent-as-one",
+      "searchable": true,
+      "group": "highlight",
+      "status": "found",
+      "firstFoundAt": "2026-07-28T05:13:19+00:00",
+      "lastFoundAt": "2026-07-28T06:24:00+00:00",
+      "findCount": 2,
+      "instanceCount": 2,
+      "cumulativeFindCount": 34,
+      "bestScore": 0.4858857989311218,
+      "meanScore": 0.4824,
+      "minScore": 0.4,
+      "instances": [
+        {
+          "cx": 442.0,
+          "cy": 745.5,
+          "score": 0.4789653718471527,
+          "scale": 0.35,
+          "mode": "gray",
+          "w": 18,
+          "h": 17,
+          "runId": "2026-07-28T06:24:00+00:00",
+          "timestamp": "2026-07-28T06:24:00+00:00"
+        },
+        {
+          "cx": 714.0,
+          "cy": 254.5,
+          "score": 0.4858857989311218,
+          "scale": 0.35,
+          "mode": "gray",
+          "w": 18,
+          "h": 17,
+          "runId": "2026-07-28T06:24:00+00:00",
+          "timestamp": "2026-07-28T06:24:00+00:00"
+        }
+      ]
+    },
+    "B2": {
+      "code": "B2",
+      "name": "AIRWAY IMMUNE COMPARTMENT",
+      "slug": "airway-immune-compartment",
+      "tier": 0,
+      "subTier": "not-diagrammed-in-legend",
+      "iconInterpretation": "1-discrete",
+      "searchable": false,
+      "group": "highlight",
+      "status": "skipped",
+      "firstFoundAt": null,
+      "lastFoundAt": null,
+      "findCount": 0,
+      "instanceCount": 0,
+      "cumulativeFindCount": 0,
+      "bestScore": null,
+      "meanScore": null,
+      "minScore": null,
+      "instances": []
+    },
+    "B3": {
+      "code": "B3",
+      "name": "NEUTROPHILS",
+      "slug": "neutrophils",
+      "tier": 1,
+      "subTier": "exact-replica",
+      "iconInterpretation": "1-discrete",
+      "searchable": true,
+      "group": "highlight",
+      "status": "found",
+      "firstFoundAt": "2026-07-28T05:13:19+00:00",
+      "lastFoundAt": "2026-07-28T06:24:00+00:00",
+      "findCount": 2,
+      "instanceCount": 2,
+      "cumulativeFindCount": 30,
+      "bestScore": 0.8233847618103027,
+      "meanScore": 0.7058,
+      "minScore": 0.78,
+      "instances": [
+        {
+          "cx": 545.0,
+          "cy": 884.0,
+          "score": 0.8233847618103027,
+          "scale": 0.94,
+          "mode": "gray",
+          "w": 28,
+          "h": 28,
+          "runId": "2026-07-28T06:24:00+00:00",
+          "timestamp": "2026-07-28T06:24:00+00:00"
+        },
+        {
+          "cx": 632.5,
+          "cy": 314.5,
+          "score": 0.5883113145828247,
+          "scale": 1.18,
+          "mode": "purple",
+          "w": 35,
+          "h": 35,
+          "runId": "2026-07-28T06:24:00+00:00",
+          "timestamp": "2026-07-28T06:24:00+00:00"
+        }
+      ]
+    },
+    "B4": {
+      "code": "B4",
+      "name": "ALVEOLAR MACROPHAGES",
+      "slug": "alveolar-macrophages",
+      "tier": 1,
+      "subTier": "exact-replica",
+      "iconInterpretation": "1-discrete",
+      "searchable": true,
+      "group": "highlight",
+      "status": "found",
+      "firstFoundAt": "2026-07-28T05:13:19+00:00",
+      "lastFoundAt": "2026-07-28T06:24:00+00:00",
+      "findCount": 2,
+      "instanceCount": 2,
+      "cumulativeFindCount": 30,
+      "bestScore": 0.9247410297393799,
+      "meanScore": 0.9165,
+      "minScore": 0.75,
+      "instances": [
+        {
+          "cx": 607.5,
+          "cy": 871.0,
+          "score": 0.9247410297393799,
+          "scale": 1.03,
+          "mode": "green",
+          "w": 47,
+          "h": 44,
+          "runId": "2026-07-28T06:24:00+00:00",
+          "timestamp": "2026-07-28T06:24:00+00:00"
+        },
+        {
+          "cx": 492.5,
+          "cy": 904.0,
+          "score": 0.9083504676818848,
+          "scale": 1.03,
+          "mode": "green",
+          "w": 47,
+          "h": 44,
+          "runId": "2026-07-28T06:24:00+00:00",
+          "timestamp": "2026-07-28T06:24:00+00:00"
+        }
+      ]
+    },
+    "B5": {
+      "code": "B5",
+      "name": "DENDRITIC CELLS",
+      "slug": "dendritic-cells",
+      "tier": 1,
+      "subTier": "exact-replica",
+      "iconInterpretation": "1-discrete",
+      "searchable": true,
+      "group": "highlight",
+      "status": "found",
+      "firstFoundAt": "2026-07-28T05:13:19+00:00",
+      "lastFoundAt": "2026-07-28T06:24:00+00:00",
+      "findCount": 2,
+      "instanceCount": 2,
+      "cumulativeFindCount": 30,
+      "bestScore": 0.9019189476966858,
+      "meanScore": 0.8075,
+      "minScore": 0.75,
+      "instances": [
+        {
+          "cx": 456.0,
+          "cy": 853.0,
+          "score": 0.9019189476966858,
+          "scale": 1.06,
+          "mode": "gray",
+          "w": 54,
+          "h": 56,
+          "runId": "2026-07-28T06:24:00+00:00",
+          "timestamp": "2026-07-28T06:24:00+00:00"
+        },
+        {
+          "cx": 711.5,
+          "cy": 334.0,
+          "score": 0.7130800485610962,
+          "scale": 1.36,
+          "mode": "purple",
+          "w": 69,
+          "h": 72,
+          "runId": "2026-07-28T06:24:00+00:00",
+          "timestamp": "2026-07-28T06:24:00+00:00"
+        }
+      ]
+    },
+    "B6": {
+      "code": "B6",
+      "name": "ANTIVIRAL IMMUNE MEDIATORS",
+      "slug": "antiviral-immune-mediators",
+      "tier": 2,
+      "subTier": "explicitly-present",
+      "iconInterpretation": "2-discrete",
+      "searchable": true,
+      "group": "highlight",
+      "status": "found",
+      "firstFoundAt": "2026-07-28T05:13:19+00:00",
+      "lastFoundAt": "2026-07-28T06:24:00+00:00",
+      "findCount": 5,
+      "instanceCount": 5,
+      "cumulativeFindCount": 76,
+      "bestScore": 0.9258880019187927,
+      "meanScore": 0.8303,
+      "minScore": 0.74,
+      "instances": [
+        {
+          "cx": 757.0,
+          "cy": 124.5,
+          "score": 0.9258880019187927,
+          "scale": 1.0,
+          "mode": "gray",
+          "w": 22,
+          "h": 23,
+          "runId": "2026-07-28T06:24:00+00:00",
+          "timestamp": "2026-07-28T06:24:00+00:00"
+        },
+        {
+          "cx": 861.0,
+          "cy": 114.0,
+          "score": 0.8900063037872314,
+          "scale": 0.85,
+          "mode": "gray",
+          "w": 14,
+          "h": 16,
+          "runId": "2026-07-28T06:24:00+00:00",
+          "timestamp": "2026-07-28T06:24:00+00:00"
+        },
+        {
+          "cx": 883.5,
+          "cy": 129.0,
+          "score": 0.8417834043502808,
+          "scale": 0.75,
+          "mode": "gray",
+          "w": 13,
+          "h": 14,
+          "runId": "2026-07-28T06:24:00+00:00",
+          "timestamp": "2026-07-28T06:24:00+00:00"
+        },
+        {
+          "cx": 821.0,
+          "cy": 133.5,
+          "score": 0.751724362373352,
+          "scale": 0.7,
+          "mode": "gray",
+          "w": 12,
+          "h": 13,
+          "runId": "2026-07-28T06:24:00+00:00",
+          "timestamp": "2026-07-28T06:24:00+00:00"
+        },
+        {
+          "cx": 874.0,
+          "cy": 189.5,
+          "score": 0.7421051263809204,
+          "scale": 0.7,
+          "mode": "gray",
+          "w": 12,
+          "h": 13,
+          "runId": "2026-07-28T06:24:00+00:00",
+          "timestamp": "2026-07-28T06:24:00+00:00"
+        }
+      ]
+    },
+    "B7": {
+      "code": "B7",
+      "name": "INFLAMMATORY SIGNALING",
+      "slug": "inflammatory-signaling",
+      "tier": 2,
+      "subTier": "explicitly-present",
+      "iconInterpretation": "1-discrete",
+      "searchable": true,
+      "group": "highlight",
+      "status": "found",
+      "firstFoundAt": "2026-07-28T05:13:19+00:00",
+      "lastFoundAt": "2026-07-28T06:24:00+00:00",
+      "findCount": 2,
+      "instanceCount": 2,
+      "cumulativeFindCount": 34,
+      "bestScore": 0.7684053778648376,
+      "meanScore": 0.7174,
+      "minScore": 0.65,
+      "instances": [
+        {
+          "cx": 557.5,
+          "cy": 804.0,
+          "score": 0.7684053778648376,
+          "scale": 0.9,
+          "mode": "gray",
+          "w": 45,
+          "h": 22,
+          "runId": "2026-07-28T06:24:00+00:00",
+          "timestamp": "2026-07-28T06:24:00+00:00"
+        },
+        {
+          "cx": 877.5,
+          "cy": 311.0,
+          "score": 0.6663369536399841,
+          "scale": 1.1,
+          "mode": "gray",
+          "w": 55,
+          "h": 28,
+          "runId": "2026-07-28T06:24:00+00:00",
+          "timestamp": "2026-07-28T06:24:00+00:00"
+        }
+      ]
+    },
+    "B8": {
+      "code": "B8",
+      "name": "COPD-RELEVANT INFLAMMATORY STRUCTURES",
+      "slug": "copd-inflammatory-structures",
+      "tier": 0,
+      "subTier": "absent-from-figure",
+      "iconInterpretation": "1-discrete",
+      "searchable": false,
+      "group": "highlight",
+      "status": "skipped",
+      "firstFoundAt": null,
+      "lastFoundAt": null,
+      "findCount": 0,
+      "instanceCount": 0,
+      "cumulativeFindCount": 0,
+      "bestScore": null,
+      "meanScore": null,
+      "minScore": null,
+      "instances": [],
+      "note": "Exact legend style, but not in the cutaway diagram"
+    },
+    "B9": {
+      "code": "B9",
+      "name": "INFECTION / ANTIVIRAL PATHWAY",
+      "slug": "infection-antiviral-pathway",
+      "tier": 1,
+      "subTier": "exact-replica",
+      "iconInterpretation": "1-discrete",
+      "searchable": true,
+      "group": "highlight",
+      "status": "found",
+      "firstFoundAt": "2026-07-28T05:13:19+00:00",
+      "lastFoundAt": "2026-07-28T06:24:00+00:00",
+      "findCount": 2,
+      "instanceCount": 2,
+      "cumulativeFindCount": 30,
+      "bestScore": 0.9362317323684692,
+      "meanScore": 0.9344,
+      "minScore": 0.8,
+      "instances": [
+        {
+          "cx": 676.0,
+          "cy": 116.5,
+          "score": 0.9362317323684692,
+          "scale": 0.88,
+          "mode": "gray",
+          "w": 40,
+          "h": 39,
+          "runId": "2026-07-28T06:24:00+00:00",
+          "timestamp": "2026-07-28T06:24:00+00:00"
+        },
+        {
+          "cx": 630.0,
+          "cy": 102.0,
+          "score": 0.9326056838035583,
+          "scale": 0.82,
+          "mode": "gray",
+          "w": 38,
+          "h": 36,
+          "runId": "2026-07-28T06:24:00+00:00",
+          "timestamp": "2026-07-28T06:24:00+00:00"
+        }
+      ]
+    }
+  },
+  "runs": [
+    {
+      "runId": "2026-07-28T05:13:19+00:00",
+      "timestamp": "2026-07-28T05:13:19+00:00",
+      "source": "template-match-report",
+      "tier1_mean_score": 0.894,
+      "qa_errors": [],
+      "byCode": {
+        "A1": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.45278292894363403
+        },
+        "A2": {
+          "status": "found",
+          "instanceCount": 3,
+          "bestScore": 0.5566663146018982
+        },
+        "A3": {
+          "status": "found",
+          "instanceCount": 4,
+          "bestScore": 0.49370378255844116
+        },
+        "A4": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B1": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.4858857989311218
+        },
+        "B2": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B3": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.823039710521698
+        },
+        "B4": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.917744517326355
+        },
+        "B5": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.8988539576530457
+        },
+        "B6": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.8034642934799194
+        },
+        "B7": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.7346519827842712
+        },
+        "B8": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B9": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.9362252950668335
+        }
+      }
+    },
+    {
+      "runId": "2026-07-28T05:13:51+00:00",
+      "timestamp": "2026-07-28T05:13:51+00:00",
+      "source": "template-match-report",
+      "tier1_mean_score": 0.894,
+      "qa_errors": [],
+      "byCode": {
+        "A1": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.45278292894363403
+        },
+        "A2": {
+          "status": "found",
+          "instanceCount": 3,
+          "bestScore": 0.5566663146018982
+        },
+        "A3": {
+          "status": "found",
+          "instanceCount": 4,
+          "bestScore": 0.49370378255844116
+        },
+        "A4": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B1": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.4858857989311218
+        },
+        "B2": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B3": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.823039710521698
+        },
+        "B4": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.917744517326355
+        },
+        "B5": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.8988539576530457
+        },
+        "B6": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.8034642934799194
+        },
+        "B7": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.7346519827842712
+        },
+        "B8": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B9": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.9362252950668335
+        }
+      }
+    },
+    {
+      "runId": "2026-07-28T05:14:07+00:00",
+      "timestamp": "2026-07-28T05:14:07+00:00",
+      "source": "template-match-report",
+      "tier1_mean_score": 0.894,
+      "qa_errors": [],
+      "byCode": {
+        "A1": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.45278292894363403
+        },
+        "A2": {
+          "status": "found",
+          "instanceCount": 3,
+          "bestScore": 0.5566663146018982
+        },
+        "A3": {
+          "status": "found",
+          "instanceCount": 4,
+          "bestScore": 0.49370378255844116
+        },
+        "A4": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B1": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.4858857989311218
+        },
+        "B2": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B3": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.823039710521698
+        },
+        "B4": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.917744517326355
+        },
+        "B5": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.8988539576530457
+        },
+        "B6": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.8034642934799194
+        },
+        "B7": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.7346519827842712
+        },
+        "B8": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B9": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.9362252950668335
+        }
+      }
+    },
+    {
+      "runId": "2026-07-28T05:15:41+00:00",
+      "timestamp": "2026-07-28T05:15:41+00:00",
+      "source": "template-match-report",
+      "tier1_mean_score": 0.894,
+      "qa_errors": [],
+      "byCode": {
+        "A1": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.45278292894363403
+        },
+        "A2": {
+          "status": "found",
+          "instanceCount": 3,
+          "bestScore": 0.5566663146018982
+        },
+        "A3": {
+          "status": "found",
+          "instanceCount": 4,
+          "bestScore": 0.49370378255844116
+        },
+        "A4": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B1": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.4858857989311218
+        },
+        "B2": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B3": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.823039710521698
+        },
+        "B4": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.917744517326355
+        },
+        "B5": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.8988539576530457
+        },
+        "B6": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.8034642934799194
+        },
+        "B7": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.7346519827842712
+        },
+        "B8": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B9": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.9362252950668335
+        }
+      }
+    },
+    {
+      "runId": "2026-07-28T05:15:53+00:00",
+      "timestamp": "2026-07-28T05:15:53+00:00",
+      "source": "template-match-report",
+      "tier1_mean_score": 0.8966,
+      "qa_errors": [
+        "neutrophils[1]: score 0.486 < 0.78",
+        "alveolar-macrophages: pixelCount 2774 > 2400",
+        "dendritic-cells[1]: score 0.713 < 0.75",
+        "dendritic-cells: pixelCount 3013 > 2500"
+      ],
+      "byCode": {
+        "A1": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.45278292894363403
+        },
+        "A2": {
+          "status": "found",
+          "instanceCount": 3,
+          "bestScore": 0.5566663146018982
+        },
+        "A3": {
+          "status": "found",
+          "instanceCount": 4,
+          "bestScore": 0.49370378255844116
+        },
+        "A4": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B1": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.4858857989311218
+        },
+        "B2": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B3": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.8233847618103027
+        },
+        "B4": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9247410297393799
+        },
+        "B5": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9019189476966858
+        },
+        "B6": {
+          "status": "found",
+          "instanceCount": 8,
+          "bestScore": 0.9258880019187927
+        },
+        "B7": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.7684053778648376
+        },
+        "B8": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B9": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9362317323684692
+        }
+      }
+    },
+    {
+      "runId": "2026-07-28T05:16:22+00:00",
+      "timestamp": "2026-07-28T05:16:22+00:00",
+      "source": "template-match-report",
+      "tier1_mean_score": 0.8966,
+      "qa_errors": [],
+      "byCode": {
+        "A1": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.45278292894363403
+        },
+        "A2": {
+          "status": "found",
+          "instanceCount": 3,
+          "bestScore": 0.5566663146018982
+        },
+        "A3": {
+          "status": "found",
+          "instanceCount": 4,
+          "bestScore": 0.49370378255844116
+        },
+        "A4": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B1": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.4858857989311218
+        },
+        "B2": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B3": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.8233847618103027
+        },
+        "B4": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9247410297393799
+        },
+        "B5": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9019189476966858
+        },
+        "B6": {
+          "status": "found",
+          "instanceCount": 8,
+          "bestScore": 0.9258880019187927
+        },
+        "B7": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.7684053778648376
+        },
+        "B8": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B9": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9362317323684692
+        }
+      }
+    },
+    {
+      "runId": "2026-07-28T05:17:12+00:00",
+      "timestamp": "2026-07-28T05:17:12+00:00",
+      "source": "template-match-report",
+      "tier1_mean_score": 0.8966,
+      "qa_errors": [],
+      "byCode": {
+        "A1": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.45278292894363403
+        },
+        "A2": {
+          "status": "found",
+          "instanceCount": 3,
+          "bestScore": 0.5566663146018982
+        },
+        "A3": {
+          "status": "found",
+          "instanceCount": 4,
+          "bestScore": 0.49370378255844116
+        },
+        "A4": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B1": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.4858857989311218
+        },
+        "B2": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B3": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.8233847618103027
+        },
+        "B4": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9247410297393799
+        },
+        "B5": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9019189476966858
+        },
+        "B6": {
+          "status": "found",
+          "instanceCount": 6,
+          "bestScore": 0.9258880019187927
+        },
+        "B7": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.7684053778648376
+        },
+        "B8": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B9": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9362317323684692
+        }
+      }
+    },
+    {
+      "runId": "2026-07-28T05:17:49+00:00",
+      "timestamp": "2026-07-28T05:17:49+00:00",
+      "source": "template-match-report",
+      "tier1_mean_score": 0.8966,
+      "qa_errors": [],
+      "byCode": {
+        "A1": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.45278292894363403
+        },
+        "A2": {
+          "status": "found",
+          "instanceCount": 3,
+          "bestScore": 0.5566663146018982
+        },
+        "A3": {
+          "status": "found",
+          "instanceCount": 4,
+          "bestScore": 0.49370378255844116
+        },
+        "A4": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B1": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.4858857989311218
+        },
+        "B2": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B3": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.8233847618103027
+        },
+        "B4": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9247410297393799
+        },
+        "B5": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9019189476966858
+        },
+        "B6": {
+          "status": "found",
+          "instanceCount": 6,
+          "bestScore": 0.9258880019187927
+        },
+        "B7": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.7684053778648376
+        },
+        "B8": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B9": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9362317323684692
+        }
+      }
+    },
+    {
+      "runId": "2026-07-28T05:49:09+00:00",
+      "timestamp": "2026-07-28T05:49:09+00:00",
+      "source": "template-match-report",
+      "tier1_mean_score": 0.8966,
+      "qa_errors": [],
+      "byCode": {
+        "A1": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.45278292894363403
+        },
+        "A2": {
+          "status": "found",
+          "instanceCount": 3,
+          "bestScore": 0.5566663146018982
+        },
+        "A3": {
+          "status": "found",
+          "instanceCount": 4,
+          "bestScore": 0.49370378255844116
+        },
+        "A4": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B1": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.4858857989311218
+        },
+        "B2": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B3": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.8233847618103027
+        },
+        "B4": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9247410297393799
+        },
+        "B5": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9019189476966858
+        },
+        "B6": {
+          "status": "found",
+          "instanceCount": 6,
+          "bestScore": 0.9258880019187927
+        },
+        "B7": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.7684053778648376
+        },
+        "B8": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B9": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9362317323684692
+        }
+      }
+    },
+    {
+      "runId": "2026-07-28T05:49:59+00:00",
+      "timestamp": "2026-07-28T05:49:59+00:00",
+      "source": "template-match-report",
+      "tier1_mean_score": 0.8966,
+      "qa_errors": [],
+      "byCode": {
+        "A1": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.45278292894363403
+        },
+        "A2": {
+          "status": "found",
+          "instanceCount": 3,
+          "bestScore": 0.5566663146018982
+        },
+        "A3": {
+          "status": "found",
+          "instanceCount": 4,
+          "bestScore": 0.49370378255844116
+        },
+        "A4": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B1": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.4858857989311218
+        },
+        "B2": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B3": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.8233847618103027
+        },
+        "B4": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9247410297393799
+        },
+        "B5": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9019189476966858
+        },
+        "B6": {
+          "status": "found",
+          "instanceCount": 4,
+          "bestScore": 0.9258880019187927
+        },
+        "B7": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.7684053778648376
+        },
+        "B8": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B9": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9362317323684692
+        }
+      }
+    },
+    {
+      "runId": "2026-07-28T05:50:00+00:00",
+      "timestamp": "2026-07-28T05:50:00+00:00",
+      "source": "template-match-report",
+      "tier1_mean_score": 0.8966,
+      "qa_errors": [],
+      "byCode": {
+        "A1": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.45278292894363403
+        },
+        "A2": {
+          "status": "found",
+          "instanceCount": 3,
+          "bestScore": 0.5566663146018982
+        },
+        "A3": {
+          "status": "found",
+          "instanceCount": 4,
+          "bestScore": 0.49370378255844116
+        },
+        "A4": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B1": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.4858857989311218
+        },
+        "B2": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B3": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.8233847618103027
+        },
+        "B4": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9247410297393799
+        },
+        "B5": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9019189476966858
+        },
+        "B6": {
+          "status": "found",
+          "instanceCount": 4,
+          "bestScore": 0.9258880019187927
+        },
+        "B7": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.7684053778648376
+        },
+        "B8": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B9": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9362317323684692
+        }
+      }
+    },
+    {
+      "runId": "2026-07-28T05:50:50+00:00",
+      "timestamp": "2026-07-28T05:50:50+00:00",
+      "source": "template-match-report",
+      "tier1_mean_score": 0.8966,
+      "qa_errors": [],
+      "byCode": {
+        "A1": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.45278292894363403
+        },
+        "A2": {
+          "status": "found",
+          "instanceCount": 3,
+          "bestScore": 0.5566663146018982
+        },
+        "A3": {
+          "status": "found",
+          "instanceCount": 4,
+          "bestScore": 0.49370378255844116
+        },
+        "A4": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B1": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.4858857989311218
+        },
+        "B2": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B3": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.8233847618103027
+        },
+        "B4": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9247410297393799
+        },
+        "B5": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9019189476966858
+        },
+        "B6": {
+          "status": "found",
+          "instanceCount": 5,
+          "bestScore": 0.9258880019187927
+        },
+        "B7": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.7684053778648376
+        },
+        "B8": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B9": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9362317323684692
+        }
+      }
+    },
+    {
+      "runId": "2026-07-28T05:50:51+00:00",
+      "timestamp": "2026-07-28T05:50:51+00:00",
+      "source": "template-match-report",
+      "tier1_mean_score": 0.8966,
+      "qa_errors": [],
+      "byCode": {
+        "A1": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.45278292894363403
+        },
+        "A2": {
+          "status": "found",
+          "instanceCount": 3,
+          "bestScore": 0.5566663146018982
+        },
+        "A3": {
+          "status": "found",
+          "instanceCount": 4,
+          "bestScore": 0.49370378255844116
+        },
+        "A4": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B1": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.4858857989311218
+        },
+        "B2": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B3": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.8233847618103027
+        },
+        "B4": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9247410297393799
+        },
+        "B5": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9019189476966858
+        },
+        "B6": {
+          "status": "found",
+          "instanceCount": 5,
+          "bestScore": 0.9258880019187927
+        },
+        "B7": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.7684053778648376
+        },
+        "B8": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B9": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9362317323684692
+        }
+      }
+    },
+    {
+      "runId": "2026-07-28T05:50:57+00:00",
+      "timestamp": "2026-07-28T05:50:57+00:00",
+      "source": "template-match-report",
+      "tier1_mean_score": 0.8966,
+      "qa_errors": [],
+      "byCode": {
+        "A1": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.45278292894363403
+        },
+        "A2": {
+          "status": "found",
+          "instanceCount": 3,
+          "bestScore": 0.5566663146018982
+        },
+        "A3": {
+          "status": "found",
+          "instanceCount": 4,
+          "bestScore": 0.49370378255844116
+        },
+        "A4": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B1": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.4858857989311218
+        },
+        "B2": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B3": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.8233847618103027
+        },
+        "B4": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9247410297393799
+        },
+        "B5": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9019189476966858
+        },
+        "B6": {
+          "status": "found",
+          "instanceCount": 5,
+          "bestScore": 0.9258880019187927
+        },
+        "B7": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.7684053778648376
+        },
+        "B8": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B9": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9362317323684692
+        }
+      }
+    },
+    {
+      "runId": "2026-07-28T05:51:33+00:00",
+      "timestamp": "2026-07-28T05:51:33+00:00",
+      "source": "template-match-report",
+      "tier1_mean_score": 0.8966,
+      "qa_errors": [],
+      "byCode": {
+        "A1": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.45278292894363403
+        },
+        "A2": {
+          "status": "found",
+          "instanceCount": 3,
+          "bestScore": 0.5566663146018982
+        },
+        "A3": {
+          "status": "found",
+          "instanceCount": 4,
+          "bestScore": 0.49370378255844116
+        },
+        "A4": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B1": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.4858857989311218
+        },
+        "B2": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B3": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.8233847618103027
+        },
+        "B4": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9247410297393799
+        },
+        "B5": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9019189476966858
+        },
+        "B6": {
+          "status": "found",
+          "instanceCount": 5,
+          "bestScore": 0.9258880019187927
+        },
+        "B7": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.7684053778648376
+        },
+        "B8": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B9": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9362317323684692
+        }
+      }
+    },
+    {
+      "runId": "2026-07-28T06:10:59+00:00",
+      "timestamp": "2026-07-28T06:10:59+00:00",
+      "source": "template-match-report",
+      "tier1_mean_score": 0.8966,
+      "qa_errors": [],
+      "byCode": {
+        "A1": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.45278292894363403
+        },
+        "A2": {
+          "status": "found",
+          "instanceCount": 3,
+          "bestScore": 0.5566663146018982
+        },
+        "A3": {
+          "status": "found",
+          "instanceCount": 4,
+          "bestScore": 0.49370378255844116
+        },
+        "A4": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B1": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.4858857989311218
+        },
+        "B2": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B3": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.8233847618103027
+        },
+        "B4": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9247410297393799
+        },
+        "B5": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9019189476966858
+        },
+        "B6": {
+          "status": "found",
+          "instanceCount": 5,
+          "bestScore": 0.9258880019187927
+        },
+        "B7": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.7684053778648376
+        },
+        "B8": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B9": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9362317323684692
+        }
+      }
+    },
+    {
+      "runId": "2026-07-28T06:24:00+00:00",
+      "timestamp": "2026-07-28T06:24:00+00:00",
+      "source": "template-match-report",
+      "tier1_mean_score": 0.8966,
+      "qa_errors": [],
+      "byCode": {
+        "A1": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.45278292894363403
+        },
+        "A2": {
+          "status": "found",
+          "instanceCount": 3,
+          "bestScore": 0.5566663146018982
+        },
+        "A3": {
+          "status": "found",
+          "instanceCount": 4,
+          "bestScore": 0.49370378255844116
+        },
+        "A4": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B1": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.4858857989311218
+        },
+        "B2": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B3": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.8233847618103027
+        },
+        "B4": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9247410297393799
+        },
+        "B5": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9019189476966858
+        },
+        "B6": {
+          "status": "found",
+          "instanceCount": 5,
+          "bestScore": 0.9258880019187927
+        },
+        "B7": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.7684053778648376
+        },
+        "B8": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B9": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9362317323684692
+        }
+      }
+    }
+  ]
+}

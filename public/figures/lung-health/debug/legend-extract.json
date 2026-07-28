@@ -1,0 +1,136 @@
+{
+  "source": "public/figures/lung-health/Lung Cutaway Legend Template.png",
+  "guidelines": "Observability of mask \u2014 how clearly a legend glyph can be found in the cutaway:\n\n1. Top tier (obvious to see; find with high confidence first):\n   Exact legend replicas in the diagram. (A structure may match the legend\n   exactly but still be absent from the figure \u2014 do not search those.)\n\n2. Middle tier (eventually find; not 100% replicas):\n   - Explicitly present marks (mediators / signaling clusters)\n   - Structures that appear as adjacent multiples in the legend but may show\n     in the diagram as individuals or a long row (~70% similarity to neighbors)\n\n3. Lowest tier (present but very difficult to identify accurately):\n   - Fractal / scale continuations of a larger parent structure\n   - Large fields that greatly differ in scale and are <60% similar to the glyph\n\n4. Not properly diagrammed in the legend (or absent from the figure):\n   Do not search.",
+  "items": [
+    {
+      "code": "A1",
+      "name": "TRACHEA / CONDUCTING AIRWAY",
+      "location": "Top center",
+      "supports": "All pathways (base anatomy)",
+      "row_y0": 44,
+      "row_y1": 119,
+      "glyph_path": "public/figures/lung-health/debug/legend-items/A1-glyph.png",
+      "row_path": "public/figures/lung-health/debug/legend-items/A1-row.png"
+    },
+    {
+      "code": "A2",
+      "name": "BRONCHIAL BRANCHES",
+      "location": "Central left & right",
+      "supports": "All pathways (base anatomy)",
+      "row_y0": 120,
+      "row_y1": 195,
+      "glyph_path": "public/figures/lung-health/debug/legend-items/A2-glyph.png",
+      "row_path": "public/figures/lung-health/debug/legend-items/A2-row.png"
+    },
+    {
+      "code": "A3",
+      "name": "ALVEOLAR FIELDS",
+      "location": "Lower left & right",
+      "supports": "All pathways (base anatomy)",
+      "row_y0": 196,
+      "row_y1": 271,
+      "glyph_path": "public/figures/lung-health/debug/legend-items/A3-glyph.png",
+      "row_path": "public/figures/lung-health/debug/legend-items/A3-row.png"
+    },
+    {
+      "code": "A4",
+      "name": "AIRWAY LUMEN",
+      "location": "Within airway segments",
+      "supports": "All pathways (base anatomy)",
+      "row_y0": 272,
+      "row_y1": 346,
+      "glyph_path": "public/figures/lung-health/debug/legend-items/A4-glyph.png",
+      "row_path": "public/figures/lung-health/debug/legend-items/A4-row.png"
+    },
+    {
+      "code": "B1",
+      "name": "AIRWAY EPITHELIUM",
+      "location": "Inset: lining of airway",
+      "supports": "cannabis",
+      "row_y0": 347,
+      "row_y1": 417,
+      "glyph_path": "public/figures/lung-health/debug/legend-items/B1-glyph.png",
+      "row_path": "public/figures/lung-health/debug/legend-items/B1-row.png"
+    },
+    {
+      "code": "B2",
+      "name": "AIRWAY IMMUNE COMPARTMENT",
+      "location": "Sub-epithelial zone",
+      "supports": "vaping",
+      "row_y0": 418,
+      "row_y1": 489,
+      "glyph_path": "public/figures/lung-health/debug/legend-items/B2-glyph.png",
+      "row_path": "public/figures/lung-health/debug/legend-items/B2-row.png"
+    },
+    {
+      "code": "B3",
+      "name": "NEUTROPHILS",
+      "location": "Airway & alveolar spaces",
+      "supports": "cigarette smoke",
+      "row_y0": 490,
+      "row_y1": 559,
+      "glyph_path": "public/figures/lung-health/debug/legend-items/B3-glyph.png",
+      "row_path": "public/figures/lung-health/debug/legend-items/B3-row.png"
+    },
+    {
+      "code": "B4",
+      "name": "ALVEOLAR MACROPHAGES",
+      "location": "Alveolar spaces",
+      "supports": "cigarette smoke",
+      "row_y0": 560,
+      "row_y1": 630,
+      "glyph_path": "public/figures/lung-health/debug/legend-items/B4-glyph.png",
+      "row_path": "public/figures/lung-health/debug/legend-items/B4-row.png"
+    },
+    {
+      "code": "B5",
+      "name": "DENDRITIC CELLS",
+      "location": "Sub-epithelial & alveolar",
+      "supports": "vaping",
+      "row_y0": 631,
+      "row_y1": 700,
+      "glyph_path": "public/figures/lung-health/debug/legend-items/B5-glyph.png",
+      "row_path": "public/figures/lung-health/debug/legend-items/B5-row.png"
+    },
+    {
+      "code": "B6",
+      "name": "ANTIVIRAL IMMUNE MEDIATORS",
+      "location": "Near epithelium",
+      "supports": "cannabis",
+      "row_y0": 701,
+      "row_y1": 769,
+      "glyph_path": "public/figures/lung-health/debug/legend-items/B6-glyph.png",
+      "row_path": "public/figures/lung-health/debug/legend-items/B6-row.png"
+    },
+    {
+      "code": "B7",
+      "name": "INFLAMMATORY SIGNALING",
+      "location": "Airway-alveolar junction",
+      "supports": "cigarette smoke",
+      "row_y0": 770,
+      "row_y1": 840,
+      "glyph_path": "public/figures/lung-health/debug/legend-items/B7-glyph.png",
+      "row_path": "public/figures/lung-health/debug/legend-items/B7-row.png"
+    },
+    {
+      "code": "B8",
+      "name": "COPD-RELEVANT INFLAMMATORY STRUCTURES",
+      "location": "Distal airway / alveolar stress",
+      "supports": "general air",
+      "row_y0": 841,
+      "row_y1": 926,
+      "glyph_path": "public/figures/lung-health/debug/legend-items/B8-glyph.png",
+      "row_path": "public/figures/lung-health/debug/legend-items/B8-row.png"
+    },
+    {
+      "code": "B9",
+      "name": "INFECTION / ANTIVIRAL PATHWAY",
+      "location": "Virus near epithelium + host cues",
+      "supports": "viruses",
+      "row_y0": 927,
+      "row_y1": 1001,
+      "glyph_path": "public/figures/lung-health/debug/legend-items/B9-glyph.png",
+      "row_path": "public/figures/lung-health/debug/legend-items/B9-row.png"
+    }
+  ]
+}

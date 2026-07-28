@@ -1,0 +1,337 @@
+{
+  "layers": {
+    "neutrophils": {
+      "tier": 1,
+      "legendCode": "B3",
+      "iconInterpretation": "1-discrete",
+      "minScore": 0.78,
+      "minScoreSecondary": 0.55,
+      "bestScore": 0.8233847618103027,
+      "matches": [
+        {
+          "score": 0.8233847618103027,
+          "scale": 0.94,
+          "mode": "gray",
+          "cx": 545.0,
+          "cy": 884.0,
+          "w": 28,
+          "h": 28
+        },
+        {
+          "score": 0.5883113145828247,
+          "scale": 1.18,
+          "mode": "purple",
+          "cx": 632.5,
+          "cy": 314.5,
+          "w": 35,
+          "h": 35
+        }
+      ]
+    },
+    "alveolar-macrophages": {
+      "tier": 1,
+      "legendCode": "B4",
+      "iconInterpretation": "1-discrete",
+      "minScore": 0.75,
+      "minScoreSecondary": null,
+      "bestScore": 0.9247410297393799,
+      "matches": [
+        {
+          "score": 0.9247410297393799,
+          "scale": 1.03,
+          "mode": "green",
+          "cx": 607.5,
+          "cy": 871.0,
+          "w": 47,
+          "h": 44
+        },
+        {
+          "score": 0.9083504676818848,
+          "scale": 1.03,
+          "mode": "green",
+          "cx": 492.5,
+          "cy": 904.0,
+          "w": 47,
+          "h": 44
+        }
+      ]
+    },
+    "dendritic-cells": {
+      "tier": 1,
+      "legendCode": "B5",
+      "iconInterpretation": "1-discrete",
+      "minScore": 0.75,
+      "minScoreSecondary": 0.68,
+      "bestScore": 0.9019189476966858,
+      "matches": [
+        {
+          "score": 0.9019189476966858,
+          "scale": 1.06,
+          "mode": "gray",
+          "cx": 456.0,
+          "cy": 853.0,
+          "w": 54,
+          "h": 56
+        },
+        {
+          "score": 0.7130800485610962,
+          "scale": 1.36,
+          "mode": "purple",
+          "cx": 711.5,
+          "cy": 334.0,
+          "w": 69,
+          "h": 72
+        }
+      ]
+    },
+    "infection-antiviral-pathway": {
+      "tier": 1,
+      "legendCode": "B9",
+      "iconInterpretation": "1-discrete",
+      "minScore": 0.8,
+      "minScoreSecondary": null,
+      "bestScore": 0.9362317323684692,
+      "matches": [
+        {
+          "score": 0.9362317323684692,
+          "scale": 0.88,
+          "mode": "gray",
+          "cx": 676.0,
+          "cy": 116.5,
+          "w": 40,
+          "h": 39
+        },
+        {
+          "score": 0.9326056838035583,
+          "scale": 0.82,
+          "mode": "gray",
+          "cx": 630.0,
+          "cy": 102.0,
+          "w": 38,
+          "h": 36
+        }
+      ]
+    },
+    "antiviral-immune-mediators": {
+      "tier": 2,
+      "legendCode": "B6",
+      "iconInterpretation": "2-discrete",
+      "minScore": 0.74,
+      "minScoreSecondary": null,
+      "bestScore": 0.9258880019187927,
+      "matches": [
+        {
+          "score": 0.9258880019187927,
+          "scale": 1.0,
+          "mode": "gray",
+          "cx": 757.0,
+          "cy": 124.5,
+          "w": 22,
+          "h": 23,
+          "part": "dots"
+        },
+        {
+          "score": 0.8900063037872314,
+          "scale": 0.85,
+          "mode": "gray",
+          "cx": 861.0,
+          "cy": 114.0,
+          "w": 14,
+          "h": 16,
+          "part": "antibody"
+        },
+        {
+          "score": 0.8417834043502808,
+          "scale": 0.75,
+          "mode": "gray",
+          "cx": 883.5,
+          "cy": 129.0,
+          "w": 13,
+          "h": 14,
+          "part": "antibody"
+        },
+        {
+          "score": 0.751724362373352,
+          "scale": 0.7,
+          "mode": "gray",
+          "cx": 821.0,
+          "cy": 133.5,
+          "w": 12,
+          "h": 13,
+          "part": "antibody"
+        },
+        {
+          "score": 0.7421051263809204,
+          "scale": 0.7,
+          "mode": "gray",
+          "cx": 874.0,
+          "cy": 189.5,
+          "w": 12,
+          "h": 13,
+          "part": "antibody"
+        }
+      ]
+    },
+    "inflammatory-signaling": {
+      "tier": 2,
+      "legendCode": "B7",
+      "iconInterpretation": "1-discrete",
+      "minScore": 0.65,
+      "minScoreSecondary": null,
+      "bestScore": 0.7684053778648376,
+      "matches": [
+        {
+          "score": 0.7684053778648376,
+          "scale": 0.9,
+          "mode": "gray",
+          "cx": 557.5,
+          "cy": 804.0,
+          "w": 45,
+          "h": 22
+        },
+        {
+          "score": 0.6663369536399841,
+          "scale": 1.1,
+          "mode": "gray",
+          "cx": 877.5,
+          "cy": 311.0,
+          "w": 55,
+          "h": 28
+        }
+      ]
+    },
+    "trachea-conducting-airway": {
+      "tier": 2,
+      "legendCode": "A1",
+      "iconInterpretation": "1-discrete",
+      "minScore": 0.45,
+      "minScoreSecondary": null,
+      "bestScore": 0.45278292894363403,
+      "matches": [
+        {
+          "score": 0.45278292894363403,
+          "scale": 0.4,
+          "mode": "gray",
+          "cx": 515.0,
+          "cy": 60.5,
+          "w": 16,
+          "h": 23
+        }
+      ]
+    },
+    "airway-epithelium": {
+      "tier": 2,
+      "legendCode": "B1",
+      "iconInterpretation": "1-discrete",
+      "minScore": 0.4,
+      "minScoreSecondary": null,
+      "bestScore": 0.4858857989311218,
+      "matches": [
+        {
+          "score": 0.4789653718471527,
+          "scale": 0.35,
+          "mode": "gray",
+          "cx": 442.0,
+          "cy": 745.5,
+          "w": 18,
+          "h": 17
+        },
+        {
+          "score": 0.4858857989311218,
+          "scale": 0.35,
+          "mode": "gray",
+          "cx": 714.0,
+          "cy": 254.5,
+          "w": 18,
+          "h": 17
+        }
+      ]
+    },
+    "bronchial-branches": {
+      "tier": 3,
+      "legendCode": "A2",
+      "iconInterpretation": "1-discrete",
+      "minScore": 0.48,
+      "minScoreSecondary": null,
+      "bestScore": 0.5566663146018982,
+      "matches": [
+        {
+          "score": 0.5566663146018982,
+          "scale": 0.55,
+          "mode": "gray",
+          "cx": 304.0,
+          "cy": 295.0,
+          "w": 28,
+          "h": 32
+        },
+        {
+          "score": 0.5116947889328003,
+          "scale": 0.45,
+          "mode": "gray",
+          "cx": 690.5,
+          "cy": 248.5,
+          "w": 23,
+          "h": 27
+        },
+        {
+          "score": 0.5096397399902344,
+          "scale": 0.45,
+          "mode": "gray",
+          "cx": 300.5,
+          "cy": 90.5,
+          "w": 23,
+          "h": 27
+        }
+      ]
+    },
+    "alveolar-fields": {
+      "tier": 3,
+      "legendCode": "A3",
+      "iconInterpretation": "1-discrete",
+      "minScore": 0.42,
+      "minScoreSecondary": null,
+      "bestScore": 0.49370378255844116,
+      "matches": [
+        {
+          "score": 0.49370378255844116,
+          "scale": 0.35,
+          "mode": "gray",
+          "cx": 857.0,
+          "cy": 633.0,
+          "w": 18,
+          "h": 20
+        },
+        {
+          "score": 0.47860395908355713,
+          "scale": 0.35,
+          "mode": "gray",
+          "cx": 269.0,
+          "cy": 804.0,
+          "w": 18,
+          "h": 20
+        },
+        {
+          "score": 0.481433629989624,
+          "scale": 0.35,
+          "mode": "gray",
+          "cx": 236.0,
+          "cy": 599.0,
+          "w": 18,
+          "h": 20
+        },
+        {
+          "score": 0.4604446291923523,
+          "scale": 0.43,
+          "mode": "gray",
+          "cx": 884.0,
+          "cy": 766.0,
+          "w": 22,
+          "h": 24
+        }
+      ]
+    }
+  },
+  "method": "opencv-template-match",
+  "tier1_mean_score": 0.8966,
+  "qa_errors": []
+}

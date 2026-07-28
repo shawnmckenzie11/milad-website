@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 953">
+  <image href="/figures/lung-health/cutaway-neutral.png" width="1024" height="953"/>
+  <rect id="bbox-neutrophils" x="363" y="287" width="459" height="575" fill="none" stroke="#ffd60a" stroke-width="3"/>
+<rect id="bbox-alveolar-macrophages" x="423" y="249" width="479" height="633" fill="none" stroke="#ffd60a" stroke-width="3"/>
+<rect id="bbox-dendritic-cells" x="345" y="291" width="541" height="531" fill="none" stroke="#ffd60a" stroke-width="3"/>
+<rect id="bbox-infection-antiviral-pathway" x="422" y="106" width="472" height="677" fill="none" stroke="#ffd60a" stroke-width="3"/>
+<rect id="bbox-trachea-conducting-airway" x="430" y="40" width="171" height="221" fill="none" stroke="#ffd60a" stroke-width="3"/>
+<rect id="bbox-airway-epithelium" x="339" y="199" width="618" height="603" fill="none" stroke="#ffd60a" stroke-width="3"/>
+<rect id="bbox-antiviral-immune-mediators" x="745" y="105" width="148" height="127" fill="none" stroke="#ffd60a" stroke-width="3"/>
+<rect id="bbox-inflammatory-signaling" x="339" y="706" width="301" height="166" fill="none" stroke="#ffd60a" stroke-width="3"/>
+<rect id="bbox-bronchial-branches" x="200" y="210" width="641" height="391" fill="none" stroke="#ffd60a" stroke-width="3"/>
+<rect id="bbox-alveolar-fields" x="140" y="580" width="845" height="332" fill="none" stroke="#ffd60a" stroke-width="3"/>
+</svg>
