@@ -1,0 +1,272 @@
+.lhv {
+	width: 100%;
+}
+
+.lhv__layout {
+	display: grid;
+	gap: var(--space-lg);
+	align-items: start;
+}
+
+.lhv__scene {
+	position: relative;
+	margin: 0;
+	border: 1px solid var(--color-line);
+	background: #ffffff;
+	overflow: hidden;
+	/* Scene height follows the stage only — do not stretch to the caption panel. */
+	align-self: start;
+	width: 100%;
+}
+
+.lhv__back {
+	position: absolute;
+	top: 0.75rem;
+	left: 0.75rem;
+	z-index: 4;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	appearance: none;
+	border: 3px double #000000;
+	background: rgba(255, 255, 255, 0.96);
+	color: #000000;
+	width: 2.35rem;
+	height: 2.35rem;
+	padding: 0;
+	cursor: pointer;
+	pointer-events: auto;
+}
+
+.lhv__back-icon {
+	display: block;
+	width: 1.15rem;
+	height: 1.15rem;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2.5;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.lhv__back:hover,
+.lhv__back:focus-visible {
+	background: #ffffff;
+	outline: none;
+	box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85);
+}
+
+/*
+ * Source art is 3:2 (1.5). Stretch ~10% wider (1.65) so oblong bubble
+ * callouts read as circles; object-fit:fill distorts the bitmap into the stage.
+ * Cutaway view animates to the artwork aspect (~25% taller) via Framer Motion.
+ */
+.lhv__stage {
+	position: relative;
+	width: 100%;
+	aspect-ratio: 1.65 / 1;
+	background: #d7e4ef;
+	overflow: hidden;
+	isolation: isolate;
+}
+
+.lhv__layout.is-cutaway .lhv__stage {
+	background: #f4f6f7;
+}
+
+.lhv__view {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	backface-visibility: hidden;
+	pointer-events: none;
+}
+
+.lhv__view--cutaway {
+	display: flex;
+	align-items: stretch;
+	justify-content: flex-start;
+	background: #f4f6f7;
+	padding: 0;
+}
+
+.lhv__image {
+	position: absolute;
+	inset: 0;
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: fill;
+	pointer-events: none;
+	user-select: none;
+}
+
+/* Fill the stage; aspect ratio matches artwork so no side gutter remains. */
+.lhv__cutaway-image {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	object-position: center center;
+	pointer-events: none;
+	user-select: none;
+}
+
+.lhv__hotspots {
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	pointer-events: none;
+}
+
+.lhv__hotspot {
+	position: absolute;
+	left: var(--lhv-x);
+	top: var(--lhv-y);
+	width: var(--lhv-size);
+	aspect-ratio: 1;
+	transform: translate(-50%, -50%);
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: transparent;
+	cursor: pointer;
+	appearance: none;
+	-webkit-appearance: none;
+	pointer-events: auto;
+	z-index: 3;
+}
+
+.lhv__hotspot-ring {
+	display: block;
+	width: 100%;
+	height: 100%;
+	border-radius: 50%;
+	border: 2px solid transparent;
+	box-shadow: none;
+	transition:
+		border-color 180ms var(--ease-out),
+		box-shadow 180ms var(--ease-out),
+		background-color 180ms var(--ease-out);
+}
+
+.lhv__hotspot:hover .lhv__hotspot-ring,
+.lhv__hotspot:focus-visible .lhv__hotspot-ring {
+	border-color: rgba(74, 98, 116, 0.95);
+	box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85);
+	background: rgba(255, 255, 255, 0.08);
+}
+
+.lhv__hotspot:focus-visible {
+	outline: none;
+}
+
+.lhv__panel {
+	padding: 0;
+	min-height: 12rem;
+}
+
+.lhv__panel-card {
+	max-width: 38rem;
+}
+
+.lhv__panel-eyebrow {
+	margin: 0 0 var(--space-sm);
+	font-family: var(--font-display);
+	font-size: 0.72rem;
+	font-weight: 600;
+	letter-spacing: 0.18em;
+	text-transform: uppercase;
+	color: var(--color-muted);
+}
+
+.lhv__panel-title {
+	margin: 0 0 var(--space-sm);
+	font-size: clamp(1.2rem, 2.4vw, 1.45rem);
+}
+
+.lhv__panel-question {
+	margin: 0 0 var(--space-sm);
+	color: var(--color-ink);
+	font-size: 1.05rem;
+	line-height: 1.55;
+	font-style: italic;
+}
+
+.lhv__panel-caption {
+	margin: 0;
+	color: var(--color-ink-soft);
+	font-size: 1.02rem;
+	line-height: 1.65;
+}
+
+.lhv__panel-cta {
+	margin: var(--space-md) 0 0;
+	font-family: var(--font-display);
+	font-size: 0.72rem;
+	font-weight: 600;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: var(--color-accent);
+}
+
+.lhv__panel-link {
+	display: inline-block;
+	margin-top: var(--space-md);
+	font-family: var(--font-display);
+	font-size: 0.72rem;
+	font-weight: 600;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	text-decoration: none;
+	color: var(--color-accent);
+	border-bottom: 1px solid transparent;
+}
+
+.lhv__panel-link:hover,
+.lhv__panel-link:focus-visible {
+	border-bottom-color: var(--color-accent);
+	outline: none;
+}
+
+.sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+@media (min-width: 900px) {
+	.lhv__layout {
+		grid-template-columns: minmax(0, 1.55fr) minmax(16rem, 0.9fr);
+		gap: var(--space-xl);
+		align-items: start;
+	}
+
+	.lhv__layout.is-cutaway {
+		grid-template-columns: minmax(0, 1.45fr) minmax(18rem, 1fr);
+	}
+
+	.lhv__panel {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		padding: var(--space-md) 0;
+		border-left: 1px solid var(--color-line);
+		padding-left: var(--space-lg);
+		/* Match scene top; grow with copy without forcing empty image chrome. */
+		min-height: 0;
+		align-self: stretch;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.lhv__hotspot-ring {
+		transition: none;
+	}
+}

@@ -1,6 +1,9 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import ProjectCard from '../components/ProjectCard.astro';
+import ProgramTabs from '../components/ProgramTabs.astro';
+import LungHealthVisual from '../components/LungHealthVisual';
+import { lungHealthTabProjectIds } from '../data/lungHealthVisual';
 import { getProjects } from '../lib/research';
 import { getProjectPresentation } from '../lib/projectPresentation';
 import { site } from '../lib/site';
@@ -9,6 +12,11 @@ const projects = getProjects();
 const active = projects.filter((project) => project.status === 'active' && project.id !== 'other-recent');
 const adjacent = projects.filter((project) => project.id === 'other-recent');
 const completed = projects.filter((project) => project.status === 'completed');
+
+/** Pathway-linked programs in tab order for the visualization section. */
+const tabProjects = lungHealthTabProjectIds
+	.map((id) => active.find((project) => project.id === id))
+	.filter((project): project is NonNullable<typeof project> => Boolean(project));
 
 const methodSet = [
 	...new Set(
@@ -21,21 +29,20 @@ const methodSet = [
 	title="Current Projects"
 	description={`Research programs led by ${site.name} — for prospective trainees and collaborators in biology and health sciences.`}
 >
-	<section id="active-programs" class="section section--first fade-in" aria-label="Active programs">
+	<section
+		id="lung-health-visual"
+		class="section section--first section--visual"
+		aria-label="Lung health pathways"
+	>
+		<LungHealthVisual client:load />
+	</section>
+
+	<section id="active-programs" class="section fade-in" aria-label="Active programs">
 		{
-			active.length === 0 ? (
+			tabProjects.length === 0 ? (
 				<p>Active programs will appear here as the research portfolio develops.</p>
 			) : (
-				<div class="program-stack">
-					{active.map((project, index) => (
-						<div class="program-stack__item" style={`--delay: ${index * 70}ms`}>
-							<ProjectCard
-								project={project}
-								figureSide={index % 2 === 0 ? 'left' : 'right'}
-							/>
-						</div>
-					))}
-				</div>
+				<ProgramTabs projects={tabProjects} />
 			)
 		}
 	</section>
@@ -123,6 +130,11 @@ const methodSet = [
 		padding-top: 0;
 	}
 
+	.section--visual {
+		margin-bottom: var(--space-lg);
+		scroll-margin-top: 5.5rem;
+	}
+
 	.section + .section {
 		border-top: 1px solid var(--color-line);
 	}
@@ -143,17 +155,6 @@ const methodSet = [
 		background: rgba(255, 255, 255, 0.4);
 		border-top: 1px solid var(--color-line);
 		border-bottom: 1px solid var(--color-line);
-	}
-
-	.program-stack {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
-	}
-
-	.program-stack__item {
-		animation: fade-up 700ms var(--ease-out) both;
-		animation-delay: var(--delay, 0ms);
 	}
 
 	.program-grid {
@@ -241,7 +242,6 @@ const methodSet = [
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.program-stack__item,
 		.program-grid__item {
 			animation: none;
 			opacity: 1;
