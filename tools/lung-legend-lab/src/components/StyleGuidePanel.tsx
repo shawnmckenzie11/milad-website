@@ -42,17 +42,14 @@ type Draft = {
 };
 
 /**
- * Derive a filesystem / match key from the legend name, falling back to the code.
- * Replaces the former editable asset-slug field.
+ * Derive a filesystem / match key from the legend name only (never letter codes).
  * @param name - Legend display name
- * @param code - Legend code (A1, A20, …)
  */
-function layerKeyFromLegend(name: string | undefined, code: string): string {
-	const fromName = (name || '')
+function layerKeyFromLegend(name: string | undefined): string {
+	return (name || '')
 		.toLowerCase()
 		.replace(/[^a-z0-9]+/g, '-')
 		.replace(/^-+|-+$/g, '');
-	return fromName || code.toLowerCase();
 }
 
 type Props = {
@@ -116,7 +113,7 @@ function draftFromProfile(
 				: DEFAULT_IMAGE_PATHWAYS.map((p) => ({ ...p })),
 		stableIds: (profile.layerNaming?.stableIds || []).map((row) => ({
 			id: row.id,
-			legendCode: row.legendCode || '',
+			name: row.name || row.id,
 			group: row.group || '',
 			frameworkAlias: row.frameworkAlias || '',
 			pathways: Array.isArray(row.pathways) ? [...row.pathways] : [],
@@ -161,23 +158,20 @@ function profileFromDraft(draft: Draft, baseId: string): Record<string, unknown>
 		headline: draft.headline,
 		namingExamples: draft.stableIds
 			.slice(0, 4)
-			.map((s) => `${s.legendCode || '?'} → ${s.name || layerKeyFromLegend(s.name, s.legendCode || '')}`),
+			.map((s) => `${s.name || s.id} → ${s.id || layerKeyFromLegend(s.name)}`),
 	};
 	const layerNaming = {
 		...((draft.rest.layerNaming as object) || {}),
 		convention: draft.convention,
 		stableIds: draft.stableIds
-			.filter((r) => (r.legendCode || '').trim())
-			.map((r) => {
-				const code = (r.legendCode || '').trim();
-				return {
-					id: layerKeyFromLegend(r.name, code),
-					legendCode: code || undefined,
-					group: r.group?.trim() || undefined,
-					frameworkAlias: r.frameworkAlias?.trim() || undefined,
-					pathways: (r.pathways || []).filter(Boolean),
-				};
-			}),
+			.filter((r) => (r.name || r.id || '').trim())
+			.map((r) => ({
+				id: r.id?.trim() || layerKeyFromLegend(r.name),
+				name: r.name?.trim() || undefined,
+				group: r.group?.trim() || undefined,
+				frameworkAlias: r.frameworkAlias?.trim() || undefined,
+				pathways: (r.pathways || []).filter(Boolean),
+			})),
 	};
 	return {
 		...draft.rest,
@@ -216,22 +210,21 @@ function mergeLegendDetails(
 	imagePathways: Array<{ id: string; label: string }>,
 ): StableLayerRow[] {
 	if (!legendItems.length) return existing;
-	const byCode = new Map(
-		existing.filter((r) => r.legendCode).map((r) => [r.legendCode as string, r]),
-	);
+	const bySlug = new Map(existing.filter((r) => r.id).map((r) => [r.id, r]));
 	const allowed = new Set(
 		imagePathways.map((p) => p.id.trim()).filter(Boolean),
 	);
 	const layers = imagePathways.map((p) => ({ id: p.id, label: p.label || p.id }));
 	return legendItems.map((it) => {
-		const prev = byCode.get(it.code);
+		const slug = layerKeyFromLegend(it.name);
+		const prev = bySlug.get(slug);
 		const fromSupports = pathwaysFromSupports(it.supports, layers).filter((id) =>
 			allowed.has(id),
 		);
 		const kept = (prev?.pathways || []).filter((id) => allowed.has(id));
 		const pathways = kept.length > 0 ? kept : fromSupports;
 		return {
-			id: layerKeyFromLegend(it.name, it.code),
+			id: slug,
 			legendCode: it.code,
 			group: prev?.group || (it.code.startsWith('A') ? 'base' : 'highlight'),
 			frameworkAlias: prev?.frameworkAlias,

@@ -417,11 +417,15 @@ export type StyleGuideProfileBrief = {
 		groupRules?: Record<string, string>;
 		stableIds?: Array<{
 			id: string;
-			legendCode?: string;
+			name?: string;
 			group?: string;
 			frameworkAlias?: string;
-			/** Image pathway layer ids from profile `imagePathways` (from legend supports). */
+			/** Image pathway layer ids from profile `imagePathways`. */
 			pathways?: string[];
+			/** OpenCV template-match skill blob (canonical 1024×953 geometry). */
+			matcher?: Record<string, unknown>;
+			/** Profile-relative ink-trimmed template PNG from a prior calibration. */
+			templateRel?: string;
 		}>;
 		assetPattern?: string;
 	} | null;

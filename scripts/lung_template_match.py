@@ -95,9 +95,9 @@ ASPECT_WARN_TOLERANCE = 0.03
 SCALE_X: float = 1.0
 SCALE_Y: float = 1.0
 
-# Codes whose freehand outlines may seed extra matchTemplate searches for
+# Slugs whose freehand outlines may seed extra matchTemplate searches for
 # iconInterpretation=multiple-adjacent-as-one (adjacent wall/lining bands).
-BAND_FREEHAND_CODES = frozenset({"A1", "B1"})
+BAND_FREEHAND_SLUGS = frozenset({"trachea-conducting-airway", "airway-epithelium"})
 
 # Feedback kinds carrying usable expert outline vertices. `freehand-superseded`
 # is an outline a compatible hit already took over: the lab hides it from review,
@@ -303,7 +303,7 @@ class BandFreehand:
     point-in-polygon tests against stale exclusion priors.
     """
 
-    code: str
+    slug: str
     bgra: np.ndarray
     cx: float
     cy: float
@@ -343,46 +343,47 @@ def freehand_points_to_bgra_template(
 def load_band_freehand_templates(
     hay_bgr: np.ndarray,
     feedback_path: Path | None = None,
+    code_to_slug: dict[str, str] | None = None,
 ) -> list[BandFreehand]:
     """
-    Load A1/B1 freehand-classify outlines from lung:lab feedback as extra templates.
+    Load adjacent-band freehand-classify outlines as extra templates.
 
     Callers search these for every multiple-adjacent-as-one band slug so a B1
     freehand can recover a similar A1 segment (and vice versa) without inventing
-    flood-fill / chroma. Cross-code transfer is best-effort: Tier-2 band outlines
-    are non-replica geometry, so a code usually needs its own GT to be recovered.
+    flood-fill / chroma. Cross-slug transfer is best-effort.
     """
     path = feedback_path or LAB_TRAINING_FEEDBACK
     if not path.is_file():
         return []
+    slug_map = code_to_slug or build_code_slug_map()
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return []
     out: list[BandFreehand] = []
     claimed: set[str] = set()
-    # Live outlines first so a fresh redraw wins over its retired predecessor.
     entries = sorted(
         (e for e in (data.get("feedback") or []) if e.get("kind") in FREEHAND_GT_KINDS),
         key=lambda e: e.get("kind") != "freehand-classify",
     )
     for entry in entries:
         code = str(entry.get("code") or "")
-        if code not in BAND_FREEHAND_CODES or code in claimed:
+        slug = str(entry.get("slug") or slug_map.get(code) or "")
+        if slug not in BAND_FREEHAND_SLUGS or slug in claimed:
             continue
         pts = entry.get("points") or []
         tmpl = freehand_points_to_bgra_template(hay_bgr, pts)
         if tmpl is None:
             continue
-        claimed.add(code)
+        claimed.add(slug)
         cx = float(sum(float(p["x"]) for p in pts) / len(pts))
         cy = float(sum(float(p["y"]) for p in pts) / len(pts))
         polygon = np.array(
             [[float(p["x"]), float(p["y"])] for p in pts], dtype=np.float32
         )
-        out.append(BandFreehand(code=code, bgra=tmpl, cx=cx, cy=cy, polygon=polygon))
+        out.append(BandFreehand(slug=slug, bgra=tmpl, cx=cx, cy=cy, polygon=polygon))
         print(
-            f"  · freehand-instance template from {code} "
+            f"  · freehand-instance template from {slug} "
             f"{tmpl.shape[1]}×{tmpl.shape[0]} "
             f"alpha={int(np.count_nonzero(tmpl[:, :, 3]))}px "
             f"@({cx:.0f},{cy:.0f})"
@@ -407,10 +408,9 @@ def relax_excludes_vetoing_freehand(
     Only priors that reach the GT center are dropped; unrelated FP suppressors
     elsewhere in the ROI survive.
     """
-    targets = [fh for fh in band_freehands if fh.code == spec.legend_code]
+    targets = [fh for fh in band_freehands if fh.slug == spec.slug]
     if not targets or not spec.exclude_centers:
         return spec
-    # A match window centers on the outline bbox center, not the vertex centroid.
     centers = [
         (
             float((fh.polygon[:, 0].min() + fh.polygon[:, 0].max()) / 2.0),
@@ -424,7 +424,7 @@ def relax_excludes_vetoing_freehand(
         vetoes_gt = any((ex - gx) ** 2 + (ey - gy) ** 2 <= r2 for gx, gy in centers)
         if vetoes_gt:
             print(
-                f"  · {spec.legend_code}: dropped exclusion prior ({ex},{ey}) — "
+                f"  · {spec.slug}: dropped exclusion prior ({ex},{ey}) — "
                 f"within {spec.exclude_radius}px of expert freehand GT center"
             )
             continue
@@ -437,15 +437,15 @@ def relax_excludes_vetoing_freehand(
 def filter_hits_away_from_other_freehands(
     hits: list[dict],
     band_freehands: list[BandFreehand],
-    legend_code: str,
+    slug: str,
     min_dist: float = 70.0,
 ) -> list[dict]:
     """
-    Drop instance-template hits that land on a *different* code's freehand GT.
+    Drop instance-template hits that land on a *different* slug's freehand GT.
 
     Prevents labeling the B1 lining as A1 (or vice versa) when sharing templates.
     """
-    foreign = [(fh.cx, fh.cy) for fh in band_freehands if fh.code != legend_code]
+    foreign = [(fh.cx, fh.cy) for fh in band_freehands if fh.slug != slug]
     if not foreign:
         return hits
     kept: list[dict] = []
@@ -481,19 +481,29 @@ def near_exclude(cx: float, cy: float, spec: LayerSpec) -> bool:
     return any((cx - ex) ** 2 + (cy - ey) ** 2 <= r2 for ex, ey in spec.exclude_centers)
 
 
-def tiny_scale_needs_prior(match: dict, spec: LayerSpec) -> bool:
+def tiny_scale_needs_prior(
+    match: dict,
+    spec: LayerSpec,
+    *,
+    allow_at_expected: bool = False,
+) -> bool:
     """
-    Whether a sub-0.45× peak must be recovered only via expected-center prior.
+    Whether a sub-0.45× peak is blocked from the primary acceptance set.
 
     Canonical anchors include 10%/25% so freehand rematches can find off-size
-    copies, but those scales also fire on texture. Keep them searchable; only
-    accept as primary when the score is near-perfect.
+    copies, but those scales also fire on texture (perfect-score junk ladders).
+    Sub-0.45× peaks never enter the primary set; they may only recover via the
+    expected-center secondary path when ``allow_at_expected`` is True.
     """
     scale = float(match.get("scale") or 1.0)
     if scale >= 0.45:
         return False
-    floor = max(float(spec.min_score), 0.90)
-    return float(match.get("score") or 0.0) < floor
+    if allow_at_expected and spec.expected_centers:
+        cx, cy = float(match["cx"]), float(match["cy"])
+        r2 = float(spec.expected_radius) ** 2
+        if any((cx - ex) ** 2 + (cy - ey) ** 2 <= r2 for ex, ey in spec.expected_centers):
+            return False
+    return True
 
 
 def accept_matches(candidates: list[dict], spec: LayerSpec) -> list[dict]:
@@ -527,7 +537,7 @@ def accept_matches(candidates: list[dict], spec: LayerSpec) -> list[dict]:
             for m in candidates
             if m["score"] >= secondary_floor
             and not near_exclude(m["cx"], m["cy"], spec)
-            and not tiny_scale_needs_prior(m, spec)
+            and not tiny_scale_needs_prior(m, spec, allow_at_expected=True)
             and (m["cx"] - ex) ** 2 + (m["cy"] - ey) ** 2 <= spec.expected_radius**2
         ]
         if not nearby:
@@ -759,24 +769,252 @@ LAYER_SPECS: list[LayerSpec] = [
     ),
 ]
 
-#: Optional calibrated presets keyed by legend code. Used only when that code
-#: actually appears as searchable in the analysis classification — never as a
-#: hard requirement that every legend must include A1/B3/….
-CALIBRATED_BY_CODE: dict[str, LayerSpec] = {s.legend_code: s for s in LAYER_SPECS}
+#: Site-default calibrated presets keyed by stable slug (never legend letter code).
+CALIBRATED_BY_SLUG: dict[str, LayerSpec] = {s.slug: s for s in LAYER_SPECS}
+
+STYLE_GUIDE_PROFILES_DIR = (
+    ROOT / "tools/lung-legend-lab/style-guide-profiles"
+)
+DEFAULT_STYLE_GUIDE_PROFILE_ID = "milad-lab-biomedical-illustration"
 
 #: Broad search window for uncalibrated legend codes (canonical 1024×953 space).
 DISCOVERY_ROI = dict(x0=80, y0=20, x1=1000, y1=940)
 
 
-def slugify_legend_name(name: str | None, code: str) -> str:
+def slugify_legend_name(name: str | None) -> str:
     """
-    Derive a filesystem/layer key from a legend item name (or fall back to code).
+    Derive a stable layer slug from a legend item name only.
 
-    Matches the lab StyleGuidePanel `layerKeyFromLegend` convention so files,
-    matching, and the site stay aligned without a separate asset-slug field.
+    Matches the lab StyleGuidePanel ``layerKeyFromLegend`` convention (name
+    only — never fall back to A/B letter codes).
     """
-    from_name = re.sub(r"[^a-z0-9]+", "-", (name or "").lower()).strip("-")
-    return from_name or code.lower()
+    return re.sub(r"[^a-z0-9]+", "-", (name or "").lower()).strip("-")
+
+
+def load_style_guide_profile() -> dict:
+    """
+    Load the active style-guide profile for this run.
+
+    Prefers the analysis snapshot under ``style-guide/profile.json``, then the
+    bound catalog profile. When the snapshot lacks ``matcher`` skills, merges
+    them from the catalog so cross-analysis calibration travels with the profile.
+    """
+    snapshot: dict | None = None
+    catalog: dict | None = None
+    if IO_ROOT is not None:
+        snap_path = IO_ROOT / "style-guide" / "profile.json"
+        if snap_path.is_file():
+            try:
+                data = json.loads(snap_path.read_text(encoding="utf-8"))
+                if isinstance(data, dict):
+                    snapshot = data
+            except (OSError, json.JSONDecodeError):
+                pass
+    cat_path = STYLE_GUIDE_PROFILES_DIR / f"{DEFAULT_STYLE_GUIDE_PROFILE_ID}.json"
+    if cat_path.is_file():
+        try:
+            data = json.loads(cat_path.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                catalog = data
+        except (OSError, json.JSONDecodeError):
+            pass
+    if snapshot is None:
+        return catalog or {}
+    if catalog is None:
+        return snapshot
+    snap_stable = stable_ids_by_slug(snapshot)
+    cat_stable = stable_ids_by_slug(catalog)
+    merged_rows: list[dict] = []
+    seen: set[str] = set()
+    for row in (snapshot.get("layerNaming") or {}).get("stableIds") or []:
+        if not isinstance(row, dict):
+            continue
+        sid = str(row.get("id") or "").strip()
+        seen.add(sid)
+        cat_row = cat_stable.get(sid) or {}
+        if cat_row.get("matcher") and not row.get("matcher"):
+            row = {**row, "matcher": cat_row["matcher"]}
+        if cat_row.get("templateRel") and not row.get("templateRel"):
+            row = {**row, "templateRel": cat_row["templateRel"]}
+        merged_rows.append(row)
+    for sid, cat_row in cat_stable.items():
+        if sid not in seen and cat_row.get("matcher"):
+            merged_rows.append(cat_row)
+    if merged_rows:
+        layer_naming = dict(snapshot.get("layerNaming") or {})
+        layer_naming["stableIds"] = merged_rows
+        snapshot = {**snapshot, "layerNaming": layer_naming}
+    return snapshot
+
+
+def stable_ids_by_slug(profile: dict) -> dict[str, dict]:
+    """Index ``layerNaming.stableIds`` rows by their kebab ``id``."""
+    rows = (profile.get("layerNaming") or {}).get("stableIds") or []
+    out: dict[str, dict] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        sid = str(row.get("id") or "").strip()
+        if sid:
+            out[sid] = row
+    return out
+
+
+def _points_from_json(raw: object) -> list[tuple[int, int]]:
+    """Parse ``[[x,y],…]`` center lists from a style-guide matcher blob."""
+    if not isinstance(raw, list):
+        return []
+    out: list[tuple[int, int]] = []
+    for pt in raw:
+        if isinstance(pt, (list, tuple)) and len(pt) >= 2:
+            out.append((int(pt[0]), int(pt[1])))
+    return out
+
+
+def _rois_from_json(raw: object) -> list[dict]:
+    """Parse ROI dict lists from a style-guide matcher blob."""
+    if not isinstance(raw, list):
+        return []
+    out: list[dict] = []
+    for roi in raw:
+        if not isinstance(roi, dict):
+            continue
+        try:
+            out.append(
+                dict(
+                    x0=float(roi["x0"]),
+                    y0=float(roi["y0"]),
+                    x1=float(roi["x1"]),
+                    y1=float(roi["y1"]),
+                )
+            )
+        except (KeyError, TypeError, ValueError):
+            continue
+    return out
+
+
+def layer_spec_from_matcher_blob(
+    slug: str,
+    matcher: dict,
+    *,
+    tier: int,
+    icon_interpretation: str,
+    source_code: str = "",
+) -> LayerSpec:
+    """
+    Build a ``LayerSpec`` from a style-guide ``stableIds[].matcher`` skill blob.
+
+    Geometry is authored in canonical 1024×953 space; ``scale_layer_spec`` maps
+    it to the live cutaway when needed.
+    """
+    scale_policy = matcher.get("scalePolicy") if isinstance(matcher.get("scalePolicy"), dict) else {}
+    scales_raw = matcher.get("scales")
+    if isinstance(scales_raw, list) and scales_raw:
+        scales = [float(s) for s in scales_raw]
+    else:
+        start = float(scale_policy.get("start", 0.5))
+        stop = float(scale_policy.get("stop", 1.5))
+        step = float(scale_policy.get("step", 0.05))
+        scales = _scales_for_tier(tier, start, stop, step)
+    modes_raw = matcher.get("modes")
+    modes = tuple(str(m) for m in modes_raw) if isinstance(modes_raw, list) else ("gray", "color")
+    min_sec = matcher.get("minScoreSecondary")
+    return LayerSpec(
+        slug=slug,
+        legend_code=source_code,
+        tier=int(matcher.get("tier", tier)),
+        rois=_rois_from_json(matcher.get("rois")) or [DISCOVERY_ROI],
+        accept_rois=_rois_from_json(matcher.get("acceptRois")) or _rois_from_json(matcher.get("rois")) or [DISCOVERY_ROI],
+        scales=scales,
+        min_score=float(matcher.get("minScore", 0.75)),
+        min_score_secondary=float(min_sec) if min_sec is not None else None,
+        modes=modes,
+        max_matches=int(matcher.get("maxMatches", 4)),
+        expected_centers=_points_from_json(matcher.get("expectedCenters")),
+        exclude_centers=_points_from_json(matcher.get("excludeCenters")),
+        exclude_radius=int(matcher.get("excludeRadius", 48)),
+        max_component_side=int(matcher.get("maxComponentSide", 140)),
+        min_component_side=int(matcher.get("minComponentSide", 0)),
+        max_pixel_count=int(matcher.get("maxPixelCount", 2500)),
+        nms_min_dist=int(matcher.get("nmsMinDist", 28)),
+        peaks_per_scale=int(matcher.get("peaksPerScale", 3)),
+        expected_radius=int(matcher.get("expectedRadius", 55)),
+        icon_interpretation=icon_interpretation,
+        require_match=bool(matcher.get("requireMatch", True)),
+        stamp_shape=str(matcher.get("stampShape", "alpha")),
+    )
+
+
+def build_code_slug_map(extract: dict[str, dict] | None = None) -> dict[str, str]:
+    """
+    Map analysis legend letter codes → stable slugs derived from item names.
+
+    Used only to locate glyph PNGs and merge per-analysis expert feedback; never
+    for cross-analysis skill lookup.
+    """
+    items = extract if extract is not None else load_extract_items_by_code()
+    out: dict[str, str] = {}
+    for code, item in items.items():
+        name = item.get("name") if isinstance(item.get("name"), str) else None
+        slug = slugify_legend_name(name)
+        if slug:
+            out[str(code)] = slug
+    return out
+
+
+def resolve_slug_for_searchable(
+    code: str,
+    row: dict,
+    extract_item: dict | None,
+    stable_ids: dict[str, dict],
+) -> str:
+    """
+    Resolve the stable slug for one searchable classification row.
+
+    Priority: explicit classification slug → style-guide name/id match → name
+    slugify. Never falls back to the letter code.
+    """
+    explicit = row.get("slug")
+    if isinstance(explicit, str) and explicit.strip():
+        return explicit.strip()
+    name = None
+    if extract_item and isinstance(extract_item.get("name"), str):
+        name = extract_item.get("name")
+    from_name = slugify_legend_name(name)
+    if from_name:
+        return from_name
+    if name:
+        for sid, stable in stable_ids.items():
+            label = stable.get("name") or stable.get("label")
+            if isinstance(label, str) and label.strip().lower() == name.strip().lower():
+                return sid
+    return ""
+
+
+def adapt_matcher_spec_for_canvas(spec: LayerSpec, width: int, height: int) -> LayerSpec:
+    """
+    Drop cutaway-specific geometry from a style-guide skill on non-canonical canvases.
+
+    Cross-analysis skill transfers modes, scale policy, thresholds, and stamp shape;
+    ROI boxes and expected/exclude centers from a prior calibration must not constrain
+    a differently laid-out cutaway. Hard ``require_match`` and single-hit pixel budgets
+    from the source analysis also do not transfer — missing replicas or multi-hit
+    stamps on the new figure must not fail the whole Tier-1 job.
+    """
+    if width == CANVAS_W and height == CANVAS_H:
+        return spec
+    # Two+ stamped glyphs (plus stroke) routinely exceed a single-hit pixel budget
+    # once the canvas is scaled; budget per allowed match instead.
+    hit_budget = max(1, int(spec.max_matches))
+    return replace(
+        spec,
+        rois=[DISCOVERY_ROI],
+        accept_rois=[DISCOVERY_ROI],
+        expected_centers=[],
+        exclude_centers=[],
+        require_match=False,
+        max_pixel_count=max(spec.max_pixel_count, spec.max_pixel_count * hit_budget),
+    )
 
 
 def load_classification_rows() -> dict[str, dict]:
@@ -816,16 +1054,24 @@ def load_extract_items_by_code() -> dict[str, dict]:
     return {}
 
 
-def find_glyph_path(code: str, extract_item: dict | None = None) -> Path | None:
+def find_glyph_path(
+    slug: str,
+    source_code: str = "",
+    extract_item: dict | None = None,
+) -> Path | None:
     """
-    Resolve a cropped legend glyph PNG for one legend code.
+    Resolve a cropped legend glyph PNG for one searchable layer.
 
-    Prefers analysis `legend-items/{code}-glyph.png`, then extract `glyph_path`.
+    Prefers ``legend-items/{slug}-glyph.png``, then ``{source_code}-glyph.png``,
+    then extract ``glyph_path``.
     """
     if IO_ROOT is not None:
-        local = IO_ROOT / "legend-items" / f"{code}-glyph.png"
-        if local.is_file():
-            return local
+        for name in (f"{slug}-glyph.png", f"{source_code}-glyph.png" if source_code else None):
+            if not name:
+                continue
+            local = IO_ROOT / "legend-items" / name
+            if local.is_file():
+                return local
     if extract_item:
         rel = extract_item.get("glyph_path")
         if isinstance(rel, str) and rel:
@@ -838,31 +1084,30 @@ def find_glyph_path(code: str, extract_item: dict | None = None) -> Path | None:
 
 
 def discovery_layer_spec(
-    code: str,
-    tier: int,
     slug: str,
+    tier: int,
     icon_interpretation: str,
+    source_code: str = "",
 ) -> LayerSpec:
     """
-    Build a soft search config for a legend code with no calibrated preset.
+    Build a soft search config for a slug with no style-guide or calibrated skill.
 
-    Uncalibrated glyphs search a broad ROI and do not hard-fail QA when zero
-    peaks clear the floor — the lab can still review partial hits / freehand.
+    Floors are intentionally conservative until a profile skill exists.
     """
     return LayerSpec(
         slug=slug,
-        legend_code=code,
+        legend_code=source_code,
         tier=tier,
         rois=[DISCOVERY_ROI],
         accept_rois=[DISCOVERY_ROI],
         scales=_scales_for_tier(tier, 0.35, 1.8, 0.05),
-        min_score=0.45 if tier <= 1 else 0.40,
+        min_score=0.58 if tier <= 1 else 0.45,
         modes=("gray", "color", "purple", "green"),
-        max_matches=6,
+        max_matches=3 if tier <= 1 else 4,
         max_component_side=220,
         max_pixel_count=40000,
         nms_min_dist=24,
-        peaks_per_scale=5,
+        peaks_per_scale=4 if tier <= 1 else 5,
         icon_interpretation=icon_interpretation,
         require_match=False,
         stamp_shape="ellipse" if tier <= 1 else "alpha",
@@ -875,14 +1120,16 @@ def resolve_active_layer_specs(
     """
     Choose which layers to search for this generate run.
 
-    When the analysis classification marks searchable items, those drive the
-    run — fixed A1/B3/… codes are never required. Calibrated LayerSpec presets
-    are reused only when their legend_code is actually classified searchable.
-    Without searchable classification rows, fall back to the published
-    LAYER_SPECS list (Test 1 / site generate).
+    Searchable classification rows drive the run. Each row resolves to a stable
+    slug (from item name), then loads matcher skill from the bound style-guide
+    ``stableIds[id].matcher``, then site-default ``CALIBRATED_BY_SLUG``, else
+    hardened discovery defaults. Legend letter codes are never skill keys.
     """
     classification = load_classification_rows()
     extract = load_extract_items_by_code()
+    code_to_slug = build_code_slug_map(extract)
+    profile = load_style_guide_profile()
+    stable_ids = stable_ids_by_slug(profile)
     searchable: list[tuple[str, dict]] = []
     for code, row in classification.items():
         if not row.get("searchable"):
@@ -901,29 +1148,163 @@ def resolve_active_layer_specs(
             icon = row.get("iconInterpretation")
             icon_s = icon if isinstance(icon, str) else "1-discrete"
             extract_item = extract.get(code) or {}
-            named = row.get("slug") or slugify_legend_name(
-                extract_item.get("name") if isinstance(extract_item.get("name"), str) else None,
-                code,
-            )
-            calibrated = CALIBRATED_BY_CODE.get(code)
-            if calibrated is not None:
-                specs.append(
-                    replace(
-                        calibrated,
-                        slug=named if row.get("slug") else calibrated.slug,
-                        tier=tier,
-                        icon_interpretation=icon_s,
-                    )
+            slug = resolve_slug_for_searchable(code, row, extract_item, stable_ids)
+            if not slug:
+                print(f"  · skip {code}: no stable slug from name", file=sys.stderr)
+                continue
+            stable_row = stable_ids.get(slug) or {}
+            matcher = stable_row.get("matcher")
+            if isinstance(matcher, dict) and matcher:
+                spec = layer_spec_from_matcher_blob(
+                    slug,
+                    matcher,
+                    tier=tier,
+                    icon_interpretation=icon_s,
+                    source_code=code,
                 )
+                spec_source_tag = "style-guide"
+            elif slug in CALIBRATED_BY_SLUG:
+                calibrated = CALIBRATED_BY_SLUG[slug]
+                spec = replace(
+                    calibrated,
+                    tier=tier,
+                    icon_interpretation=icon_s,
+                    legend_code=code,
+                )
+                spec_source_tag = "calibrated-slug"
             else:
-                specs.append(discovery_layer_spec(code, tier, named, icon_s))
-        specs.sort(key=lambda s: (s.tier, s.legend_code))
+                spec = discovery_layer_spec(slug, tier, icon_s, source_code=code)
+                spec_source_tag = "discovery"
+            specs.append(spec)
+            if spec_source_tag != "discovery":
+                print(f"  · {slug} ({code}): skill from {spec_source_tag}")
+        specs.sort(key=lambda s: (s.tier, s.slug))
         return specs, "classification"
 
     specs = list(LAYER_SPECS)
     if tier_to_test is not None:
         specs = [s for s in specs if s.tier <= tier_to_test]
     return specs, "calibrated"
+
+
+def load_expert_review_by_slug(code_to_slug: dict[str, str]) -> dict[str, dict]:
+    """
+    Load per-slug confirms and FPs from this analysis's lab training feedback.
+
+    Coordinates are native cutaway pixels (same space as match ``cx``/``cy``).
+    Letter codes in feedback JSON are mapped to stable slugs via extract names.
+    """
+    out: dict[str, dict] = {}
+
+    def bucket(slug: str) -> dict:
+        return out.setdefault(
+            slug, {"confirms": [], "fps": [], "confirm_scores": []}
+        )
+
+    if LAB_TRAINING_FEEDBACK.is_file():
+        try:
+            data = json.loads(LAB_TRAINING_FEEDBACK.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            data = {}
+        for entry in data.get("feedback") or []:
+            code = str(entry.get("code") or "")
+            slug = str(entry.get("slug") or code_to_slug.get(code) or "")
+            kind = entry.get("kind")
+            fr = entry.get("from") or {}
+            cx, cy = fr.get("cx"), fr.get("cy")
+            if not slug or cx is None or cy is None:
+                continue
+            pt = (float(cx), float(cy))
+            if kind in ("confirmed", "correct-location"):
+                bucket(slug)["confirms"].append(pt)
+            elif kind == "false-positive":
+                bucket(slug)["fps"].append(pt)
+
+    ann_path = (IO_ROOT / "lab-annotations.json") if IO_ROOT is not None else None
+    if ann_path is not None and ann_path.is_file():
+        try:
+            ann = json.loads(ann_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            ann = {}
+        for row in ann.get("annotations") or []:
+            code = str(row.get("code") or "")
+            slug = str(row.get("slug") or code_to_slug.get(code) or "")
+            if not slug:
+                continue
+            if row.get("label") in ("confirmed",) or row.get("locationStatus") == "correct-location":
+                score = row.get("score")
+                if isinstance(score, (int, float)):
+                    bucket(slug)["confirm_scores"].append(float(score))
+                cx, cy = row.get("cx"), row.get("cy")
+                if cx is not None and cy is not None:
+                    bucket(slug)["confirms"].append((float(cx), float(cy)))
+
+    for slug, data in out.items():
+        for key in ("confirms", "fps"):
+            uniq: list[tuple[float, float]] = []
+            for cx, cy in data[key]:
+                if any((cx - ux) ** 2 + (cy - uy) ** 2 <= 9.0 for ux, uy in uniq):
+                    continue
+                uniq.append((cx, cy))
+            data[key] = uniq
+    return out
+
+
+def apply_expert_review_to_spec(spec: LayerSpec, review_by_slug: dict[str, dict]) -> LayerSpec:
+    """
+    Merge expert confirms/FPs into a native-pixel LayerSpec (post-scale).
+
+    Confirms become ``expected_centers`` (must-hit priors). FPs become
+    ``exclude_centers``. When confirm scores are known, raise ``min_score`` just
+    below the weakest confirm so lower-scoring similar-shape FPs drop out.
+    """
+    data = review_by_slug.get(spec.slug)
+    if not data:
+        return spec
+    confirms = data.get("confirms") or []
+    fps = data.get("fps") or []
+    scores = data.get("confirm_scores") or []
+    if not confirms and not fps:
+        return spec
+
+    min_score = spec.min_score
+    if scores:
+        floor = min(scores) - 0.03
+        min_score = max(spec.min_score, min(0.95, floor))
+    elif fps and confirms and spec.min_score < 0.78:
+        min_score = 0.78
+
+    expected = list(spec.expected_centers)
+    for cx, cy in confirms:
+        expected.append((int(round(cx)), int(round(cy))))
+    excludes = list(spec.exclude_centers)
+    for cx, cy in fps:
+        excludes.append((int(round(cx)), int(round(cy))))
+
+    max_matches = spec.max_matches
+    if confirms:
+        max_matches = min(spec.max_matches, max(1, len(confirms) + 1))
+
+    print(
+        f"  · {spec.slug}: expert review → "
+        f"{len(confirms)} confirm(s), {len(fps)} FP exclusion(s), "
+        f"min_score {spec.min_score:.2f}→{min_score:.2f}, max_matches={max_matches}"
+    )
+    return replace(
+        spec,
+        expected_centers=expected,
+        exclude_centers=excludes,
+        exclude_radius=max(spec.exclude_radius, 40),
+        min_score=min_score,
+        min_score_secondary=(
+            min(spec.min_score_secondary, min_score - 0.05)
+            if spec.min_score_secondary is not None
+            else max(0.35, min_score - 0.08)
+        ),
+        max_matches=max_matches,
+        require_match=True if confirms else spec.require_match,
+        peaks_per_scale=max(spec.peaks_per_scale, 5),
+    )
 
 
 
@@ -1216,9 +1597,9 @@ def extract_legend_templates(
 
     for spec in specs:
         slug = spec.slug
-        code = spec.legend_code
-        icon = icons.get(code, spec.icon_interpretation)
-        glyph_path = find_glyph_path(code, extract.get(code))
+        source_code = spec.legend_code
+        icon = spec.icon_interpretation or icons.get(source_code, "1-discrete")
+        glyph_path = find_glyph_path(slug, source_code, extract.get(source_code))
         templates: list[np.ndarray] = []
         part_silhouettes: list[GlyphSilhouette | None] = []
 
@@ -1236,7 +1617,7 @@ def extract_legend_templates(
             print(
                 f"  · template {slug}.png from {glyph_path.name} "
                 f"{gw}×{gh} alpha={int(np.count_nonzero(bgra[:, :, 3]))}px "
-                f"code={code} icon={icon}"
+                f"icon={icon}"
             )
         elif slug in LEGEND_CROPS:
             boxes = normalize_legend_crops(LEGEND_CROPS[slug])
@@ -1278,7 +1659,7 @@ def extract_legend_templates(
                 cv2.imwrite(str(TEMPLATE_DIR / f"{slug}.png"), concat)
         else:
             print(
-                f"  · template {slug}: no glyph PNG or LEGEND_CROPS entry for {code}",
+                f"  · template {slug}: no glyph PNG or LEGEND_CROPS entry",
                 file=sys.stderr,
             )
             continue
@@ -2185,6 +2566,12 @@ def run_generate(
         SCALE_X, SCALE_Y = 1.0, 1.0
 
     active_specs, spec_source = resolve_active_layer_specs(TIER_TO_TEST)
+    if (w, h) != (CANVAS_W, CANVAS_H):
+        active_specs = [adapt_matcher_spec_for_canvas(s, w, h) for s in active_specs]
+        print(
+            f"· Non-canonical canvas: style-guide skills use broad ROI "
+            f"(geometry priors stripped; CV knobs retained)"
+        )
     # #region agent log
     try:
         import time as _agent_time
@@ -2233,13 +2620,13 @@ def run_generate(
     print(
         f"· Active layers ({spec_source}"
         + (f", tier≤{TIER_TO_TEST}" if TIER_TO_TEST is not None else "")
-        + f"): {', '.join(f'{s.legend_code}/{s.slug}' for s in active_specs)}"
+        + f"): {', '.join(f'{s.slug}' + (f'({s.legend_code})' if s.legend_code else '') for s in active_specs)}"
     )
     print("· Extracting legend templates…")
     templates, glyph_silhouettes = extract_legend_templates(legend_bgr, active_specs)
-    print("· Loading Tier-2 freehand-instance band templates (A1/B1)…")
-    band_freehand_tmpls = load_band_freehand_templates(hay_bgr)
-    # Centers already claimed by an earlier band slug (A1 before B1 in LAYER_SPECS).
+    code_to_slug = build_code_slug_map()
+    print("· Loading Tier-2 freehand-instance band templates (adjacent bands)…")
+    band_freehand_tmpls = load_band_freehand_templates(hay_bgr, code_to_slug=code_to_slug)
     band_claimed_centers: list[tuple[str, float, float]] = []
 
     bboxes: dict[str, dict] = {}
@@ -2256,10 +2643,14 @@ def run_generate(
     }
 
     # Search active specs only (classification-driven when present).
+    expert_review = load_expert_review_by_slug(code_to_slug)
     for canonical_spec in active_specs:
         # Identity when SCALE_X == SCALE_Y == 1.0 (canonical cutaway) — no
         # behavior change for the common case.
         spec = scale_layer_spec(canonical_spec, SCALE_X, SCALE_Y)
+        # Expert confirms/FPs are already in native cutaway pixels — merge after
+        # scale so they are never double-scaled through canonical→native.
+        spec = apply_expert_review_to_spec(spec, expert_review)
         tmpl = templates.get(spec.slug)
         if tmpl is None:
             qa_errors.append(f"{spec.slug}: missing legend template")
@@ -2267,7 +2658,7 @@ def run_generate(
         is_band = (
             spec.icon_interpretation == "multiple-adjacent-as-one"
             and bool(band_freehand_tmpls)
-            and spec.legend_code in BAND_FREEHAND_CODES
+            and spec.slug in BAND_FREEHAND_SLUGS
         )
         # Expert GT outranks stale FP exclusion priors inside the same outline.
         search_spec = (
@@ -2287,15 +2678,13 @@ def run_generate(
                 scales=_scales_for_tier(2, 0.6, 1.4, 0.05),
                 modes=("gray", "color"),
             )
-            inst_labels = [f"gt-{fh.code}" for fh in band_freehand_tmpls]
+            inst_labels = [f"gt-{fh.slug}" for fh in band_freehand_tmpls]
             inst_hits = search_layer(hay_bgr, inst_tmpls, inst_spec, inst_labels)
             before = len(matches)
             matches = merge_layer_matches(matches, inst_hits, search_spec)
-            # Drop hits on another code's freehand GT.
             matches = filter_hits_away_from_other_freehands(
-                matches, band_freehand_tmpls, spec.legend_code
+                matches, band_freehand_tmpls, spec.slug
             )
-            # Drop hits already claimed by a prior band slug (e.g. A1 took ~(710,219)).
             if band_claimed_centers:
                 r2 = 70.0**2
                 matches = [
@@ -2303,17 +2692,17 @@ def run_generate(
                     for m in matches
                     if not any(
                         (m["cx"] - cx) ** 2 + (m["cy"] - cy) ** 2 <= r2
-                        for _code, cx, cy in band_claimed_centers
-                        if _code != spec.legend_code
+                        for claimed_slug, cx, cy in band_claimed_centers
+                        if claimed_slug != spec.slug
                     )
                 ]
             if len(matches) != before:
                 print(
-                    f"  · {spec.legend_code}: freehand-instance merge "
+                    f"  · {spec.slug}: freehand-instance merge "
                     f"{before} → {len(matches)} after foreign-GT / claimed filter"
                 )
             for m in matches:
-                band_claimed_centers.append((spec.legend_code, float(m["cx"]), float(m["cy"])))
+                band_claimed_centers.append((spec.slug, float(m["cx"]), float(m["cy"])))
         # Drop heavy arrays from report serialization later
         matches_by_slug[spec.slug] = matches
         mask = stamp_matches(h, w, apply_stamp_shape(matches, spec.stamp_shape))
@@ -2338,7 +2727,7 @@ def run_generate(
                 "method": "opencv-template-match",
                 "bestScore": best,
             }
-            print(f"  · T{spec.tier} {spec.legend_code} {spec.slug}: NO MATCH (need ≥{spec.min_score})")
+            print(f"  · T{spec.tier} {spec.slug}: NO MATCH (need ≥{spec.min_score})")
         else:
             bboxes[spec.slug] = {
                 "x": bb["x"],
@@ -2368,7 +2757,7 @@ def run_generate(
             parts = ",".join(sorted({str(m.get("part")) for m in matches if m.get("part")}))
             part_note = f" parts={parts}" if parts else ""
             print(
-                f"  · T{spec.tier} {spec.legend_code} {spec.slug}: "
+                f"  · T{spec.tier} {spec.slug}: "
                 f"{len(matches)} hit(s) best={best:.3f} mode={modes}{part_note} @ "
                 f"({bb['cx']:.0f},{bb['cy']:.0f}) bbox {bb['width']}×{bb['height']} "
                 f"px={bb['count']}"
@@ -2377,7 +2766,8 @@ def run_generate(
         qa_errors.extend(assert_layer_qa(spec, matches, mask, outline))
         report["layers"][spec.slug] = {
             "tier": spec.tier,
-            "legendCode": spec.legend_code,
+            "slug": spec.slug,
+            "sourceCode": spec.legend_code or None,
             "iconInterpretation": spec.icon_interpretation,
             "minScore": spec.min_score,
             "minScoreSecondary": spec.min_score_secondary,

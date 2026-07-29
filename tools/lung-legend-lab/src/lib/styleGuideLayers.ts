@@ -97,15 +97,17 @@ export function pathwaysFromSupports(
 }
 
 /**
- * Pathway ids listed on a style-guide legend slug row for a legend code.
- * @param code - Legend code (A1–B9)
+ * Pathway ids listed on a style-guide stable layer row (by slug id).
+ * @param slug - Stable layer id (e.g. neutrophils)
  * @param profile - Active style-guide brief
  */
 export function pathwaysFromStyleGuideSlug(
-	code: string,
+	slug: string,
 	profile: StyleGuideProfileBrief | null | undefined,
 ): string[] {
-	const row = profile?.layerNaming?.stableIds?.find((s) => s.legendCode === code);
+	const row = profile?.layerNaming?.stableIds?.find(
+		(s) => s.id === slug || s.name === slug,
+	);
 	if (!row?.pathways?.length) return [];
 	const allowed = new Set(pathwayLayersFromProfile(profile).map((l) => l.id));
 	return row.pathways.filter((id) => allowed.has(id));
@@ -122,6 +124,7 @@ export function effectivePathwayIds(
 	assigned: string | string[] | null | undefined,
 	supports?: string | null,
 	opts?: {
+		slug?: string;
 		code?: string;
 		profile?: StyleGuideProfileBrief | null;
 	},
@@ -133,6 +136,10 @@ export function effectivePathwayIds(
 		return [assigned.trim()];
 	}
 	const layers = pathwayLayersFromProfile(opts?.profile);
+	if (opts?.slug) {
+		const fromSlug = pathwaysFromStyleGuideSlug(opts.slug, opts.profile);
+		if (fromSlug.length) return fromSlug;
+	}
 	if (opts?.code) {
 		const fromSlug = pathwaysFromStyleGuideSlug(opts.code, opts.profile);
 		if (fromSlug.length) return fromSlug;

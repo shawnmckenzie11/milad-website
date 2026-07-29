@@ -70,25 +70,135 @@
     ]
   },
   "layerNaming": {
-    "convention": "kebab-case stable slugs; legend codes A1–A4 (base) and B1–B9 (highlight) are UI keys, not filesystem IDs",
+    "convention": "kebab-case stable slugs from legend item names; letter codes are display-only when present",
     "groupRules": {
       "base": "A* anatomy / lumen structures",
       "highlight": "B* cells, mediators, pathways, disease overlays"
     },
     "stableIds": [
-      { "id": "trachea-conducting-airway", "legendCode": "A1", "group": "base", "frameworkAlias": "anatomy_trachea", "pathways": ["base"] },
-      { "id": "bronchial-branches", "legendCode": "A2", "group": "base", "frameworkAlias": "anatomy_bronchi", "pathways": ["base"] },
-      { "id": "alveolar-fields", "legendCode": "A3", "group": "base", "frameworkAlias": "anatomy_alveoli", "pathways": ["base"] },
-      { "id": "airway-lumen", "legendCode": "A4", "group": "base", "frameworkAlias": "anatomy_lumen", "pathways": ["base"] },
-      { "id": "airway-epithelium", "legendCode": "B1", "group": "highlight", "frameworkAlias": "airway_epithelium", "pathways": ["cannabis", "base"] },
-      { "id": "airway-immune-compartment", "legendCode": "B2", "group": "highlight", "frameworkAlias": "immune_airway", "pathways": ["vaping"] },
-      { "id": "neutrophils", "legendCode": "B3", "group": "highlight", "frameworkAlias": "neutrophils", "pathways": ["cigarette-smoke"] },
-      { "id": "alveolar-macrophages", "legendCode": "B4", "group": "highlight", "frameworkAlias": "alveolar_macrophages", "pathways": ["cigarette-smoke"] },
-      { "id": "dendritic-cells", "legendCode": "B5", "group": "highlight", "frameworkAlias": "dendritic_cells", "pathways": ["vaping"] },
-      { "id": "antiviral-immune-mediators", "legendCode": "B6", "group": "highlight", "frameworkAlias": "antiviral_mediators", "pathways": ["cannabis"] },
-      { "id": "inflammatory-signaling", "legendCode": "B7", "group": "highlight", "frameworkAlias": "inflammatory_signaling", "pathways": ["cigarette-smoke"] },
-      { "id": "copd-inflammatory-structures", "legendCode": "B8", "group": "highlight", "frameworkAlias": "copd_structures", "pathways": ["general-air"] },
-      { "id": "infection-antiviral-pathway", "legendCode": "B9", "group": "highlight", "frameworkAlias": "infection_pathway", "pathways": ["viruses"] }
+      { "id": "trachea-conducting-airway", "name": "Trachea / conducting airway", "group": "base", "frameworkAlias": "anatomy_trachea", "pathways": ["base"] },
+      { "id": "bronchial-branches", "name": "Bronchial branches", "group": "base", "frameworkAlias": "anatomy_bronchi", "pathways": ["base"] },
+      { "id": "alveolar-fields", "name": "Alveolar fields", "group": "base", "frameworkAlias": "anatomy_alveoli", "pathways": ["base"] },
+      { "id": "airway-lumen", "name": "Airway lumen", "group": "base", "frameworkAlias": "anatomy_lumen", "pathways": ["base"] },
+      { "id": "airway-epithelium", "name": "Airway epithelium", "group": "highlight", "frameworkAlias": "airway_epithelium", "pathways": ["cannabis", "base"] },
+      { "id": "airway-immune-compartment", "name": "Airway immune compartment", "group": "highlight", "frameworkAlias": "immune_airway", "pathways": ["vaping"] },
+      {
+        "id": "neutrophils",
+        "name": "Neutrophils",
+        "group": "highlight",
+        "frameworkAlias": "neutrophils",
+        "pathways": ["cigarette-smoke"],
+        "templateRel": "templates/neutrophils.png",
+        "matcher": {
+          "tier": 1,
+          "rois": [
+            { "x0": 340, "y0": 660, "x1": 700, "y1": 935 },
+            { "x0": 615, "y0": 280, "x1": 680, "y1": 355 }
+          ],
+          "acceptRois": [
+            { "x0": 610, "y0": 60, "x1": 970, "y1": 380 },
+            { "x0": 340, "y0": 660, "x1": 700, "y1": 935 }
+          ],
+          "scalePolicy": { "start": 0.7, "stop": 1.25, "step": 0.04 },
+          "minScore": 0.78,
+          "minScoreSecondary": 0.55,
+          "modes": ["purple", "gray", "color"],
+          "maxMatches": 2,
+          "expectedCenters": [[545, 884], [632, 314]],
+          "maxComponentSide": 90,
+          "maxPixelCount": 3200,
+          "nmsMinDist": 26,
+          "peaksPerScale": 5,
+          "expectedRadius": 40,
+          "excludeCenters": [[712, 334]],
+          "excludeRadius": 50,
+          "stampShape": "ellipse"
+        }
+      },
+      {
+        "id": "alveolar-macrophages",
+        "name": "Alveolar macrophages",
+        "group": "highlight",
+        "frameworkAlias": "alveolar_macrophages",
+        "pathways": ["cigarette-smoke"],
+        "templateRel": "templates/alveolar-macrophages.png",
+        "matcher": {
+          "tier": 1,
+          "rois": [
+            { "x0": 340, "y0": 660, "x1": 700, "y1": 935 },
+            { "x0": 650, "y0": 250, "x1": 920, "y1": 370 }
+          ],
+          "acceptRois": [
+            { "x0": 640, "y0": 60, "x1": 970, "y1": 380 },
+            { "x0": 340, "y0": 660, "x1": 700, "y1": 935 }
+          ],
+          "scalePolicy": { "start": 0.55, "stop": 1.55, "step": 0.04 },
+          "minScore": 0.75,
+          "modes": ["green", "color", "gray"],
+          "maxMatches": 3,
+          "expectedCenters": [[606, 871], [492, 904]],
+          "maxComponentSide": 130,
+          "maxPixelCount": 3600,
+          "nmsMinDist": 24,
+          "peaksPerScale": 5,
+          "stampShape": "ellipse"
+        }
+      },
+      {
+        "id": "dendritic-cells",
+        "name": "Dendritic cells",
+        "group": "highlight",
+        "frameworkAlias": "dendritic_cells",
+        "pathways": ["vaping"],
+        "templateRel": "templates/dendritic-cells.png",
+        "matcher": {
+          "tier": 1,
+          "rois": [
+            { "x0": 650, "y0": 250, "x1": 920, "y1": 370 },
+            { "x0": 340, "y0": 660, "x1": 700, "y1": 935 }
+          ],
+          "acceptRois": [
+            { "x0": 640, "y0": 60, "x1": 970, "y1": 380 },
+            { "x0": 340, "y0": 660, "x1": 700, "y1": 935 }
+          ],
+          "scalePolicy": { "start": 0.7, "stop": 2.15, "step": 0.06 },
+          "minScore": 0.75,
+          "minScoreSecondary": 0.68,
+          "modes": ["purple", "gray", "color"],
+          "maxMatches": 2,
+          "expectedCenters": [[712, 334], [456, 853]],
+          "maxComponentSide": 140,
+          "maxPixelCount": 4000,
+          "nmsMinDist": 40,
+          "peaksPerScale": 5,
+          "expectedRadius": 50
+        }
+      },
+      { "id": "antiviral-immune-mediators", "name": "Antiviral immune mediators", "group": "highlight", "frameworkAlias": "antiviral_mediators", "pathways": ["cannabis"] },
+      { "id": "inflammatory-signaling", "name": "Inflammatory signaling", "group": "highlight", "frameworkAlias": "inflammatory_signaling", "pathways": ["cigarette-smoke"] },
+      { "id": "copd-inflammatory-structures", "name": "COPD inflammatory structures", "group": "highlight", "frameworkAlias": "copd_structures", "pathways": ["general-air"] },
+      {
+        "id": "infection-antiviral-pathway",
+        "name": "Infection / antiviral pathway",
+        "group": "highlight",
+        "frameworkAlias": "infection_pathway",
+        "pathways": ["viruses"],
+        "templateRel": "templates/infection-antiviral-pathway.png",
+        "matcher": {
+          "tier": 1,
+          "rois": [{ "x0": 610, "y0": 70, "x1": 720, "y1": 155 }],
+          "acceptRois": [{ "x0": 610, "y0": 70, "x1": 720, "y1": 155 }],
+          "scalePolicy": { "start": 0.55, "stop": 1.35, "step": 0.03 },
+          "minScore": 0.8,
+          "modes": ["gray", "blue", "color"],
+          "maxMatches": 2,
+          "expectedCenters": [[676, 116], [630, 102]],
+          "maxComponentSide": 100,
+          "maxPixelCount": 1800,
+          "nmsMinDist": 18,
+          "peaksPerScale": 4
+        }
+      }
     ],
     "assetPattern": "public/figures/lung-health/layers/{slug}.png and {slug}-outline.png"
   },
