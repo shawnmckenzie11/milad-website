@@ -77,10 +77,11 @@ export function FindingDetail({
 					<div className="label">Add Freehand</div>
 					<p className="muted" style={{ marginTop: 0 }}>
 						Draw a closed loop on the cutaway around any feature — including novel or missed
-						structures. Tier difficulty comes from the legend item’s classification.
+						structures. The current zoom and pan are kept; points are recorded in native
+						1024×953 art space. Tier difficulty comes from the legend item’s classification.
 					</p>
 					<p className="muted mono" style={{ marginTop: 6 }}>
-						Draw on the cutaway · release to close the loop and classify
+						Draw to outline · Shift/Alt/middle-drag to pan while zoomed · release to classify
 					</p>
 					<button type="button" onClick={() => onEditMode('select')}>
 						Cancel freehand
@@ -90,12 +91,15 @@ export function FindingDetail({
 				<div className="action-block">
 					<div className="label">Select Match</div>
 					<p className="muted" style={{ margin: 0 }}>
-						Click a yellow (unconfirmed) or green (confirmed) outline on the cutaway. Hits within
-						~40px of the click are selected. Use the left panel to isolate pathways or legend
-						items for Tier {tierToTest}.
+						Click a yellow outline on the cutaway. Hits within ~40px of the click are selected.
+						Use the left panel to isolate pathways or legend items for Tier {tierToTest}.
 					</p>
 					<p className="muted" style={{ marginBottom: 0 }}>
-						Confirmed matches stay green and locked — overview only; review actions are disabled.
+						Confirmed matches stay locked — overview only; review actions are disabled.
+					</p>
+					<p className="muted mono" style={{ marginBottom: 0 }}>
+						Zoom stays when you switch to Add Freehand — draw at the current magnification;
+						strokes are stored in native cutaway coordinates.
 					</p>
 				</div>
 			) : (

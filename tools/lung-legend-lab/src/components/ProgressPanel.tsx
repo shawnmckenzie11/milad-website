@@ -52,7 +52,7 @@ export function ProgressPanel({
 			<div className="panel-section">
 				<h2>Progress by tier</h2>
 				<p className="muted">
-					Confirmed items stay green and locked. Unconfirmed remain yellow. Later tiers will
+					Confirmed items stay locked. Unconfirmed remain yellow outlines. Later tiers will
 					need matchers refined from prior-tier conclusions — focus is still Tier 1.
 				</p>
 				<p

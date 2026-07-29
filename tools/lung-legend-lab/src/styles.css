@@ -388,10 +388,21 @@ button:disabled {
 	cursor: pointer;
 }
 
+/* Centre rings are retired — only yellow outline layers mark hits. */
+.hit-ring {
+	display: none;
+}
+
 /* Matches carry no centre marker — selection reads on the label chip. */
 .hit.selected .hit-label-bg {
 	stroke: #ffd24a;
 	stroke-width: 1.5;
+}
+
+.viewer-stage.mode-freehand.mode-zoomed,
+.viewer-stage.mode-freehand {
+	/* Keep the zoom plane from being scroll-chomped while drawing. */
+	touch-action: none;
 }
 
 /* Even radial pulse from bbox center — out quickly, then slowly back in. */

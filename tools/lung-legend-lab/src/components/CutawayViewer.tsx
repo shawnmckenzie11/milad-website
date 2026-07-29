@@ -197,6 +197,14 @@ export function CutawayViewer({
 	const viewCenterNative = useRef<TracePoint>({ x: NATIVE_W / 2, y: NATIVE_H / 2 });
 	/** Previous plane width, used to detect a zoom / fit relayout. */
 	const prevPlaneWidth = useRef<number | null>(null);
+	/**
+	 * Last good Fit width — ResizeObserver can briefly report 0×0 while the side
+	 * rail reflows (e.g. switching to Add Freehand), which used to collapse the
+	 * zoom plane back to a full-frame 100% width and look like zoom reset.
+	 */
+	const lastFitWidthPx = useRef<number | null>(null);
+	/** Viewport scroll to restore across edit-mode / layout churn. */
+	const savedScroll = useRef<{ left: number; top: number } | null>(null);
 
 	/**
 	 * Run a ~1.8s attention flash when hitFlash.nonce changes, then notify parent.
@@ -237,13 +245,14 @@ export function CutawayViewer({
 
 	/**
 	 * Track viewport size so Fit can contain the full cutaway (width and height).
+	 * Ignore transient near-zero boxes during panel reflow so zoom does not snap.
 	 */
 	useEffect(() => {
 		const el = viewportRef.current;
 		if (!el) return;
 		const ro = new ResizeObserver((entries) => {
 			const cr = entries[0]?.contentRect;
-			if (!cr) return;
+			if (!cr || cr.width < 32 || cr.height < 32) return;
 			setViewportSize({ w: cr.width, h: cr.height });
 		});
 		ro.observe(el);
@@ -254,13 +263,40 @@ export function CutawayViewer({
 	 * Width at 1× such that the full 1024×953 image fits inside the viewport.
 	 */
 	const fitWidthPx = useMemo(() => {
-		if (viewportSize.w <= 1 || viewportSize.h <= 1) return null;
+		if (viewportSize.w < 32 || viewportSize.h < 32) {
+			return lastFitWidthPx.current;
+		}
 		// Floor slightly so Fit never needs a scrollbar that shrinks the viewport.
-		return Math.max(1, Math.floor(Math.min(viewportSize.w, viewportSize.h * CUTAWAY_ASPECT)) - 1);
+		const next = Math.max(
+			1,
+			Math.floor(Math.min(viewportSize.w, viewportSize.h * CUTAWAY_ASPECT)) - 1,
+		);
+		lastFitWidthPx.current = next;
+		return next;
 	}, [viewportSize]);
 
 	/** Layout width for the zoom plane (native scroll when larger than the viewport). */
 	const planeWidthPx = fitWidthPx != null ? fitWidthPx * zoom : null;
+
+	/**
+	 * Remember scroll before freehand UI reflow, then put it back after layout.
+	 * Add Freehand used to look like a Fit reset because the side panel reflow
+	 * collapsed the zoom plane / zeroed scrollTop while zoom state stayed > 1.
+	 */
+	useLayoutEffect(() => {
+		const vp = viewportRef.current;
+		if (!vp) return;
+		const stillZoomedPlane =
+			vp.scrollWidth > vp.clientWidth + 2 || vp.scrollHeight > vp.clientHeight + 2;
+		if (stillZoomedPlane) {
+			savedScroll.current = { left: vp.scrollLeft, top: vp.scrollTop };
+		}
+		if (editMode !== 'freehand-classify' || zoom <= 1) return;
+		const saved = savedScroll.current;
+		if (!saved) return;
+		vp.scrollLeft = saved.left;
+		vp.scrollTop = saved.top;
+	}, [editMode, planeWidthPx, zoom]);
 
 	/**
 	 * Ctrl/Cmd + wheel zooms; plain wheel scrolls the viewport (vertical/horizontal).
@@ -297,7 +333,8 @@ export function CutawayViewer({
 		if (!el) return;
 		el.scrollLeft = 0;
 		el.scrollTop = 0;
-	}, [zoom, fitWidthPx]);
+		savedScroll.current = { left: 0, top: 0 };
+	}, [zoom]);
 
 	/**
 	 * Keep the anchor art point under the same screen position after a zoom
@@ -487,6 +524,7 @@ export function CutawayViewer({
 		if (!vp) return;
 		const r = vp.getBoundingClientRect();
 		viewCenterNative.current = toNativeClient(r.left + r.width / 2, r.top + r.height / 2);
+		savedScroll.current = { left: vp.scrollLeft, top: vp.scrollTop };
 	}
 
 	/**
@@ -681,7 +719,8 @@ export function CutawayViewer({
 		'viewer-stage',
 		editMode === 'freehand-classify' ? 'mode-freehand' : '',
 		editMode === 'select' ? 'mode-select' : '',
-		// Keep the crosshair while tracing — grab cursor only applies to pannable modes.
+		// Zoomed select uses grab; freehand keeps crosshair but pan still works via
+		// Shift / Alt / middle-drag (see onStagePointerDown).
 		zoom > 1 && editMode !== 'freehand-classify' ? 'mode-zoomed' : '',
 	]
 		.filter(Boolean)

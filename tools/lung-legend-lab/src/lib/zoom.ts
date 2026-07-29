@@ -5,13 +5,13 @@
 
 export const ZOOM_MIN = 1;
 export const ZOOM_MAX = 4;
-/** Button / rail increment — one press is a 10% nudge, not a jump. */
-export const ZOOM_STEP = 0.1;
+/** Button / rail increment — one press is a ~15% nudge (between crawl and leap). */
+export const ZOOM_STEP = 0.15;
 
 /** Wheel gain: factor = exp(-deltaY * WHEEL_GAIN). */
-const WHEEL_GAIN = 0.0012;
+const WHEEL_GAIN = 0.0018;
 /** Ceiling for a single wheel notch or pinch tick. */
-const WHEEL_MAX_FACTOR = 1.05;
+const WHEEL_MAX_FACTOR = 1.08;
 
 /**
  * Clamp a requested scale into the supported range at 0.1% granularity.
