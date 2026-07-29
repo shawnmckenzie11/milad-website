@@ -38,7 +38,7 @@
       "matches": [
         {
           "score": 0.9247410297393799,
-          "scale": 1.03,
+          "scale": 1.02,
           "mode": "green",
           "cx": 607.5,
           "cy": 871.0,
@@ -47,7 +47,7 @@
         },
         {
           "score": 0.9083504676818848,
-          "scale": 1.03,
+          "scale": 1.02,
           "mode": "green",
           "cx": 492.5,
           "cy": 904.0,
@@ -116,12 +116,12 @@
       "tier": 2,
       "legendCode": "B6",
       "iconInterpretation": "2-discrete",
-      "minScore": 0.74,
+      "minScore": 0.75,
       "minScoreSecondary": null,
-      "bestScore": 0.9258880019187927,
+      "bestScore": 0.9310494065284729,
       "matches": [
         {
-          "score": 0.9258880019187927,
+          "score": 0.9310494065284729,
           "scale": 1.0,
           "mode": "gray",
           "cx": 757.0,
@@ -131,7 +131,7 @@
           "part": "dots"
         },
         {
-          "score": 0.8900063037872314,
+          "score": 0.8935763239860535,
           "scale": 0.85,
           "mode": "gray",
           "cx": 861.0,
@@ -141,7 +141,7 @@
           "part": "antibody"
         },
         {
-          "score": 0.8417834043502808,
+          "score": 0.8428316116333008,
           "scale": 0.75,
           "mode": "gray",
           "cx": 883.5,
@@ -151,23 +151,13 @@
           "part": "antibody"
         },
         {
-          "score": 0.751724362373352,
-          "scale": 0.7,
+          "score": 0.7819526195526123,
+          "scale": 0.6,
           "mode": "gray",
           "cx": 821.0,
           "cy": 133.5,
-          "w": 12,
-          "h": 13,
-          "part": "antibody"
-        },
-        {
-          "score": 0.7421051263809204,
-          "scale": 0.7,
-          "mode": "gray",
-          "cx": 874.0,
-          "cy": 189.5,
-          "w": 12,
-          "h": 13,
+          "w": 10,
+          "h": 11,
           "part": "antibody"
         }
       ]
@@ -176,8 +166,8 @@
       "tier": 2,
       "legendCode": "B7",
       "iconInterpretation": "1-discrete",
-      "minScore": 0.65,
-      "minScoreSecondary": null,
+      "minScore": 0.7,
+      "minScoreSecondary": 0.64,
       "bestScore": 0.7684053778648376,
       "matches": [
         {
@@ -190,7 +180,7 @@
           "h": 22
         },
         {
-          "score": 0.6663369536399841,
+          "score": 0.6663312315940857,
           "scale": 1.1,
           "mode": "gray",
           "cx": 877.5,
@@ -203,47 +193,47 @@
     "trachea-conducting-airway": {
       "tier": 2,
       "legendCode": "A1",
-      "iconInterpretation": "1-discrete",
+      "iconInterpretation": "multiple-adjacent-as-one",
       "minScore": 0.45,
-      "minScoreSecondary": null,
-      "bestScore": 0.45278292894363403,
+      "minScoreSecondary": 0.4,
+      "bestScore": 0.4657440483570099,
       "matches": [
         {
-          "score": 0.45278292894363403,
-          "scale": 0.4,
+          "score": 0.4657440483570099,
+          "scale": 1.75,
           "mode": "gray",
-          "cx": 515.0,
-          "cy": 60.5,
-          "w": 16,
-          "h": 23
+          "cx": 376.0,
+          "cy": 71.0,
+          "w": 72,
+          "h": 102
         }
       ]
     },
     "airway-epithelium": {
       "tier": 2,
       "legendCode": "B1",
-      "iconInterpretation": "1-discrete",
-      "minScore": 0.4,
-      "minScoreSecondary": null,
-      "bestScore": 0.4858857989311218,
+      "iconInterpretation": "multiple-adjacent-as-one",
+      "minScore": 0.34,
+      "minScoreSecondary": 0.3,
+      "bestScore": 0.3811519742012024,
       "matches": [
         {
-          "score": 0.4789653718471527,
-          "scale": 0.35,
-          "mode": "gray",
-          "cx": 442.0,
-          "cy": 745.5,
-          "w": 18,
-          "h": 17
+          "score": 0.3811519742012024,
+          "scale": 2.1,
+          "mode": "color",
+          "cx": 675.5,
+          "cy": 216.5,
+          "w": 107,
+          "h": 101
         },
         {
-          "score": 0.4858857989311218,
-          "scale": 0.35,
-          "mode": "gray",
-          "cx": 714.0,
-          "cy": 254.5,
-          "w": 18,
-          "h": 17
+          "score": 0.3546450138092041,
+          "scale": 2.1,
+          "mode": "color",
+          "cx": 744.5,
+          "cy": 218.5,
+          "w": 107,
+          "h": 101
         }
       ]
     },
@@ -290,43 +280,16 @@
       "iconInterpretation": "1-discrete",
       "minScore": 0.42,
       "minScoreSecondary": null,
-      "bestScore": 0.49370378255844116,
+      "bestScore": 0.4266701936721802,
       "matches": [
         {
-          "score": 0.49370378255844116,
-          "scale": 0.35,
+          "score": 0.4266701936721802,
+          "scale": 0.59,
           "mode": "gray",
-          "cx": 857.0,
-          "cy": 633.0,
-          "w": 18,
-          "h": 20
-        },
-        {
-          "score": 0.47860395908355713,
-          "scale": 0.35,
-          "mode": "gray",
-          "cx": 269.0,
-          "cy": 804.0,
-          "w": 18,
-          "h": 20
-        },
-        {
-          "score": 0.481433629989624,
-          "scale": 0.35,
-          "mode": "gray",
-          "cx": 236.0,
-          "cy": 599.0,
-          "w": 18,
-          "h": 20
-        },
-        {
-          "score": 0.4604446291923523,
-          "scale": 0.43,
-          "mode": "gray",
-          "cx": 884.0,
-          "cy": 766.0,
-          "w": 22,
-          "h": 24
+          "cx": 153.0,
+          "cy": 819.5,
+          "w": 30,
+          "h": 33
         }
       ]
     }

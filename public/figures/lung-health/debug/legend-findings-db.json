@@ -1,7 +1,7 @@
 {
   "meta": {
-    "updatedAt": "2026-07-28T06:24:00+00:00",
-    "runId": "2026-07-28T06:24:00+00:00",
+    "updatedAt": "2026-07-29T02:15:15+00:00",
+    "runId": "2026-07-29T02:15:15+00:00",
     "phase": "Tier-1 refinement in progress (exact replicas: B3/B4/B5/B9). Tier-2 next (B6/B7/A1/B1).",
     "focusTier": [
       1
@@ -79,16 +79,16 @@
       "found": 4,
       "missed": 0,
       "skipped": 0,
-      "instanceTotal": 10,
-      "meanBestScore": 0.6582
+      "instanceTotal": 9,
+      "meanBestScore": 0.6366
     },
     "tier3": {
       "expected": 2,
       "found": 2,
       "missed": 0,
       "skipped": 0,
-      "instanceTotal": 7,
-      "meanBestScore": 0.5252
+      "instanceTotal": 4,
+      "meanBestScore": 0.4917
     },
     "tier1_mean_score_report": 0.8966
   },
@@ -102,26 +102,28 @@
       "iconInterpretation": "multiple-adjacent-as-one",
       "searchable": true,
       "group": "base",
+      "supports": "All pathways (base anatomy)",
+      "location": "Top center",
       "status": "found",
       "firstFoundAt": "2026-07-28T05:13:19+00:00",
-      "lastFoundAt": "2026-07-28T06:24:00+00:00",
+      "lastFoundAt": "2026-07-29T02:15:15+00:00",
       "findCount": 1,
       "instanceCount": 1,
-      "cumulativeFindCount": 17,
-      "bestScore": 0.45278292894363403,
-      "meanScore": 0.4528,
+      "cumulativeFindCount": 18,
+      "bestScore": 0.4657440483570099,
+      "meanScore": 0.4657,
       "minScore": 0.45,
       "instances": [
         {
-          "cx": 515.0,
-          "cy": 60.5,
-          "score": 0.45278292894363403,
-          "scale": 0.4,
+          "cx": 376.0,
+          "cy": 71.0,
+          "score": 0.4657440483570099,
+          "scale": 1.75,
           "mode": "gray",
-          "w": 16,
-          "h": 23,
-          "runId": "2026-07-28T06:24:00+00:00",
-          "timestamp": "2026-07-28T06:24:00+00:00"
+          "w": 72,
+          "h": 102,
+          "runId": "2026-07-29T02:15:15+00:00",
+          "timestamp": "2026-07-29T02:15:15+00:00"
         }
       ]
     },
@@ -134,12 +136,14 @@
       "iconInterpretation": "multiple-adjacent-as-one",
       "searchable": true,
       "group": "base",
+      "supports": "All pathways (base anatomy)",
+      "location": "Central left & right",
       "status": "found",
       "firstFoundAt": "2026-07-28T05:13:19+00:00",
-      "lastFoundAt": "2026-07-28T06:24:00+00:00",
+      "lastFoundAt": "2026-07-29T02:15:15+00:00",
       "findCount": 3,
       "instanceCount": 3,
-      "cumulativeFindCount": 51,
+      "cumulativeFindCount": 54,
       "bestScore": 0.5566663146018982,
       "meanScore": 0.526,
       "minScore": 0.48,
@@ -152,8 +156,8 @@
           "mode": "gray",
           "w": 28,
           "h": 32,
-          "runId": "2026-07-28T06:24:00+00:00",
-          "timestamp": "2026-07-28T06:24:00+00:00"
+          "runId": "2026-07-29T02:15:15+00:00",
+          "timestamp": "2026-07-29T02:15:15+00:00"
         },
         {
           "cx": 690.5,
@@ -163,8 +167,8 @@
           "mode": "gray",
           "w": 23,
           "h": 27,
-          "runId": "2026-07-28T06:24:00+00:00",
-          "timestamp": "2026-07-28T06:24:00+00:00"
+          "runId": "2026-07-29T02:15:15+00:00",
+          "timestamp": "2026-07-29T02:15:15+00:00"
         },
         {
           "cx": 300.5,
@@ -174,8 +178,8 @@
           "mode": "gray",
           "w": 23,
           "h": 27,
-          "runId": "2026-07-28T06:24:00+00:00",
-          "timestamp": "2026-07-28T06:24:00+00:00"
+          "runId": "2026-07-29T02:15:15+00:00",
+          "timestamp": "2026-07-29T02:15:15+00:00"
         }
       ]
     },
@@ -188,59 +192,28 @@
       "iconInterpretation": "multiple-adjacent-as-one",
       "searchable": true,
       "group": "base",
+      "supports": "All pathways (base anatomy)",
+      "location": "Lower left & right",
       "status": "found",
       "firstFoundAt": "2026-07-28T05:13:19+00:00",
-      "lastFoundAt": "2026-07-28T06:24:00+00:00",
-      "findCount": 4,
-      "instanceCount": 4,
-      "cumulativeFindCount": 68,
-      "bestScore": 0.49370378255844116,
-      "meanScore": 0.4785,
+      "lastFoundAt": "2026-07-29T02:15:15+00:00",
+      "findCount": 1,
+      "instanceCount": 1,
+      "cumulativeFindCount": 69,
+      "bestScore": 0.4266701936721802,
+      "meanScore": 0.4267,
       "minScore": 0.42,
       "instances": [
         {
-          "cx": 857.0,
-          "cy": 633.0,
-          "score": 0.49370378255844116,
-          "scale": 0.35,
+          "cx": 153.0,
+          "cy": 819.5,
+          "score": 0.4266701936721802,
+          "scale": 0.59,
           "mode": "gray",
-          "w": 18,
-          "h": 20,
-          "runId": "2026-07-28T06:24:00+00:00",
-          "timestamp": "2026-07-28T06:24:00+00:00"
-        },
-        {
-          "cx": 269.0,
-          "cy": 804.0,
-          "score": 0.47860395908355713,
-          "scale": 0.35,
-          "mode": "gray",
-          "w": 18,
-          "h": 20,
-          "runId": "2026-07-28T06:24:00+00:00",
-          "timestamp": "2026-07-28T06:24:00+00:00"
-        },
-        {
-          "cx": 236.0,
-          "cy": 599.0,
-          "score": 0.481433629989624,
-          "scale": 0.35,
-          "mode": "gray",
-          "w": 18,
-          "h": 20,
-          "runId": "2026-07-28T06:24:00+00:00",
-          "timestamp": "2026-07-28T06:24:00+00:00"
-        },
-        {
-          "cx": 884.0,
-          "cy": 766.0,
-          "score": 0.4604446291923523,
-          "scale": 0.43,
-          "mode": "gray",
-          "w": 22,
-          "h": 24,
-          "runId": "2026-07-28T06:24:00+00:00",
-          "timestamp": "2026-07-28T06:24:00+00:00"
+          "w": 30,
+          "h": 33,
+          "runId": "2026-07-29T02:15:15+00:00",
+          "timestamp": "2026-07-29T02:15:15+00:00"
         }
       ]
     },
@@ -253,6 +226,8 @@
       "iconInterpretation": "1-discrete",
       "searchable": false,
       "group": "base",
+      "supports": "All pathways (base anatomy)",
+      "location": "Within airway segments",
       "status": "skipped",
       "firstFoundAt": null,
       "lastFoundAt": null,
@@ -273,37 +248,39 @@
       "iconInterpretation": "multiple-adjacent-as-one",
       "searchable": true,
       "group": "highlight",
+      "supports": "cannabis",
+      "location": "Inset: lining of airway",
       "status": "found",
       "firstFoundAt": "2026-07-28T05:13:19+00:00",
-      "lastFoundAt": "2026-07-28T06:24:00+00:00",
+      "lastFoundAt": "2026-07-29T02:15:15+00:00",
       "findCount": 2,
       "instanceCount": 2,
-      "cumulativeFindCount": 34,
-      "bestScore": 0.4858857989311218,
-      "meanScore": 0.4824,
-      "minScore": 0.4,
+      "cumulativeFindCount": 36,
+      "bestScore": 0.3811519742012024,
+      "meanScore": 0.3679,
+      "minScore": 0.34,
       "instances": [
         {
-          "cx": 442.0,
-          "cy": 745.5,
-          "score": 0.4789653718471527,
-          "scale": 0.35,
-          "mode": "gray",
-          "w": 18,
-          "h": 17,
-          "runId": "2026-07-28T06:24:00+00:00",
-          "timestamp": "2026-07-28T06:24:00+00:00"
+          "cx": 675.5,
+          "cy": 216.5,
+          "score": 0.3811519742012024,
+          "scale": 2.1,
+          "mode": "color",
+          "w": 107,
+          "h": 101,
+          "runId": "2026-07-29T02:15:15+00:00",
+          "timestamp": "2026-07-29T02:15:15+00:00"
         },
         {
-          "cx": 714.0,
-          "cy": 254.5,
-          "score": 0.4858857989311218,
-          "scale": 0.35,
-          "mode": "gray",
-          "w": 18,
-          "h": 17,
-          "runId": "2026-07-28T06:24:00+00:00",
-          "timestamp": "2026-07-28T06:24:00+00:00"
+          "cx": 744.5,
+          "cy": 218.5,
+          "score": 0.3546450138092041,
+          "scale": 2.1,
+          "mode": "color",
+          "w": 107,
+          "h": 101,
+          "runId": "2026-07-29T02:15:15+00:00",
+          "timestamp": "2026-07-29T02:15:15+00:00"
         }
       ]
     },
@@ -316,6 +293,8 @@
       "iconInterpretation": "1-discrete",
       "searchable": false,
       "group": "highlight",
+      "supports": "vaping",
+      "location": "Sub-epithelial zone",
       "status": "skipped",
       "firstFoundAt": null,
       "lastFoundAt": null,
@@ -336,12 +315,14 @@
       "iconInterpretation": "1-discrete",
       "searchable": true,
       "group": "highlight",
+      "supports": "cigarette smoke",
+      "location": "Airway & alveolar spaces",
       "status": "found",
       "firstFoundAt": "2026-07-28T05:13:19+00:00",
-      "lastFoundAt": "2026-07-28T06:24:00+00:00",
+      "lastFoundAt": "2026-07-29T02:15:15+00:00",
       "findCount": 2,
       "instanceCount": 2,
-      "cumulativeFindCount": 30,
+      "cumulativeFindCount": 32,
       "bestScore": 0.8233847618103027,
       "meanScore": 0.7058,
       "minScore": 0.78,
@@ -354,8 +335,8 @@
           "mode": "gray",
           "w": 28,
           "h": 28,
-          "runId": "2026-07-28T06:24:00+00:00",
-          "timestamp": "2026-07-28T06:24:00+00:00"
+          "runId": "2026-07-29T02:15:15+00:00",
+          "timestamp": "2026-07-29T02:15:15+00:00"
         },
         {
           "cx": 632.5,
@@ -365,8 +346,8 @@
           "mode": "purple",
           "w": 35,
           "h": 35,
-          "runId": "2026-07-28T06:24:00+00:00",
-          "timestamp": "2026-07-28T06:24:00+00:00"
+          "runId": "2026-07-29T02:15:15+00:00",
+          "timestamp": "2026-07-29T02:15:15+00:00"
         }
       ]
     },
@@ -379,12 +360,14 @@
       "iconInterpretation": "1-discrete",
       "searchable": true,
       "group": "highlight",
+      "supports": "cigarette smoke",
+      "location": "Alveolar spaces",
       "status": "found",
       "firstFoundAt": "2026-07-28T05:13:19+00:00",
-      "lastFoundAt": "2026-07-28T06:24:00+00:00",
+      "lastFoundAt": "2026-07-29T02:15:15+00:00",
       "findCount": 2,
       "instanceCount": 2,
-      "cumulativeFindCount": 30,
+      "cumulativeFindCount": 32,
       "bestScore": 0.9247410297393799,
       "meanScore": 0.9165,
       "minScore": 0.75,
@@ -393,23 +376,23 @@
           "cx": 607.5,
           "cy": 871.0,
           "score": 0.9247410297393799,
-          "scale": 1.03,
+          "scale": 1.02,
           "mode": "green",
           "w": 47,
           "h": 44,
-          "runId": "2026-07-28T06:24:00+00:00",
-          "timestamp": "2026-07-28T06:24:00+00:00"
+          "runId": "2026-07-29T02:15:15+00:00",
+          "timestamp": "2026-07-29T02:15:15+00:00"
         },
         {
           "cx": 492.5,
           "cy": 904.0,
           "score": 0.9083504676818848,
-          "scale": 1.03,
+          "scale": 1.02,
           "mode": "green",
           "w": 47,
           "h": 44,
-          "runId": "2026-07-28T06:24:00+00:00",
-          "timestamp": "2026-07-28T06:24:00+00:00"
+          "runId": "2026-07-29T02:15:15+00:00",
+          "timestamp": "2026-07-29T02:15:15+00:00"
         }
       ]
     },
@@ -422,12 +405,14 @@
       "iconInterpretation": "1-discrete",
       "searchable": true,
       "group": "highlight",
+      "supports": "vaping",
+      "location": "Sub-epithelial & alveolar",
       "status": "found",
       "firstFoundAt": "2026-07-28T05:13:19+00:00",
-      "lastFoundAt": "2026-07-28T06:24:00+00:00",
+      "lastFoundAt": "2026-07-29T02:15:15+00:00",
       "findCount": 2,
       "instanceCount": 2,
-      "cumulativeFindCount": 30,
+      "cumulativeFindCount": 32,
       "bestScore": 0.9019189476966858,
       "meanScore": 0.8075,
       "minScore": 0.75,
@@ -440,8 +425,8 @@
           "mode": "gray",
           "w": 54,
           "h": 56,
-          "runId": "2026-07-28T06:24:00+00:00",
-          "timestamp": "2026-07-28T06:24:00+00:00"
+          "runId": "2026-07-29T02:15:15+00:00",
+          "timestamp": "2026-07-29T02:15:15+00:00"
         },
         {
           "cx": 711.5,
@@ -451,8 +436,8 @@
           "mode": "purple",
           "w": 69,
           "h": 72,
-          "runId": "2026-07-28T06:24:00+00:00",
-          "timestamp": "2026-07-28T06:24:00+00:00"
+          "runId": "2026-07-29T02:15:15+00:00",
+          "timestamp": "2026-07-29T02:15:15+00:00"
         }
       ]
     },
@@ -465,70 +450,61 @@
       "iconInterpretation": "2-discrete",
       "searchable": true,
       "group": "highlight",
+      "supports": "cannabis",
+      "location": "Near epithelium",
       "status": "found",
       "firstFoundAt": "2026-07-28T05:13:19+00:00",
-      "lastFoundAt": "2026-07-28T06:24:00+00:00",
-      "findCount": 5,
-      "instanceCount": 5,
-      "cumulativeFindCount": 76,
-      "bestScore": 0.9258880019187927,
-      "meanScore": 0.8303,
-      "minScore": 0.74,
+      "lastFoundAt": "2026-07-29T02:15:15+00:00",
+      "findCount": 4,
+      "instanceCount": 4,
+      "cumulativeFindCount": 80,
+      "bestScore": 0.9310494065284729,
+      "meanScore": 0.8624,
+      "minScore": 0.75,
       "instances": [
         {
           "cx": 757.0,
           "cy": 124.5,
-          "score": 0.9258880019187927,
+          "score": 0.9310494065284729,
           "scale": 1.0,
           "mode": "gray",
           "w": 22,
           "h": 23,
-          "runId": "2026-07-28T06:24:00+00:00",
-          "timestamp": "2026-07-28T06:24:00+00:00"
+          "runId": "2026-07-29T02:15:15+00:00",
+          "timestamp": "2026-07-29T02:15:15+00:00"
         },
         {
           "cx": 861.0,
           "cy": 114.0,
-          "score": 0.8900063037872314,
+          "score": 0.8935763239860535,
           "scale": 0.85,
           "mode": "gray",
           "w": 14,
           "h": 16,
-          "runId": "2026-07-28T06:24:00+00:00",
-          "timestamp": "2026-07-28T06:24:00+00:00"
+          "runId": "2026-07-29T02:15:15+00:00",
+          "timestamp": "2026-07-29T02:15:15+00:00"
         },
         {
           "cx": 883.5,
           "cy": 129.0,
-          "score": 0.8417834043502808,
+          "score": 0.8428316116333008,
           "scale": 0.75,
           "mode": "gray",
           "w": 13,
           "h": 14,
-          "runId": "2026-07-28T06:24:00+00:00",
-          "timestamp": "2026-07-28T06:24:00+00:00"
+          "runId": "2026-07-29T02:15:15+00:00",
+          "timestamp": "2026-07-29T02:15:15+00:00"
         },
         {
           "cx": 821.0,
           "cy": 133.5,
-          "score": 0.751724362373352,
-          "scale": 0.7,
+          "score": 0.7819526195526123,
+          "scale": 0.6,
           "mode": "gray",
-          "w": 12,
-          "h": 13,
-          "runId": "2026-07-28T06:24:00+00:00",
-          "timestamp": "2026-07-28T06:24:00+00:00"
-        },
-        {
-          "cx": 874.0,
-          "cy": 189.5,
-          "score": 0.7421051263809204,
-          "scale": 0.7,
-          "mode": "gray",
-          "w": 12,
-          "h": 13,
-          "runId": "2026-07-28T06:24:00+00:00",
-          "timestamp": "2026-07-28T06:24:00+00:00"
+          "w": 10,
+          "h": 11,
+          "runId": "2026-07-29T02:15:15+00:00",
+          "timestamp": "2026-07-29T02:15:15+00:00"
         }
       ]
     },
@@ -541,15 +517,17 @@
       "iconInterpretation": "1-discrete",
       "searchable": true,
       "group": "highlight",
+      "supports": "cigarette smoke",
+      "location": "Airway-alveolar junction",
       "status": "found",
       "firstFoundAt": "2026-07-28T05:13:19+00:00",
-      "lastFoundAt": "2026-07-28T06:24:00+00:00",
+      "lastFoundAt": "2026-07-29T02:15:15+00:00",
       "findCount": 2,
       "instanceCount": 2,
-      "cumulativeFindCount": 34,
+      "cumulativeFindCount": 36,
       "bestScore": 0.7684053778648376,
       "meanScore": 0.7174,
-      "minScore": 0.65,
+      "minScore": 0.7,
       "instances": [
         {
           "cx": 557.5,
@@ -559,19 +537,19 @@
           "mode": "gray",
           "w": 45,
           "h": 22,
-          "runId": "2026-07-28T06:24:00+00:00",
-          "timestamp": "2026-07-28T06:24:00+00:00"
+          "runId": "2026-07-29T02:15:15+00:00",
+          "timestamp": "2026-07-29T02:15:15+00:00"
         },
         {
           "cx": 877.5,
           "cy": 311.0,
-          "score": 0.6663369536399841,
+          "score": 0.6663312315940857,
           "scale": 1.1,
           "mode": "gray",
           "w": 55,
           "h": 28,
-          "runId": "2026-07-28T06:24:00+00:00",
-          "timestamp": "2026-07-28T06:24:00+00:00"
+          "runId": "2026-07-29T02:15:15+00:00",
+          "timestamp": "2026-07-29T02:15:15+00:00"
         }
       ]
     },
@@ -584,6 +562,8 @@
       "iconInterpretation": "1-discrete",
       "searchable": false,
       "group": "highlight",
+      "supports": "general air",
+      "location": "Distal airway / alveolar stress",
       "status": "skipped",
       "firstFoundAt": null,
       "lastFoundAt": null,
@@ -605,12 +585,14 @@
       "iconInterpretation": "1-discrete",
       "searchable": true,
       "group": "highlight",
+      "supports": "viruses",
+      "location": "Virus near epithelium + host cues",
       "status": "found",
       "firstFoundAt": "2026-07-28T05:13:19+00:00",
-      "lastFoundAt": "2026-07-28T06:24:00+00:00",
+      "lastFoundAt": "2026-07-29T02:15:15+00:00",
       "findCount": 2,
       "instanceCount": 2,
-      "cumulativeFindCount": 30,
+      "cumulativeFindCount": 32,
       "bestScore": 0.9362317323684692,
       "meanScore": 0.9344,
       "minScore": 0.8,
@@ -623,8 +605,8 @@
           "mode": "gray",
           "w": 40,
           "h": 39,
-          "runId": "2026-07-28T06:24:00+00:00",
-          "timestamp": "2026-07-28T06:24:00+00:00"
+          "runId": "2026-07-29T02:15:15+00:00",
+          "timestamp": "2026-07-29T02:15:15+00:00"
         },
         {
           "cx": 630.0,
@@ -634,8 +616,8 @@
           "mode": "gray",
           "w": 38,
           "h": 36,
-          "runId": "2026-07-28T06:24:00+00:00",
-          "timestamp": "2026-07-28T06:24:00+00:00"
+          "runId": "2026-07-29T02:15:15+00:00",
+          "timestamp": "2026-07-29T02:15:15+00:00"
         }
       ]
     }
@@ -1886,6 +1868,80 @@
           "status": "found",
           "instanceCount": 5,
           "bestScore": 0.9258880019187927
+        },
+        "B7": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.7684053778648376
+        },
+        "B8": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B9": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9362317323684692
+        }
+      }
+    },
+    {
+      "runId": "2026-07-29T02:15:15+00:00",
+      "timestamp": "2026-07-29T02:15:15+00:00",
+      "source": "template-match-report",
+      "tier1_mean_score": 0.8966,
+      "qa_errors": [],
+      "byCode": {
+        "A1": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.4657440483570099
+        },
+        "A2": {
+          "status": "found",
+          "instanceCount": 3,
+          "bestScore": 0.5566663146018982
+        },
+        "A3": {
+          "status": "found",
+          "instanceCount": 1,
+          "bestScore": 0.4266701936721802
+        },
+        "A4": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B1": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.3811519742012024
+        },
+        "B2": {
+          "status": "skipped",
+          "instanceCount": 0,
+          "bestScore": null
+        },
+        "B3": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.8233847618103027
+        },
+        "B4": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9247410297393799
+        },
+        "B5": {
+          "status": "found",
+          "instanceCount": 2,
+          "bestScore": 0.9019189476966858
+        },
+        "B6": {
+          "status": "found",
+          "instanceCount": 4,
+          "bestScore": 0.9310494065284729
         },
         "B7": {
           "status": "found",

@@ -110,6 +110,14 @@ LEGEND_CROPS: dict[str, tuple[int, int, int, int] | list[tuple[int, int, int, in
     "infection-antiviral-pathway": (26, 936, 47, 44),
 }
 
+# Outward padding (px) searched when recovering a glyph's true contour around a
+# match crop. Match crops are tuned for NCC and often clip the glyph.
+GLYPH_SILHOUETTE_PAD_PX = 16
+# Recovered ink this solid is still an undifferentiated block — keep the old stamp.
+GLYPH_SILHOUETTE_MAX_FILL = 0.985
+# Refuse silhouettes far larger than the match crop (bled into a neighbour glyph).
+GLYPH_SILHOUETTE_MAX_GROWTH = 2.0
+
 # Part labels written beside multi-part template PNGs (debug / report).
 LEGEND_CROP_PART_NAMES: dict[str, list[str]] = {
     "antiviral-immune-mediators": ["dots", "antibody"],
@@ -173,7 +181,8 @@ class LayerSpec:
     exclude_radius: int = 48
     # When False, zero matches is an allowed pending state (prefer empty over FPs).
     require_match: bool = True
-    # Outline stamp: "alpha" = template ink; "ellipse" = fitted ellipse for round cells.
+    # Fallback outline stamp when the glyph contour cannot be recovered from the
+    # legend: "alpha" = raw template ink; "ellipse" = fitted ellipse for round cells.
     stamp_shape: str = "alpha"
 
 
@@ -716,11 +725,13 @@ def clamp_roi(roi: dict, width: int, height: int) -> tuple[int, int, int, int]:
     return x0, y0, x1, y1
 
 
-def make_alpha_template(bgr: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def legend_ink_mask(bgr: np.ndarray) -> np.ndarray:
     """
-    Build a BGRA template with near-white background made transparent.
+    Binary ink mask for a legend crop (255 = glyph ink, 0 = card background).
 
-    Returns (bgra, binary_mask) where mask is 255 on glyph pixels.
+    Shared by the match template builder and the silhouette recovery pass so both
+    agree on what counts as background.
+    @param bgr - Legend crop in BGR
     """
     if bgr.ndim != 3 or bgr.shape[2] < 3:
         raise ValueError("template crop must be BGR/BGRA")
@@ -735,7 +746,17 @@ def make_alpha_template(bgr: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     light = (rgb.astype(np.int16).max(axis=2) - rgb.astype(np.int16).min(axis=2) < 12) & (
         rgb[:, :, 0] > 220
     )
-    mask = (~(white | light)).astype(np.uint8) * 255
+    return (~(white | light)).astype(np.uint8) * 255
+
+
+def make_alpha_template(bgr: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Build a BGRA template with near-white background made transparent.
+
+    Returns (bgra, binary_mask) where mask is 255 on glyph pixels.
+    """
+    rgb = bgr[:, :, :3]
+    mask = legend_ink_mask(bgr)
     # Keep only the largest connected ink blob(s) so badges/noise stay out
     num, labels, stats, _ = cv2.connectedComponentsWithStats(mask, 8)
     cleaned = np.zeros_like(mask)
@@ -757,6 +778,110 @@ def make_alpha_template(bgr: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return bgra, cleaned
 
 
+@dataclass(eq=False)
+class GlyphSilhouette:
+    """
+    True glyph outline recovered around a (deliberately tight) legend match crop.
+
+    `mask` is binary ink in legend pixels; `dx`/`dy` are the offsets from the
+    silhouette's top-left to the top-left of the *ink-trimmed match template*, so
+    a stamp can be scaled by the match window and placed against `match["x"/"y"]`.
+    """
+
+    mask: np.ndarray
+    dx: int
+    dy: int
+    tight_w: int
+    tight_h: int
+
+
+def recover_glyph_silhouette(
+    legend_bgr: np.ndarray,
+    box: tuple[int, int, int, int],
+) -> GlyphSilhouette | None:
+    """
+    Recover the full glyph contour around a legend match crop.
+
+    Match crops are calibrated for TM_CCOEFF_NORMED, and several of them cut
+    *inside* the glyph (B3's 30×30 neutrophil crop sits within a ~38px circle).
+    Their alpha is then a filled rectangle, so every stamped outline came out as
+    a box regardless of the real cell shape. Growing the crop outward until the
+    ink stops touching the border recovers the actual contour while the matcher
+    keeps searching with the unchanged tight template.
+
+    Returns None when nothing better than the tight rectangle can be separated
+    (crowded legend row, still-solid ink) so callers keep their existing stamp.
+
+    @param legend_bgr - Full legend template image
+    @param box - Calibrated match crop (x, y, w, h)
+    """
+    x, y, w, h = box
+    tight_crop = legend_bgr[y : y + h, x : x + w]
+    if tight_crop.size == 0:
+        return None
+    _bgra, tight_ink = make_alpha_template(tight_crop)
+    tys, txs = np.where(tight_ink > 0)
+    if len(txs) == 0:
+        return None
+    tx0, ty0 = int(txs.min()), int(tys.min())
+    tight_w = int(txs.max()) - tx0 + 1
+    tight_h = int(tys.max()) - ty0 + 1
+
+    for pad in range(GLYPH_SILHOUETTE_PAD_PX, 3, -2):
+        px0 = max(0, x - pad)
+        py0 = max(0, y - pad)
+        px1 = min(legend_bgr.shape[1], x + w + pad)
+        py1 = min(legend_bgr.shape[0], y + h + pad)
+        padded = legend_bgr[py0:py1, px0:px1]
+        if padded.size == 0:
+            continue
+        ink = legend_ink_mask(padded)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+        ink = cv2.morphologyEx(ink, cv2.MORPH_CLOSE, kernel)
+        num, labels, stats, _ = cv2.connectedComponentsWithStats((ink > 0).astype(np.uint8), 8)
+        # Tight-crop window inside the padded frame — components overlapping it
+        # belong to this glyph; neighbours (badges, adjacent rows) do not.
+        wx0, wy0 = x - px0, y - py0
+        wx1, wy1 = wx0 + w, wy0 + h
+        keep = np.zeros(ink.shape, dtype=np.uint8)
+        touches_border = False
+        for i in range(1, num):
+            cx, cy, cw, ch, area = stats[i]
+            if area < 12:
+                continue
+            if cx >= wx1 or cy >= wy1 or cx + cw <= wx0 or cy + ch <= wy0:
+                continue
+            keep[labels == i] = 1
+            if (
+                cx <= 0
+                or cy <= 0
+                or cx + cw >= ink.shape[1]
+                or cy + ch >= ink.shape[0]
+            ):
+                touches_border = True
+        if touches_border or int(keep.sum()) == 0:
+            # Ink runs off the padded frame: the glyph is not separable at this
+            # padding, so try a tighter window before giving up.
+            continue
+        ys, xs = np.where(keep > 0)
+        bx0, by0 = int(xs.min()), int(ys.min())
+        bx1, by1 = int(xs.max()) + 1, int(ys.max()) + 1
+        mask = keep[by0:by1, bx0:bx1]
+        fill = float(mask.mean())
+        gained = mask.shape[1] > tight_w or mask.shape[0] > tight_h
+        oversized = max(mask.shape) > GLYPH_SILHOUETTE_MAX_GROWTH * max(tight_w, tight_h)
+        if oversized or (fill >= GLYPH_SILHOUETTE_MAX_FILL and not gained):
+            continue
+        return GlyphSilhouette(
+            mask=mask.astype(np.uint8),
+            dx=(wx0 + tx0) - bx0,
+            dy=(wy0 + ty0) - by0,
+            tight_w=tight_w,
+            tight_h=tight_h,
+        )
+    return None
+
+
 def normalize_legend_crops(
     crop_spec: tuple[int, int, int, int] | list[tuple[int, int, int, int]],
 ) -> list[tuple[int, int, int, int]]:
@@ -766,19 +891,39 @@ def normalize_legend_crops(
     return [crop_spec]
 
 
-def extract_legend_templates(legend_bgr: np.ndarray) -> dict[str, list[np.ndarray]]:
+def extract_legend_templates(
+    legend_bgr: np.ndarray,
+) -> tuple[dict[str, list[np.ndarray]], dict[str, list[GlyphSilhouette | None]]]:
     """
     Crop calibrated legend glyphs and write alpha PNGs under templates/.
 
     For iconInterpretation=2-discrete slugs, writes `{slug}.png` (first part /
-    union preview) plus `{slug}--{part}.png` for each discrete part. Returns a
-    map of slug → list of BGRA templates to search independently.
+    union preview) plus `{slug}--{part}.png` for each discrete part.
+
+    Returns (templates, silhouettes): the BGRA templates the matcher searches
+    with, and the per-part glyph contours used to stamp outlines. They are
+    separate on purpose — several match crops clip their glyph for NCC quality.
     """
     TEMPLATE_DIR.mkdir(parents=True, exist_ok=True)
     icons = load_icon_interpretations()
     out: dict[str, list[np.ndarray]] = {}
+    silhouettes: dict[str, list[GlyphSilhouette | None]] = {}
     for slug, crop_spec in LEGEND_CROPS.items():
         boxes = normalize_legend_crops(crop_spec)
+        part_silhouettes: list[GlyphSilhouette | None] = []
+        for box in boxes:
+            sil = recover_glyph_silhouette(legend_bgr, box)
+            part_silhouettes.append(sil)
+            if sil is not None and (sil.mask.shape[1], sil.mask.shape[0]) != (
+                sil.tight_w,
+                sil.tight_h,
+            ):
+                print(
+                    f"  · silhouette {slug}: match crop {sil.tight_w}×{sil.tight_h} → "
+                    f"glyph contour {sil.mask.shape[1]}×{sil.mask.shape[0]} "
+                    f"ink={int(sil.mask.sum())}px"
+                )
+        silhouettes[slug] = part_silhouettes
         part_names = LEGEND_CROP_PART_NAMES.get(slug) or [
             f"part{i}" for i in range(len(boxes))
         ]
@@ -820,7 +965,7 @@ def extract_legend_templates(legend_bgr: np.ndarray) -> dict[str, list[np.ndarra
             concat = np.concatenate(pads, axis=1)
             cv2.imwrite(str(TEMPLATE_DIR / f"{slug}.png"), concat)
         out[slug] = templates
-    return out
+    return out, silhouettes
 
 
 def ink_trim_bgra(bgra: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -915,17 +1060,51 @@ def nms_matches(
     return kept
 
 
+def stamp_for_match(
+    silhouette: GlyphSilhouette | None,
+    tx: int,
+    ty: int,
+    tw: int,
+    th: int,
+) -> tuple[np.ndarray, int, int] | None:
+    """
+    Scale a recovered glyph contour onto one match window.
+
+    @param silhouette - Contour recovered from the legend, or None
+    @param tx - Match window left edge in cutaway pixels
+    @param ty - Match window top edge in cutaway pixels
+    @param tw - Match window width (ink-trimmed template at this scale)
+    @param th - Match window height
+    @returns (mask, x, y) placement for the stamp, or None to keep template alpha
+    """
+    if silhouette is None or silhouette.tight_w <= 0 or silhouette.tight_h <= 0:
+        return None
+    fx = tw / float(silhouette.tight_w)
+    fy = th / float(silhouette.tight_h)
+    sw = max(1, int(round(silhouette.mask.shape[1] * fx)))
+    sh = max(1, int(round(silhouette.mask.shape[0] * fy)))
+    mask = cv2.resize(silhouette.mask, (sw, sh), interpolation=cv2.INTER_NEAREST)
+    return (
+        (mask > 0).astype(np.uint8),
+        tx - int(round(silhouette.dx * fx)),
+        ty - int(round(silhouette.dy * fy)),
+    )
+
+
 def collect_template_candidates(
     hay_bgr: np.ndarray,
     template_bgra: np.ndarray,
     spec: LayerSpec,
     part_name: str | None = None,
+    silhouette: GlyphSilhouette | None = None,
 ) -> list[dict]:
     """
     Multi-scale, multi-mode peak harvest for one template (no score gate yet).
 
     White legend backgrounds are replaced with each ROI's mean color before
-    TM_CCOEFF_NORMED. Silhouette masks still come from the template alpha.
+    TM_CCOEFF_NORMED. Detection geometry is unchanged by `silhouette`; it only
+    swaps the stamped outline from the (often clipped) template rectangle to the
+    glyph's real contour.
     """
     tmpl_bgr, tmpl_mask = ink_trim_bgra(template_bgra)
     if int(np.count_nonzero(tmpl_mask)) < 12:
@@ -999,7 +1178,14 @@ def collect_template_candidates(
                         "cx": cx,
                         "cy": cy,
                         "mask": (rm > 0).astype(np.uint8),
+                        "mask_x": tx,
+                        "mask_y": ty,
+                        "stampSource": "template-alpha",
                     }
+                    stamp = stamp_for_match(silhouette, tx, ty, tw, th)
+                    if stamp is not None:
+                        cand["mask"], cand["mask_x"], cand["mask_y"] = stamp
+                        cand["stampSource"] = "glyph-silhouette"
                     if part_name:
                         cand["part"] = part_name
                     candidates.append(cand)
@@ -1018,6 +1204,7 @@ def search_layer(
     templates: list[np.ndarray] | np.ndarray,
     spec: LayerSpec,
     template_labels: list[str] | None = None,
+    silhouettes: list[GlyphSilhouette | None] | None = None,
 ) -> list[dict]:
     """
     Multi-scale template search for one layer (optionally multi-part).
@@ -1025,7 +1212,9 @@ def search_layer(
     For 2-discrete layers, each legend part is searched independently and
     candidates are unioned before NMS + primary/secondary acceptance.
     `template_labels` overrides the reported `part` tag (used to record which
-    expert freehand GT produced a band instance hit).
+    expert freehand GT produced a band instance hit). `silhouettes` supplies the
+    per-part glyph contour used for outline stamping (freehand-instance searches
+    pass none — their template alpha is already the expert's true shape).
     """
     if isinstance(templates, np.ndarray):
         template_list = [templates]
@@ -1046,8 +1235,9 @@ def search_layer(
                 part_names = [None]
 
     candidates: list[dict] = []
-    for tmpl, part in zip(template_list, part_names):
-        candidates.extend(collect_template_candidates(hay_bgr, tmpl, spec, part))
+    for i, (tmpl, part) in enumerate(zip(template_list, part_names)):
+        sil = silhouettes[i] if silhouettes is not None and i < len(silhouettes) else None
+        candidates.extend(collect_template_candidates(hay_bgr, tmpl, spec, part, sil))
 
     # Tiny-scale texture peaks often outscore real mid/large hits and crowd the
     # NMS pool before accept_matches can recover expected-center geometry. Demote
@@ -1067,16 +1257,25 @@ def search_layer(
 
 
 def stamp_matches(canvas_h: int, canvas_w: int, matches: list[dict]) -> np.ndarray:
-    """Union template alpha silhouettes from accepted matches into a binary mask."""
+    """
+    Union each accepted match's silhouette into a binary canvas mask.
+
+    A stamp is placed at `mask_x`/`mask_y` rather than the match window origin:
+    a recovered glyph contour is usually larger than the (clipped) match crop.
+    """
     mask = np.zeros((canvas_h, canvas_w), dtype=np.uint8)
     for m in matches:
         mh, mw = m["mask"].shape
-        x, y = int(m["x"]), int(m["y"])
-        x1 = min(canvas_w, x + mw)
-        y1 = min(canvas_h, y + mh)
+        x, y = int(m.get("mask_x", m["x"])), int(m.get("mask_y", m["y"]))
+        sx = max(0, -x)
+        sy = max(0, -y)
+        x = max(0, x)
+        y = max(0, y)
+        x1 = min(canvas_w, x + mw - sx)
+        y1 = min(canvas_h, y + mh - sy)
         if x1 <= x or y1 <= y:
             continue
-        patch = m["mask"][: y1 - y, : x1 - x]
+        patch = m["mask"][sy : sy + (y1 - y), sx : sx + (x1 - x)]
         region = mask[y:y1, x:x1]
         region[:] = np.maximum(region, patch)
     return mask
@@ -1106,15 +1305,19 @@ def ellipse_mask_from_ink(mask: np.ndarray) -> np.ndarray:
 
 def apply_stamp_shape(matches: list[dict], stamp_shape: str) -> list[dict]:
     """
-    Optionally rewrite each match mask for outline stamping.
+    Apply the configured fallback stamp to matches with no recovered contour.
 
     Detection scores/centers are unchanged; only the silhouette used for
-    layers/{slug}-outline.png is affected.
+    layers/{slug}-outline.png is affected. Matches already carrying the glyph's
+    real contour keep it — an ellipse fit would only re-approximate it.
     """
     if stamp_shape != "ellipse":
         return matches
     out: list[dict] = []
     for m in matches:
+        if m.get("stampSource") == "glyph-silhouette":
+            out.append(m)
+            continue
         mm = dict(m)
         mm["mask"] = ellipse_mask_from_ink(m["mask"])
         out.append(mm)
@@ -1576,7 +1779,7 @@ def run_generate(
     print("✓ OpenCV multi-scale template match (TM_CCOEFF_NORMED)")
     print(f"✓ Outline stroke {OUTLINE_STROKE_PX}px (silhouette + border)")
     print("· Extracting legend templates…")
-    templates = extract_legend_templates(legend_bgr)
+    templates, glyph_silhouettes = extract_legend_templates(legend_bgr)
     print("· Loading Tier-2 freehand-instance band templates (A1/B1)…")
     band_freehand_tmpls = load_band_freehand_templates(hay_bgr)
     # Centers already claimed by an earlier band slug (A1 before B1 in LAYER_SPECS).
@@ -1603,7 +1806,9 @@ def run_generate(
         search_spec = (
             relax_excludes_vetoing_freehand(spec, band_freehand_tmpls) if is_band else spec
         )
-        matches = search_layer(hay_bgr, tmpl, search_spec)
+        matches = search_layer(
+            hay_bgr, tmpl, search_spec, silhouettes=glyph_silhouettes.get(spec.slug)
+        )
         # Tier-2 adjacent bands: also matchTemplate with expert freehand crops so
         # a B1 lining GT can recover a similar A1 segment (legend NCC alone fails).
         if is_band:

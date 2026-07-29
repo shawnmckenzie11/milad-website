@@ -17,15 +17,15 @@ export const lungHealthCutawayMeta = {
 
 export const lungHealthLayerBBoxes = {
 	"neutrophils": {
-		"x": 531,
-		"y": 297,
-		"width": 119,
-		"height": 601,
-		"pixelCount": 1586,
+		"x": 527,
+		"y": 292,
+		"width": 127,
+		"height": 609,
+		"pixelCount": 2490,
 		"components": 2,
 		"tier": 1,
-		"cx": 597.9,
-		"cy": 537.1,
+		"cx": 597.7,
+		"cy": 537.5,
 		"method": "opencv-template-match",
 		"bestScore": 0.8234,
 		"matches": [
@@ -48,13 +48,13 @@ export const lungHealthLayerBBoxes = {
 	"alveolar-macrophages": {
 		"x": 469,
 		"y": 849,
-		"width": 162,
+		"width": 161,
 		"height": 77,
-		"pixelCount": 3308,
+		"pixelCount": 2768,
 		"components": 2,
 		"tier": 1,
-		"cx": 549.5,
-		"cy": 887.4,
+		"cx": 549.4,
+		"cy": 887.6,
 		"method": "opencv-template-match",
 		"bestScore": 0.9247,
 		"matches": [
@@ -108,7 +108,7 @@ export const lungHealthLayerBBoxes = {
 		"y": 84,
 		"width": 85,
 		"height": 52,
-		"pixelCount": 1260,
+		"pixelCount": 1258,
 		"components": 2,
 		"tier": 1,
 		"cx": 654.5,
@@ -211,13 +211,13 @@ export const lungHealthLayerBBoxes = {
 	"trachea-conducting-airway": {
 		"x": 340,
 		"y": 20,
-		"width": 72,
+		"width": 70,
 		"height": 102,
-		"pixelCount": 5530,
+		"pixelCount": 5447,
 		"components": 1,
 		"tier": 2,
-		"cx": 376.8,
-		"cy": 67.3,
+		"cx": 376.5,
+		"cy": 67.7,
 		"method": "opencv-template-match",
 		"bestScore": 0.4657,
 		"matches": [
@@ -235,11 +235,11 @@ export const lungHealthLayerBBoxes = {
 		"y": 166,
 		"width": 176,
 		"height": 103,
-		"pixelCount": 17246,
+		"pixelCount": 17180,
 		"components": 2,
 		"tier": 2,
-		"cx": 709.4,
-		"cy": 217.0,
+		"cx": 709.5,
+		"cy": 217.1,
 		"method": "opencv-template-match",
 		"bestScore": 0.3812,
 		"matches": [
@@ -267,8 +267,8 @@ export const lungHealthLayerBBoxes = {
 		"pixelCount": 769,
 		"components": 3,
 		"tier": 3,
-		"cx": 414.6,
-		"cy": 225.3,
+		"cx": 416.7,
+		"cy": 223.9,
 		"method": "opencv-template-match",
 		"bestScore": 0.5567,
 		"matches": [
@@ -296,15 +296,15 @@ export const lungHealthLayerBBoxes = {
 		]
 	},
 	"alveolar-fields": {
-		"x": 138,
+		"x": 139,
 		"y": 803,
-		"width": 30,
+		"width": 29,
 		"height": 33,
-		"pixelCount": 509,
+		"pixelCount": 495,
 		"components": 1,
 		"tier": 3,
-		"cx": 153.2,
-		"cy": 822.9,
+		"cx": 153.3,
+		"cy": 823.1,
 		"method": "opencv-template-match",
 		"bestScore": 0.4267,
 		"matches": [
@@ -317,7 +317,7 @@ export const lungHealthLayerBBoxes = {
 			}
 		]
 	},
-	"airway-immune-compartment": {
+	"airway-lumen": {
 		"x": 0,
 		"y": 0,
 		"width": 0,
@@ -328,7 +328,7 @@ export const lungHealthLayerBBoxes = {
 		"skipped": true,
 		"method": "template-match-skip"
 	},
-	"airway-lumen": {
+	"airway-immune-compartment": {
 		"x": 0,
 		"y": 0,
 		"width": 0,
