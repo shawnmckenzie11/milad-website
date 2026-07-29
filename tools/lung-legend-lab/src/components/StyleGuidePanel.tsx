@@ -524,9 +524,30 @@ export function StyleGuidePanel({
 									) : (
 										<span className="legend-details-glyph legend-details-glyph--empty" />
 									)}
-									<strong className="mono">{code || '—'}</strong>
+									{editable ? (
+										<input
+											className="mono"
+											placeholder="code"
+											value={code}
+											disabled={busy}
+											onChange={(e) => patchLayer(index, { legendCode: e.target.value })}
+											aria-label={`Legend code ${index + 1}`}
+										/>
+									) : (
+										<strong className="mono">{code || '—'}</strong>
+									)}
 									<div className="legend-details-meta">
-										<div>{row.name || '—'}</div>
+										{editable ? (
+											<input
+												placeholder="name"
+												value={row.name || ''}
+												disabled={busy}
+												onChange={(e) => patchLayer(index, { name: e.target.value })}
+												aria-label={`Legend name ${index + 1}`}
+											/>
+										) : (
+											<div>{row.name || '—'}</div>
+										)}
 										<div className="muted">{row.supports || '—'}</div>
 									</div>
 									<select

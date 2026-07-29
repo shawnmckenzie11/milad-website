@@ -1948,7 +1948,7 @@ async function handle(req, res) {
 				updatedAt: new Date().toISOString(),
 			});
 			if (session.analysisId) {
-				await snapshotActiveIfAny();
+				await saveActiveSessionMeta();
 			}
 			sendJson(res, 200, { ok: true, session: await readSession() });
 			return;

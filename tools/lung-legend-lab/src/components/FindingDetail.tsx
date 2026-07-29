@@ -153,7 +153,7 @@ type OverviewProps = {
  * Read-only fields for the selected hit.
  */
 function MatchOverview({ finding, item, annotation }: OverviewProps) {
-	const { code, name, tier, slug, instance } = finding;
+	const { code, name, tier, instance } = finding;
 	return (
 		<dl>
 			<dt>code</dt>
@@ -166,8 +166,6 @@ function MatchOverview({ finding, item, annotation }: OverviewProps) {
 			</dd>
 			<dt>icon</dt>
 			<dd>{item?.iconInterpretation ?? '—'}</dd>
-			<dt>code</dt>
-			<dd>{code}</dd>
 			<dt>score</dt>
 			<dd>{instance.score != null ? instance.score.toFixed(4) : '—'}</dd>
 			<dt>position</dt>
