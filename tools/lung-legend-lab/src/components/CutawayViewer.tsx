@@ -33,6 +33,7 @@ import {
 	OUTLINE_RING_PX,
 } from '../lib/outlineStyle';
 import { clampZoom, wheelZoomFactor } from '../lib/zoom';
+import { DEFAULT_CUTAWAY_H, DEFAULT_CUTAWAY_W } from '../lib/cutawaySize';
 
 export type SelectedFinding = {
 	code: string;
@@ -103,17 +104,17 @@ type Props = {
 	processing?: boolean;
 	/** Optional status line under Processing… (e.g. job kind). */
 	processingLabel?: string;
+	/**
+	 * Reports the loaded cutaway's natural pixel size whenever it changes, so
+	 * siblings (e.g. `FreehandCloseEditor`) can share the same source of truth.
+	 */
+	onCutawaySize?: (size: { w: number; h: number }) => void;
 };
 
 type FlatFinding = SelectedFinding & { minScore: number | null };
 
 const HIT_RADIUS = 42;
 const PICK_RADIUS = 40;
-/** Native cutaway art space — every stored point lives in this coordinate system. */
-const NATIVE_W = 1024;
-const NATIVE_H = 953;
-/** Native cutaway width / height (matches SVG viewBox). */
-const CUTAWAY_ASPECT = NATIVE_W / NATIVE_H;
 /** Minimum stroke sample spacing in screen px (converted to native per zoom level). */
 const TRACE_SAMPLE_SCREEN_PX = 1.5;
 /** Distance from a viewport edge at which a zoomed trace starts auto-panning. */
@@ -162,9 +163,26 @@ export function CutawayViewer({
 	outlinePreview = null,
 	processing = false,
 	processingLabel = 'Matching legend glyphs…',
+	onCutawaySize,
 }: Props) {
 	const stageRef = useRef<HTMLDivElement>(null);
 	const viewportRef = useRef<HTMLDivElement>(null);
+	/**
+	 * Live cutaway pixel size — the single source of truth for pointer↔image
+	 * mapping, the SVG viewBox, and stage aspect ratio. Starts at the
+	 * canonical default and is corrected the moment the `<img>` reports its
+	 * own naturalWidth/naturalHeight, so a 1184×1002 (or any other size)
+	 * cutaway lines up exactly like the 1024×953 original.
+	 */
+	const [cutawaySize, setCutawaySize] = useState<{ w: number; h: number }>({
+		w: DEFAULT_CUTAWAY_W,
+		h: DEFAULT_CUTAWAY_H,
+	});
+	const cutawayW = cutawaySize.w;
+	const cutawayH = cutawaySize.h;
+	const cutawayAspect = cutawayW / cutawayH;
+	const onCutawaySizeRef = useRef(onCutawaySize);
+	onCutawaySizeRef.current = onCutawaySize;
 	const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
 	const [tracePoints, setTracePoints] = useState<TracePoint[]>([]);
 	const [tracing, setTracing] = useState(false);
@@ -194,7 +212,10 @@ export function CutawayViewer({
 		clientY: number;
 	} | null>(null);
 	/** Art point currently under the viewport centre — anchor for rail zoom. */
-	const viewCenterNative = useRef<TracePoint>({ x: NATIVE_W / 2, y: NATIVE_H / 2 });
+	const viewCenterNative = useRef<TracePoint>({
+		x: DEFAULT_CUTAWAY_W / 2,
+		y: DEFAULT_CUTAWAY_H / 2,
+	});
 	/** Previous plane width, used to detect a zoom / fit relayout. */
 	const prevPlaneWidth = useRef<number | null>(null);
 	/**
@@ -260,7 +281,29 @@ export function CutawayViewer({
 	}, []);
 
 	/**
-	 * Width at 1× such that the full 1024×953 image fits inside the viewport.
+	 * Recenter the zoom anchor and notify the parent whenever the loaded
+	 * cutaway's real pixel size resolves (mount, or a different-size image
+	 * swapped in). No-ops on a same-size reload (e.g. cache-bust only).
+	 */
+	useEffect(() => {
+		viewCenterNative.current = { x: cutawayW / 2, y: cutawayH / 2 };
+		onCutawaySizeRef.current?.({ w: cutawayW, h: cutawayH });
+	}, [cutawayW, cutawayH]);
+
+	/**
+	 * Capture the cutaway `<img>`'s real pixel size once it loads, replacing
+	 * the canonical-size placeholder so every downstream mapping (pointer,
+	 * SVG viewBox, aspect ratio) works for any cutaway resolution.
+	 * @param e - Native image load event
+	 */
+	function handleBaseImageLoad(e: { currentTarget: HTMLImageElement }) {
+		const w = e.currentTarget.naturalWidth || DEFAULT_CUTAWAY_W;
+		const h = e.currentTarget.naturalHeight || DEFAULT_CUTAWAY_H;
+		setCutawaySize((prev) => (prev.w === w && prev.h === h ? prev : { w, h }));
+	}
+
+	/**
+	 * Width at 1× such that the full cutaway image fits inside the viewport.
 	 */
 	const fitWidthPx = useMemo(() => {
 		if (viewportSize.w < 32 || viewportSize.h < 32) {
@@ -269,11 +312,11 @@ export function CutawayViewer({
 		// Floor slightly so Fit never needs a scrollbar that shrinks the viewport.
 		const next = Math.max(
 			1,
-			Math.floor(Math.min(viewportSize.w, viewportSize.h * CUTAWAY_ASPECT)) - 1,
+			Math.floor(Math.min(viewportSize.w, viewportSize.h * cutawayAspect)) - 1,
 		);
 		lastFitWidthPx.current = next;
 		return next;
-	}, [viewportSize]);
+	}, [viewportSize, cutawayAspect]);
 
 	/** Layout width for the zoom plane (native scroll when larger than the viewport). */
 	const planeWidthPx = fitWidthPx != null ? fitWidthPx * zoom : null;
@@ -356,8 +399,8 @@ export function CutawayViewer({
 		const targetX = focus ? focus.clientX : viewRect.left + viewRect.width / 2;
 		const targetY = focus ? focus.clientY : viewRect.top + viewRect.height / 2;
 		const stageRect = stage.getBoundingClientRect();
-		vp.scrollLeft += stageRect.left + (anchor.x / NATIVE_W) * stageRect.width - targetX;
-		vp.scrollTop += stageRect.top + (anchor.y / NATIVE_H) * stageRect.height - targetY;
+		vp.scrollLeft += stageRect.left + (anchor.x / cutawayW) * stageRect.width - targetX;
+		vp.scrollTop += stageRect.top + (anchor.y / cutawayH) * stageRect.height - targetY;
 		rememberViewCenter();
 	}, [planeWidthPx]);
 
@@ -485,12 +528,14 @@ export function CutawayViewer({
 	}, [editMode]);
 
 	/**
-	 * Map a screen position into native 1024×953 cutaway coordinates.
+	 * Map a screen position into native cutaway pixel coordinates.
 	 *
 	 * The stage box is the zoom plane itself (the base image fills it exactly),
 	 * so the rect ratio already divides out zoom and scroll: results are always
 	 * native art pixels — the same space as match reports, freehand GT, and the
-	 * analysis cutaway — never screen/CSS pixels.
+	 * analysis cutaway — never screen/CSS pixels. Scaled by the *loaded*
+	 * cutaway's own naturalWidth/naturalHeight so this works identically at
+	 * 1024×953, 1184×1002, or any other size.
 	 *
 	 * @param clientX - Viewport-relative screen x
 	 * @param clientY - Viewport-relative screen y
@@ -500,16 +545,16 @@ export function CutawayViewer({
 		if (!el) return { x: 0, y: 0 };
 		const rect = el.getBoundingClientRect();
 		if (rect.width < 1 || rect.height < 1) return { x: 0, y: 0 };
-		const x = ((clientX - rect.left) / rect.width) * NATIVE_W;
-		const y = ((clientY - rect.top) / rect.height) * NATIVE_H;
+		const x = ((clientX - rect.left) / rect.width) * cutawayW;
+		const y = ((clientY - rect.top) / rect.height) * cutawayH;
 		return {
-			x: Math.round(Math.min(NATIVE_W, Math.max(0, x)) * 10) / 10,
-			y: Math.round(Math.min(NATIVE_H, Math.max(0, y)) * 10) / 10,
+			x: Math.round(Math.min(cutawayW, Math.max(0, x)) * 10) / 10,
+			y: Math.round(Math.min(cutawayH, Math.max(0, y)) * 10) / 10,
 		};
 	}
 
 	/**
-	 * Map a pointer event into native 1024×953 cutaway coordinates.
+	 * Map a pointer event into native cutaway pixel coordinates.
 	 * @param e - Pointer event with client coordinates
 	 */
 	function toNative(e: { clientX: number; clientY: number }): TracePoint {
@@ -734,15 +779,17 @@ export function CutawayViewer({
 			<div ref={viewportRef} className="viewer-viewport" onScroll={rememberViewCenter}>
 				<div
 					className="viewer-zoom-plane"
-					style={
-						planeWidthPx != null
+					style={{
+						aspectRatio: `${cutawayW} / ${cutawayH}`,
+						...(planeWidthPx != null
 							? { width: `${planeWidthPx}px` }
-							: { width: '100%', maxWidth: 1024 }
-					}
+							: { width: '100%', maxWidth: cutawayW }),
+					}}
 				>
 					<div
 						ref={stageRef}
 						className={stageClass}
+						style={{ aspectRatio: `${cutawayW} / ${cutawayH}` }}
 						onPointerMove={onStagePointerMove}
 						onPointerLeave={() => setCursor(null)}
 						onPointerDown={onStagePointerDown}
@@ -755,6 +802,7 @@ export function CutawayViewer({
 							src={assetUrl('/api/assets/cutaway', bust)}
 							alt="Cutaway"
 							draggable={false}
+							onLoad={handleBaseImageLoad}
 						/>
 						{processing && (
 							<div className="cutaway-processing-overlay" role="status" aria-live="polite">
@@ -775,7 +823,11 @@ export function CutawayViewer({
 								draggable={false}
 							/>
 						))}
-						<svg viewBox="0 0 1024 953" preserveAspectRatio="none" className="hit-layer">
+						<svg
+							viewBox={`0 0 ${cutawayW} ${cutawayH}`}
+							preserveAspectRatio="none"
+							className="hit-layer"
+						>
 							{flats.map((f) => {
 								const isSelected =
 									selectedFinding?.code === f.code && selectedFinding.index === f.index;
@@ -1024,26 +1076,26 @@ export function CutawayViewer({
 								/>
 							)}
 
-							{cursor && editMode === 'select' && (
-								<>
-									<line
-										x1={cursor.x}
-										y1={0}
-										x2={cursor.x}
-										y2={953}
-										stroke="rgba(255,255,255,0.25)"
-										strokeWidth={1}
-									/>
-									<line
-										x1={0}
-										y1={cursor.y}
-										x2={1024}
-										y2={cursor.y}
-										stroke="rgba(255,255,255,0.25)"
-										strokeWidth={1}
-									/>
-								</>
-							)}
+						{cursor && editMode === 'select' && (
+							<>
+								<line
+									x1={cursor.x}
+									y1={0}
+									x2={cursor.x}
+									y2={cutawayH}
+									stroke="rgba(255,255,255,0.25)"
+									strokeWidth={1}
+								/>
+								<line
+									x1={0}
+									y1={cursor.y}
+									x2={cutawayW}
+									y2={cursor.y}
+									stroke="rgba(255,255,255,0.25)"
+									strokeWidth={1}
+								/>
+							</>
+						)}
 						</svg>
 					</div>
 				</div>

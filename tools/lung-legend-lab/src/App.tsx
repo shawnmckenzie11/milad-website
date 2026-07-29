@@ -51,6 +51,7 @@ import {
 	refineFreehandOutline,
 	renderFreehandLegendIcon,
 } from './lib/freehandGeometry';
+import { DEFAULT_CUTAWAY_SIZE } from './lib/cutawaySize';
 import {
 	seedKnownTierAfterTier1,
 	seedKnownTierAfterTier2,
@@ -136,6 +137,12 @@ export default function App() {
 	/** Hit / freehand text labels on the cutaway (default on). */
 	const [showLabels, setShowLabels] = useState(true);
 	const [viewZoom, setViewZoom] = useState(1);
+	/**
+	 * Loaded cutaway pixel size, reported by `CutawayViewer` once its `<img>`
+	 * resolves. Shared with `FreehandCloseEditor` so both agree on one
+	 * coordinate space regardless of the actual cutaway resolution.
+	 */
+	const [cutawaySize, setCutawaySize] = useState(DEFAULT_CUTAWAY_SIZE);
 	const [tierToTest, setTierToTest] = useState(1);
 	const [job, setJob] = useState<JobState | null>(null);
 	const [busy, setBusy] = useState(false);
@@ -1391,6 +1398,7 @@ export default function App() {
 									outlinePreview={pendingFreehand ?? pendingCloseStroke}
 									processing={cutawayProcessing}
 									processingLabel={processingLabel}
+									onCutawaySize={setCutawaySize}
 								/>
 							)}
 						</div>
@@ -1559,6 +1567,8 @@ export default function App() {
 					points={pendingCloseStroke}
 					bust={bust}
 					busy={busy}
+					cutawayWidth={cutawaySize.w}
+					cutawayHeight={cutawaySize.h}
 					onCancel={cancelFreehand}
 					onClosed={(closed) => void handleManualFreehandClosed(closed)}
 				/>

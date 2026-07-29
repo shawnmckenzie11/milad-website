@@ -77,8 +77,9 @@ export function FindingDetail({
 					<div className="label">Add Freehand</div>
 					<p className="muted" style={{ marginTop: 0 }}>
 						Draw a closed loop on the cutaway around any feature — including novel or missed
-						structures. The current zoom and pan are kept; points are recorded in native
-						1024×953 art space. Tier difficulty comes from the legend item’s classification.
+						structures. The current zoom and pan are kept; points are recorded in the
+						cutaway’s native pixel space. Tier difficulty comes from the legend item’s
+						classification.
 					</p>
 					<p className="muted mono" style={{ marginTop: 6 }}>
 						Draw to outline · Shift/Alt/middle-drag to pan while zoomed · release to classify

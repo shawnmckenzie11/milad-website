@@ -12,7 +12,15 @@ import type { TracePoint } from '../types';
 /** Snap-close when start/end are within this many native cutaway pixels. */
 export const AUTO_CLOSE_PX = 32;
 
-/** Native cutaway canvas size used for edge-snap sampling. */
+/**
+ * Fallback cutaway size used only if a loaded `<img>` fails to report a
+ * natural width/height. Every function below that takes both `points` and a
+ * cutaway image loads that image from the *same* asset URL the points were
+ * captured against, so the two always already share one pixel space —
+ * no separate canonical→native scale factor is needed here (that
+ * anisotropic-scale problem is solved once, upstream, in
+ * `scripts/lung_template_match.py`'s `canonical_scale_factors`).
+ */
 export const CUTAWAY_W = 1024;
 export const CUTAWAY_H = 953;
 
@@ -871,8 +879,6 @@ function snapOutlinePass(
 	maxStep: number,
 ): TracePoint[] {
 	const { data, width: w, height: h } = image;
-	const sx = w / CUTAWAY_W;
-	const sy = h / CUTAWAY_H;
 	const ring =
 		dist(points[0], points[points.length - 1]) < 1.5
 			? points.slice(0, -1)
@@ -888,21 +894,15 @@ function snapOutlinePass(
 		const ny = nrm.y * outwardSign;
 		let bestX = p.x;
 		let bestY = p.y;
-		let bestG = gradientMag(
-			data,
-			w,
-			h,
-			Math.round(p.x * sx),
-			Math.round(p.y * sy),
-		);
+		let bestG = gradientMag(data, w, h, Math.round(p.x), Math.round(p.y));
 		const r = Math.max(1, Math.floor(radius));
 		for (let s = -r; s <= r; s++) {
 			if (s === 0) continue;
 			for (const lat of [0, -1, 1]) {
 				const tx = p.x + nx * s + -ny * lat * 0.6;
 				const ty = p.y + ny * s + nx * lat * 0.6;
-				if (tx < 1 || ty < 1 || tx >= CUTAWAY_W - 1 || ty >= CUTAWAY_H - 1) continue;
-				const g = gradientMag(data, w, h, Math.round(tx * sx), Math.round(ty * sy));
+				if (tx < 1 || ty < 1 || tx >= w - 1 || ty >= h - 1) continue;
+				const g = gradientMag(data, w, h, Math.round(tx), Math.round(ty));
 				if (g > bestG) {
 					bestG = g;
 					bestX = tx;
@@ -930,7 +930,8 @@ function snapOutlinePass(
  * Hugs slate atlas outlines without inventing a detector for match pipelines.
  *
  * @param points - Closed outline in native cutaway coords
- * @param image - Cutaway ImageData (any size; sampled in native 1024×953 space)
+ * @param image - Cutaway ImageData decoded from the same cutaway asset the
+ * points were captured against, so both already share one pixel space
  * @param radius - Search radius in native px
  * @param maxStep - Cap on how far a vertex may move per pass
  * @param passes - Number of attraction iterations
@@ -1038,8 +1039,6 @@ export async function renderFreehandLegendIcon(
 		});
 		const natW = img.naturalWidth || CUTAWAY_W;
 		const natH = img.naturalHeight || CUTAWAY_H;
-		const sx = natW / CUTAWAY_W;
-		const sy = natH / CUTAWAY_H;
 
 		const ring =
 			dist(points[0], points[points.length - 1]) < 1.5
@@ -1056,31 +1055,21 @@ export async function renderFreehandLegendIcon(
 		const pad = Math.max(4, Math.round(Math.max(bw, bh) * 0.12));
 		const cropX = Math.max(0, minX - pad);
 		const cropY = Math.max(0, minY - pad);
-		const cropW = Math.min(CUTAWAY_W - cropX, bw + pad * 2);
-		const cropH = Math.min(CUTAWAY_H - cropY, bh + pad * 2);
+		const cropW = Math.min(natW - cropX, bw + pad * 2);
+		const cropH = Math.min(natH - cropY, bh + pad * 2);
 
 		const src = document.createElement('canvas');
-		src.width = Math.max(1, Math.round(cropW * sx));
-		src.height = Math.max(1, Math.round(cropH * sy));
+		src.width = Math.max(1, Math.round(cropW));
+		src.height = Math.max(1, Math.round(cropH));
 		const sctx = src.getContext('2d');
 		if (!sctx) return null;
-		sctx.drawImage(
-			img,
-			cropX * sx,
-			cropY * sy,
-			cropW * sx,
-			cropH * sy,
-			0,
-			0,
-			src.width,
-			src.height,
-		);
+		sctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, src.width, src.height);
 
 		sctx.globalCompositeOperation = 'destination-in';
 		sctx.beginPath();
 		for (let i = 0; i < ring.length; i++) {
-			const px = (ring[i].x - cropX) * sx;
-			const py = (ring[i].y - cropY) * sy;
+			const px = ring[i].x - cropX;
+			const py = ring[i].y - cropY;
 			if (i === 0) sctx.moveTo(px, py);
 			else sctx.lineTo(px, py);
 		}

@@ -1,6 +1,7 @@
 /**
  * Cutaway zoom scale math shared by the Image View rail and the viewer.
- * Scale 1 = the whole 1024×953 frame fitted inside the viewport.
+ * Scale 1 = the whole cutaway frame (whatever its actual pixel size) fitted
+ * inside the viewport.
  */
 
 export const ZOOM_MIN = 1;

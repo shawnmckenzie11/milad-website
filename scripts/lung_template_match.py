@@ -77,6 +77,20 @@ CANVAS_H = 953
 OUTLINE_STROKE_PX = 22
 OUTLINE_COLOR_BGR = (10, 214, 255)  # yellow in BGR
 
+#: Relative |sx-sy|/max(sx,sy) drift above which a non-uniform (stretched)
+#: re-export gets a soft warning — matching still proceeds either way.
+ASPECT_WARN_TOLERANCE = 0.03
+
+#: Active canonical→native scale factors for the cutaway currently being
+#: matched. Set once per `run_generate()` call from the loaded image's actual
+#: dimensions; every LAYER_SPECS ROI/center/radius is authored against
+#: CANVAS_W×CANVAS_H, so a cutaway of any other size is matched by scaling
+#: those canonical coordinates instead of rejecting the run. Anisotropic by
+#: design (independent x/y) so a stretched re-export (e.g. 1184×1002) is
+#: matched correctly without assuming letterboxing or uniform resize.
+SCALE_X: float = 1.0
+SCALE_Y: float = 1.0
+
 # Codes whose freehand outlines may seed extra matchTemplate searches for
 # iconInterpretation=multiple-adjacent-as-one (adjacent wall/lining bands).
 BAND_FREEHAND_CODES = frozenset({"A1", "B1"})
@@ -756,6 +770,96 @@ def clamp_roi(roi: dict, width: int, height: int) -> tuple[int, int, int, int]:
     return x0, y0, x1, y1
 
 
+def canonical_scale_factors(width: int, height: int) -> tuple[float, float]:
+    """
+    Compute independent (sx, sy) factors from the canonical canvas to a live cutaway.
+
+    LAYER_SPECS geometry is authored against CANVAS_W×CANVAS_H. A live cutaway
+    of a different size is matched by scaling every canonical ROI/center/radius
+    by `sx = width / CANVAS_W`, `sy = height / CANVAS_H` rather than rejecting
+    the run. Anisotropic (independent x/y, not one uniform ratio) so a stretched
+    non-proportional re-export (e.g. 1184×1002) still lands search windows in
+    the right place instead of assuming letterboxing/uniform resize.
+
+    :param width: Live cutaway width in pixels.
+    :param height: Live cutaway height in pixels.
+    :returns: (sx, sy) multipliers to apply to canonical-space coordinates.
+    """
+    return width / float(CANVAS_W), height / float(CANVAS_H)
+
+
+def warn_if_aspect_drift(width: int, height: int, sx: float, sy: float) -> None:
+    """
+    Print a soft stderr warning when sx/sy diverge beyond ASPECT_WARN_TOLERANCE.
+
+    A non-uniform scale means the cutaway was stretched relative to the
+    canonical aspect ratio, which can reduce template-match scores (round
+    glyphs become ellipses). This is informational only — matching still runs.
+    """
+    if sx <= 0 or sy <= 0:
+        return
+    drift = abs(sx - sy) / max(sx, sy)
+    if drift > ASPECT_WARN_TOLERANCE:
+        print(
+            f"⚠ Cutaway {width}×{height} scales anisotropically vs canonical "
+            f"{CANVAS_W}×{CANVAS_H} (sx={sx:.4f}, sy={sy:.4f}, aspect drift "
+            f"{drift * 100:.1f}%). Matching proceeds with independent x/y "
+            f"scaling, but a proportionally-resized re-export usually scores higher.",
+            file=sys.stderr,
+        )
+
+
+def scale_roi(roi: dict, sx: float, sy: float) -> dict:
+    """Scale a canonical-space ROI box to native cutaway pixel coordinates."""
+    return dict(
+        x0=roi["x0"] * sx,
+        y0=roi["y0"] * sy,
+        x1=roi["x1"] * sx,
+        y1=roi["y1"] * sy,
+    )
+
+
+def scale_point(point: tuple[float, float], sx: float, sy: float) -> tuple[float, float]:
+    """Scale a canonical-space (x, y) point to native cutaway pixel coordinates."""
+    return (point[0] * sx, point[1] * sy)
+
+
+def scale_layer_spec(spec: "LayerSpec", sx: float, sy: float) -> "LayerSpec":
+    """
+    Return a copy of `spec` with every canonical-space geometry field rescaled.
+
+    ROI boxes and center points scale anisotropically (independent sx, sy) so
+    a stretched re-export still searches the right regions. Radius-like
+    scalars (`nms_min_dist`, `expected_radius`, `exclude_radius`, the
+    component-size gates) are isotropic by construction — a circle of radius
+    r has no separate x/y radius — so they scale by the geometric mean
+    `sqrt(sx * sy)`. `max_pixel_count` bounds a 2-D area, so it scales by
+    `sx * sy`. Identity (returns `spec` unchanged) when sx == sy == 1.0, i.e.
+    the canonical 1024×953 case — zero behavior change for existing runs.
+
+    :param spec: Canonical-space layer search configuration.
+    :param sx: Canonical→native scale factor for the x axis.
+    :param sy: Canonical→native scale factor for the y axis.
+    :returns: A `LayerSpec` with geometry fields expressed in native pixels.
+    """
+    if sx == 1.0 and sy == 1.0:
+        return spec
+    srad = (sx * sy) ** 0.5
+    return replace(
+        spec,
+        rois=[scale_roi(r, sx, sy) for r in spec.rois],
+        accept_rois=[scale_roi(r, sx, sy) for r in spec.accept_rois],
+        expected_centers=[scale_point(p, sx, sy) for p in spec.expected_centers],
+        exclude_centers=[scale_point(p, sx, sy) for p in spec.exclude_centers],
+        max_component_side=max(1, round(spec.max_component_side * srad)),
+        min_component_side=round(spec.min_component_side * srad),
+        max_pixel_count=max(1, round(spec.max_pixel_count * sx * sy)),
+        nms_min_dist=max(1, round(spec.nms_min_dist * srad)),
+        expected_radius=max(1, round(spec.expected_radius * srad)),
+        exclude_radius=max(1, round(spec.exclude_radius * srad)),
+    )
+
+
 def legend_ink_mask(bgr: np.ndarray) -> np.ndarray:
     """
     Binary ink mask for a legend crop (255 = glyph ink, 0 = card background).
@@ -1155,8 +1259,12 @@ def collect_template_candidates(
             region_m = apply_mode(region, mode)
             tmpl_m = apply_mode(filled, mode)
             for scale in spec.scales:
-                th = max(8, int(round(tmpl_m.shape[0] * scale)))
-                tw = max(8, int(round(tmpl_m.shape[1] * scale)))
+                # SCALE_X/SCALE_Y (identity at 1.0/1.0 for the canonical
+                # canvas) apply the same canonical→native factor to the
+                # template window as was already applied to the ROI, so a
+                # stretched cutaway still matches glyphs at native scale.
+                th = max(8, int(round(tmpl_m.shape[0] * scale * SCALE_Y)))
+                tw = max(8, int(round(tmpl_m.shape[1] * scale * SCALE_X)))
                 if region_m.shape[0] < th or region_m.shape[1] < tw:
                     continue
                 interp = cv2.INTER_AREA if scale < 1.0 else cv2.INTER_LINEAR
@@ -1646,6 +1754,19 @@ def write_debug_composites(
     tier_by_slug = {s.slug: s.tier for s in LAYER_SPECS}
     code_by_slug = {s.slug: s.legend_code for s in LAYER_SPECS}
 
+    def crop(img: np.ndarray, y0: int, y1: int, x0: int, x1: int) -> np.ndarray:
+        """
+        Slice a debug crop window authored in canonical coordinates.
+
+        These fixed windows are visual QA aids only (not a QA gate — validate
+        rechecks outline/match overlap on the full-size outline PNGs), but they
+        are still scaled by the active SCALE_X/SCALE_Y so a non-canonical
+        cutaway gets a correctly-framed crop instead of a stale canonical one.
+        """
+        sy0, sy1 = int(round(y0 * SCALE_Y)), int(round(y1 * SCALE_Y))
+        sx0, sx1 = int(round(x0 * SCALE_X)), int(round(x1 * SCALE_X))
+        return img[sy0:sy1, sx0:sx1]
+
     def pathway_composite(pathway: str) -> np.ndarray:
         """Build a labeled pathway overlay for verify/preview QA."""
         img = hay_bgr.copy()
@@ -1665,14 +1786,14 @@ def write_debug_composites(
     # Viruses
     viruses = pathway_composite("viruses")
     cv2.imwrite(str(DEBUG_DIR / "verify-viruses.png"), viruses)
-    crop = viruses[60:180, 600:760].copy()
-    cv2.imwrite(str(DEBUG_DIR / "verify-b9-crop.png"), crop)
+    b9_crop = crop(viruses, 60, 180, 600, 760).copy()
+    cv2.imwrite(str(DEBUG_DIR / "verify-b9-crop.png"), b9_crop)
 
     # Cigarette
     cig = pathway_composite("cigarette")
     cv2.imwrite(str(DEBUG_DIR / "verify-cigarette.png"), cig)
-    cv2.imwrite(str(DEBUG_DIR / "verify-cigarette-junction.png"), cig[740:935, 420:700])
-    cv2.imwrite(str(DEBUG_DIR / "verify-cigarette-lumen.png"), cig[200:380, 610:920])
+    cv2.imwrite(str(DEBUG_DIR / "verify-cigarette-junction.png"), crop(cig, 740, 935, 420, 700))
+    cv2.imwrite(str(DEBUG_DIR / "verify-cigarette-lumen.png"), crop(cig, 200, 380, 610, 920))
 
     # Cannabis
     can = pathway_composite("cannabis")
@@ -1692,7 +1813,7 @@ def write_debug_composites(
             tier=tier_by_slug.get(slug),
         )
     cv2.imwrite(str(DEBUG_DIR / "verify-a1-b1-bands.png"), band)
-    cv2.imwrite(str(DEBUG_DIR / "verify-a1-b1-band-crop.png"), band[20:300, 300:820])
+    cv2.imwrite(str(DEBUG_DIR / "verify-a1-b1-band-crop.png"), crop(band, 20, 300, 300, 820))
 
     # Vaping / B5
     vap = pathway_composite("vaping")
@@ -1700,14 +1821,16 @@ def write_debug_composites(
     cv2.imwrite(str(DEBUG_DIR / "verify-b5-full.png"), vap)
     b5_matches = matches_by_slug.get("dendritic-cells", [])
     if b5_matches:
+        # Match centers are already native-pixel (post-scale), so this window
+        # is derived directly from them rather than through the canonical crop().
         xs = [int(m["cx"]) for m in b5_matches]
         ys = [int(m["cy"]) for m in b5_matches]
         x0, y0 = max(0, min(xs) - 100), max(0, min(ys) - 100)
-        x1, y1 = min(CANVAS_W, max(xs) + 100), min(CANVAS_H, max(ys) + 100)
+        x1, y1 = min(vap.shape[1], max(xs) + 100), min(vap.shape[0], max(ys) + 100)
         cv2.imwrite(str(DEBUG_DIR / "verify-b5-crop.png"), vap[y0:y1, x0:x1])
-        cv2.imwrite(str(DEBUG_DIR / "verify-b5-lumen-region.png"), vap[250:390, 650:860])
+        cv2.imwrite(str(DEBUG_DIR / "verify-b5-lumen-region.png"), crop(vap, 250, 390, 650, 860))
     else:
-        cv2.imwrite(str(DEBUG_DIR / "verify-b5-crop.png"), vap[250:380, 650:860])
+        cv2.imwrite(str(DEBUG_DIR / "verify-b5-crop.png"), crop(vap, 250, 380, 650, 860))
 
 
 def write_previews(
@@ -1792,19 +1915,22 @@ def run_generate(
         print("✗ Failed to read source or legend PNG", file=sys.stderr)
         return 1
     h, w = hay_bgr.shape[:2]
+    global SCALE_X, SCALE_Y
     if (w, h) != (CANVAS_W, CANVAS_H):
-        # Every ROI / exclude center / scale anchor in LAYER_SPECS is expressed in
-        # canonical canvas coordinates. Rescaling the haystack here would search
-        # the wrong regions and report confident nonsense, so refuse instead.
+        # Every ROI / expected-center / exclude-center / radius in LAYER_SPECS
+        # is authored in canonical canvas coordinates. Rather than refusing a
+        # differently-sized cutaway, scale those canonical coordinates by
+        # independent (sx, sy) so search windows land in the right native
+        # pixels — see canonical_scale_factors()/scale_layer_spec().
+        SCALE_X, SCALE_Y = canonical_scale_factors(w, h)
+        warn_if_aspect_drift(w, h, SCALE_X, SCALE_Y)
         print(
-            f"✗ Cutaway is {w}×{h} but the matcher is calibrated for "
-            f"{CANVAS_W}×{CANVAS_H} (Test 1 baseline). Search regions are defined "
-            f"in canonical coordinates, so a rescaled re-export cannot be matched. "
-            f"Use public/figures/lung-health/cutaway-neutral.png (or "
-            f"tools/lung-legend-lab/fixtures/test-cutaway-1.png).",
-            file=sys.stderr,
+            f"⚠ Cutaway is {w}×{h}; matcher calibrated for {CANVAS_W}×{CANVAS_H} "
+            f"(Test 1 baseline). Scaling canonical ROIs/centers/radii by "
+            f"sx={SCALE_X:.4f}, sy={SCALE_Y:.4f} instead of rejecting the run."
         )
-        return 1
+    else:
+        SCALE_X, SCALE_Y = 1.0, 1.0
 
     LAYER_DIR.mkdir(parents=True, exist_ok=True)
     DEBUG_DIR.mkdir(parents=True, exist_ok=True)
@@ -1822,10 +1948,18 @@ def run_generate(
     outlines: dict[str, np.ndarray] = {}
     matches_by_slug: dict[str, list[dict]] = {}
     qa_errors: list[str] = []
-    report: dict = {"layers": {}, "method": "opencv-template-match"}
+    report: dict = {
+        "layers": {},
+        "method": "opencv-template-match",
+        "canvasWidth": w,
+        "canvasHeight": h,
+    }
 
     # Search tier-1 first (specs list is already ordered)
-    for spec in LAYER_SPECS:
+    for canonical_spec in LAYER_SPECS:
+        # Identity when SCALE_X == SCALE_Y == 1.0 (canonical cutaway) — no
+        # behavior change for the common case.
+        spec = scale_layer_spec(canonical_spec, SCALE_X, SCALE_Y)
         tmpl = templates.get(spec.slug)
         if tmpl is None:
             qa_errors.append(f"{spec.slug}: missing legend template")
@@ -2021,9 +2155,17 @@ def run_validate() -> int:
         return 1
     report = json.loads(MATCH_REPORT.read_text(encoding="utf-8"))
     errors: list[str] = list(report.get("qa_errors") or [])
+    # Re-derive the same (sx, sy) the generate run used so ROI checks below
+    # compare native-pixel match centers against native-pixel ROIs, not
+    # canonical ones. Falls back to canonical (identity) for older reports
+    # written before canvasWidth/canvasHeight were recorded.
+    report_w = report.get("canvasWidth", CANVAS_W)
+    report_h = report.get("canvasHeight", CANVAS_H)
+    val_sx, val_sy = canonical_scale_factors(report_w, report_h)
 
     # Re-check outline assets exist for searchable layers
-    for spec in LAYER_SPECS:
+    for canonical_spec in LAYER_SPECS:
+        spec = scale_layer_spec(canonical_spec, val_sx, val_sy)
         outline = LAYER_DIR / f"{spec.slug}-outline.png"
         extract = LAYER_DIR / f"{spec.slug}.png"
         tmpl = TEMPLATE_DIR / f"{spec.slug}.png"

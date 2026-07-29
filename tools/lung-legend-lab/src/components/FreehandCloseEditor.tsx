@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { TracePoint } from '../types';
 import { applyManualClose, closureGap, dist } from '../lib/freehandGeometry';
+import { DEFAULT_CUTAWAY_H, DEFAULT_CUTAWAY_W } from '../lib/cutawaySize';
 import { assetUrl } from '../api';
 
 type Props = {
@@ -8,6 +9,13 @@ type Props = {
 	points: TracePoint[];
 	bust: number;
 	busy?: boolean;
+	/**
+	 * Loaded cutaway pixel size (from `CutawayViewer`'s `onCutawaySize`), so
+	 * the crop/image mapping matches whatever size the cutaway actually is.
+	 * @default {@link DEFAULT_CUTAWAY_W} × {@link DEFAULT_CUTAWAY_H}
+	 */
+	cutawayWidth?: number;
+	cutawayHeight?: number;
 	onCancel: () => void;
 	/** Called with cleaned, closed outline after manual bridge. */
 	onClosed: (closed: TracePoint[]) => void;
@@ -17,7 +25,15 @@ type Props = {
  * Zoomed editor to manually bridge a freehand gap that is not obvious to auto-close.
  * Shows a crop around the start/end gap; owner draws the connecting stroke.
  */
-export function FreehandCloseEditor({ points, bust, busy = false, onCancel, onClosed }: Props) {
+export function FreehandCloseEditor({
+	points,
+	bust,
+	busy = false,
+	cutawayWidth = DEFAULT_CUTAWAY_W,
+	cutawayHeight = DEFAULT_CUTAWAY_H,
+	onCancel,
+	onClosed,
+}: Props) {
 	const svgRef = useRef<SVGSVGElement>(null);
 	const [bridge, setBridge] = useState<TracePoint[]>([]);
 	const [drawing, setDrawing] = useState(false);
@@ -31,10 +47,10 @@ export function FreehandCloseEditor({ points, bust, busy = false, onCancel, onCl
 		const span = Math.max(80, gap * 2.2, 140);
 		const x0 = Math.max(0, cx - span / 2);
 		const y0 = Math.max(0, cy - span / 2);
-		const w = Math.min(1024 - x0, span);
-		const h = Math.min(953 - y0, span);
+		const w = Math.min(cutawayWidth - x0, span);
+		const h = Math.min(cutawayHeight - y0, span);
 		return { x0, y0, w, h };
-	}, [first, last, gap]);
+	}, [first, last, gap, cutawayWidth, cutawayHeight]);
 
 	/**
 	 * Map pointer into native cutaway coordinates inside the crop viewBox.
@@ -121,8 +137,8 @@ export function FreehandCloseEditor({ points, bust, busy = false, onCancel, onCl
 							href={assetUrl('/api/assets/cutaway', bust)}
 							x={0}
 							y={0}
-							width={1024}
-							height={953}
+							width={cutawayWidth}
+							height={cutawayHeight}
 							preserveAspectRatio="none"
 						/>
 						<polyline
