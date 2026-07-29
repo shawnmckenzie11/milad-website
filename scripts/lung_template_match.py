@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -47,6 +48,9 @@ LAB_TRAINING_FEEDBACK = (
 
 #: Set by --io-root; when present the run never touches the site tree.
 IO_ROOT: Path | None = None
+#: Optional Tier-to-Test ceiling from the lab (`--tier-to-test`). When set,
+#: only searchable classification rows at this tier or below are matched.
+TIER_TO_TEST: int | None = None
 
 
 def apply_io_root(io_root: Path) -> None:
@@ -755,6 +759,173 @@ LAYER_SPECS: list[LayerSpec] = [
     ),
 ]
 
+#: Optional calibrated presets keyed by legend code. Used only when that code
+#: actually appears as searchable in the analysis classification — never as a
+#: hard requirement that every legend must include A1/B3/….
+CALIBRATED_BY_CODE: dict[str, LayerSpec] = {s.legend_code: s for s in LAYER_SPECS}
+
+#: Broad search window for uncalibrated legend codes (canonical 1024×953 space).
+DISCOVERY_ROI = dict(x0=80, y0=20, x1=1000, y1=940)
+
+
+def slugify_legend_name(name: str | None, code: str) -> str:
+    """
+    Derive a filesystem/layer key from a legend item name (or fall back to code).
+
+    Matches the lab StyleGuidePanel `layerKeyFromLegend` convention so files,
+    matching, and the site stay aligned without a separate asset-slug field.
+    """
+    from_name = re.sub(r"[^a-z0-9]+", "-", (name or "").lower()).strip("-")
+    return from_name or code.lower()
+
+
+def load_classification_rows() -> dict[str, dict]:
+    """Load `classifications` map from the active classification JSON."""
+    if not CLASSIFICATION_JSON.is_file():
+        return {}
+    try:
+        data = json.loads(CLASSIFICATION_JSON.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    rows = data.get("classifications") or {}
+    return {str(k): v for k, v in rows.items() if isinstance(v, dict)}
+
+
+def load_extract_items_by_code() -> dict[str, dict]:
+    """Load legend-extract items keyed by code from the analysis or site debug."""
+    candidates: list[Path] = []
+    if IO_ROOT is not None:
+        candidates.append(IO_ROOT / "legend-extract.json")
+    candidates.append(DEBUG_DIR / "legend-extract.json")
+    candidates.append(ROOT / "public/figures/lung-health/debug/legend-extract.json")
+    for path in candidates:
+        if not path.is_file():
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        items = data.get("items") or []
+        out: dict[str, dict] = {}
+        for item in items:
+            code = item.get("code")
+            if code:
+                out[str(code)] = item
+        if out:
+            return out
+    return {}
+
+
+def find_glyph_path(code: str, extract_item: dict | None = None) -> Path | None:
+    """
+    Resolve a cropped legend glyph PNG for one legend code.
+
+    Prefers analysis `legend-items/{code}-glyph.png`, then extract `glyph_path`.
+    """
+    if IO_ROOT is not None:
+        local = IO_ROOT / "legend-items" / f"{code}-glyph.png"
+        if local.is_file():
+            return local
+    if extract_item:
+        rel = extract_item.get("glyph_path")
+        if isinstance(rel, str) and rel:
+            cand = Path(rel)
+            if not cand.is_absolute():
+                cand = ROOT / cand
+            if cand.is_file():
+                return cand
+    return None
+
+
+def discovery_layer_spec(
+    code: str,
+    tier: int,
+    slug: str,
+    icon_interpretation: str,
+) -> LayerSpec:
+    """
+    Build a soft search config for a legend code with no calibrated preset.
+
+    Uncalibrated glyphs search a broad ROI and do not hard-fail QA when zero
+    peaks clear the floor — the lab can still review partial hits / freehand.
+    """
+    return LayerSpec(
+        slug=slug,
+        legend_code=code,
+        tier=tier,
+        rois=[DISCOVERY_ROI],
+        accept_rois=[DISCOVERY_ROI],
+        scales=_scales_for_tier(tier, 0.35, 1.8, 0.05),
+        min_score=0.45 if tier <= 1 else 0.40,
+        modes=("gray", "color", "purple", "green"),
+        max_matches=6,
+        max_component_side=220,
+        max_pixel_count=40000,
+        nms_min_dist=24,
+        peaks_per_scale=5,
+        icon_interpretation=icon_interpretation,
+        require_match=False,
+        stamp_shape="ellipse" if tier <= 1 else "alpha",
+    )
+
+
+def resolve_active_layer_specs(
+    tier_to_test: int | None = None,
+) -> tuple[list[LayerSpec], str]:
+    """
+    Choose which layers to search for this generate run.
+
+    When the analysis classification marks searchable items, those drive the
+    run — fixed A1/B3/… codes are never required. Calibrated LayerSpec presets
+    are reused only when their legend_code is actually classified searchable.
+    Without searchable classification rows, fall back to the published
+    LAYER_SPECS list (Test 1 / site generate).
+    """
+    classification = load_classification_rows()
+    extract = load_extract_items_by_code()
+    searchable: list[tuple[str, dict]] = []
+    for code, row in classification.items():
+        if not row.get("searchable"):
+            continue
+        tier = row.get("tier")
+        if not isinstance(tier, int) or tier < 1:
+            continue
+        if tier_to_test is not None and tier > tier_to_test:
+            continue
+        searchable.append((code, row))
+
+    if searchable:
+        specs: list[LayerSpec] = []
+        for code, row in searchable:
+            tier = int(row["tier"])
+            icon = row.get("iconInterpretation")
+            icon_s = icon if isinstance(icon, str) else "1-discrete"
+            extract_item = extract.get(code) or {}
+            named = row.get("slug") or slugify_legend_name(
+                extract_item.get("name") if isinstance(extract_item.get("name"), str) else None,
+                code,
+            )
+            calibrated = CALIBRATED_BY_CODE.get(code)
+            if calibrated is not None:
+                specs.append(
+                    replace(
+                        calibrated,
+                        slug=named if row.get("slug") else calibrated.slug,
+                        tier=tier,
+                        icon_interpretation=icon_s,
+                    )
+                )
+            else:
+                specs.append(discovery_layer_spec(code, tier, named, icon_s))
+        specs.sort(key=lambda s: (s.tier, s.legend_code))
+        return specs, "classification"
+
+    specs = list(LAYER_SPECS)
+    if tier_to_test is not None:
+        specs = [s for s in specs if s.tier <= tier_to_test]
+    return specs, "calibrated"
+
+
 
 def point_in_roi(x: float, y: float, roi: dict) -> bool:
     """Return True when (x, y) lies inside an inclusive axis-aligned ROI."""
@@ -1028,78 +1199,94 @@ def normalize_legend_crops(
 
 def extract_legend_templates(
     legend_bgr: np.ndarray,
+    specs: list[LayerSpec],
 ) -> tuple[dict[str, list[np.ndarray]], dict[str, list[GlyphSilhouette | None]]]:
     """
-    Crop calibrated legend glyphs and write alpha PNGs under templates/.
+    Build alpha templates for the active layer specs and write them under templates/.
 
-    For iconInterpretation=2-discrete slugs, writes `{slug}.png` (first part /
-    union preview) plus `{slug}--{part}.png` for each discrete part.
-
-    Returns (templates, silhouettes): the BGRA templates the matcher searches
-    with, and the per-part glyph contours used to stamp outlines. They are
-    separate on purpose — several match crops clip their glyph for NCC quality.
+    Prefer analysis `legend-items/{code}-glyph.png` (works for any legend coding).
+    Fall back to calibrated LEGEND_CROPS boxes only when that slug is present —
+    never require fixed A1/B3 crop coordinates for every analysis.
     """
     TEMPLATE_DIR.mkdir(parents=True, exist_ok=True)
     icons = load_icon_interpretations()
+    extract = load_extract_items_by_code()
     out: dict[str, list[np.ndarray]] = {}
     silhouettes: dict[str, list[GlyphSilhouette | None]] = {}
-    for slug, crop_spec in LEGEND_CROPS.items():
-        boxes = normalize_legend_crops(crop_spec)
-        part_silhouettes: list[GlyphSilhouette | None] = []
-        for box in boxes:
-            sil = recover_glyph_silhouette(legend_bgr, box)
-            part_silhouettes.append(sil)
-            if sil is not None and (sil.mask.shape[1], sil.mask.shape[0]) != (
-                sil.tight_w,
-                sil.tight_h,
-            ):
-                print(
-                    f"  · silhouette {slug}: match crop {sil.tight_w}×{sil.tight_h} → "
-                    f"glyph contour {sil.mask.shape[1]}×{sil.mask.shape[0]} "
-                    f"ink={int(sil.mask.sum())}px"
-                )
-        silhouettes[slug] = part_silhouettes
-        part_names = LEGEND_CROP_PART_NAMES.get(slug) or [
-            f"part{i}" for i in range(len(boxes))
-        ]
-        # Prefer fixture iconInterpretation when present.
-        code = next((s.legend_code for s in LAYER_SPECS if s.slug == slug), "")
-        icon = icons.get(code, "1-discrete" if len(boxes) == 1 else "2-discrete")
+
+    for spec in specs:
+        slug = spec.slug
+        code = spec.legend_code
+        icon = icons.get(code, spec.icon_interpretation)
+        glyph_path = find_glyph_path(code, extract.get(code))
         templates: list[np.ndarray] = []
-        for i, (x, y, w, h) in enumerate(boxes):
-            crop = legend_bgr[y : y + h, x : x + w].copy()
-            bgra, _ = make_alpha_template(crop)
+        part_silhouettes: list[GlyphSilhouette | None] = []
+
+        if glyph_path is not None:
+            glyph_bgr = cv2.imread(str(glyph_path), cv2.IMREAD_COLOR)
+            if glyph_bgr is None:
+                print(f"  · template {slug}: failed to read glyph {glyph_path}", file=sys.stderr)
+                continue
+            bgra, _ = make_alpha_template(glyph_bgr)
             templates.append(bgra)
-            if len(boxes) == 1:
-                path = TEMPLATE_DIR / f"{slug}.png"
-                cv2.imwrite(str(path), bgra)
-                print(
-                    f"  · template {slug}.png {w}×{h} "
-                    f"alpha={int(np.count_nonzero(bgra[:, :, 3]))}px icon={icon}"
-                )
-            else:
-                part = part_names[i] if i < len(part_names) else f"part{i}"
-                part_path = TEMPLATE_DIR / f"{slug}--{part}.png"
-                cv2.imwrite(str(part_path), bgra)
-                print(
-                    f"  · template {slug}--{part}.png {w}×{h} "
-                    f"alpha={int(np.count_nonzero(bgra[:, :, 3]))}px icon={icon}"
-                )
-        if len(boxes) > 1:
-            # Canonical slug PNG = horizontally concatenated parts (debug/compat).
-            heights = [t.shape[0] for t in templates]
-            max_h = max(heights)
-            pads = []
-            for t in templates:
-                if t.shape[0] == max_h:
-                    pads.append(t)
+            gh, gw = glyph_bgr.shape[:2]
+            part_silhouettes.append(recover_glyph_silhouette(glyph_bgr, (0, 0, gw, gh)))
+            path = TEMPLATE_DIR / f"{slug}.png"
+            cv2.imwrite(str(path), bgra)
+            print(
+                f"  · template {slug}.png from {glyph_path.name} "
+                f"{gw}×{gh} alpha={int(np.count_nonzero(bgra[:, :, 3]))}px "
+                f"code={code} icon={icon}"
+            )
+        elif slug in LEGEND_CROPS:
+            boxes = normalize_legend_crops(LEGEND_CROPS[slug])
+            part_names = LEGEND_CROP_PART_NAMES.get(slug) or [
+                f"part{i}" for i in range(len(boxes))
+            ]
+            for i, (x, y, w, h) in enumerate(boxes):
+                crop = legend_bgr[y : y + h, x : x + w].copy()
+                bgra, _ = make_alpha_template(crop)
+                templates.append(bgra)
+                part_silhouettes.append(recover_glyph_silhouette(legend_bgr, (x, y, w, h)))
+                if len(boxes) == 1:
+                    path = TEMPLATE_DIR / f"{slug}.png"
+                    cv2.imwrite(str(path), bgra)
+                    print(
+                        f"  · template {slug}.png {w}×{h} "
+                        f"alpha={int(np.count_nonzero(bgra[:, :, 3]))}px icon={icon}"
+                    )
                 else:
-                    pad = np.zeros((max_h, t.shape[1], 4), dtype=np.uint8)
-                    pad[: t.shape[0]] = t
-                    pads.append(pad)
-            concat = np.concatenate(pads, axis=1)
-            cv2.imwrite(str(TEMPLATE_DIR / f"{slug}.png"), concat)
+                    part = part_names[i] if i < len(part_names) else f"part{i}"
+                    part_path = TEMPLATE_DIR / f"{slug}--{part}.png"
+                    cv2.imwrite(str(part_path), bgra)
+                    print(
+                        f"  · template {slug}--{part}.png {w}×{h} "
+                        f"alpha={int(np.count_nonzero(bgra[:, :, 3]))}px icon={icon}"
+                    )
+            if len(boxes) > 1:
+                heights = [t.shape[0] for t in templates]
+                max_h = max(heights)
+                pads = []
+                for t in templates:
+                    if t.shape[0] == max_h:
+                        pads.append(t)
+                    else:
+                        pad = np.zeros((max_h, t.shape[1], 4), dtype=np.uint8)
+                        pad[: t.shape[0]] = t
+                        pads.append(pad)
+                concat = np.concatenate(pads, axis=1)
+                cv2.imwrite(str(TEMPLATE_DIR / f"{slug}.png"), concat)
+        else:
+            print(
+                f"  · template {slug}: no glyph PNG or LEGEND_CROPS entry for {code}",
+                file=sys.stderr,
+            )
+            continue
+
+        if not templates:
+            continue
         out[slug] = templates
+        silhouettes[slug] = part_silhouettes
     return out, silhouettes
 
 
@@ -1748,11 +1935,13 @@ def write_debug_composites(
     hay_bgr: np.ndarray,
     outlines: dict[str, np.ndarray],
     matches_by_slug: dict[str, list[dict]],
+    active_specs: list[LayerSpec] | None = None,
 ) -> None:
     """Write pathway verify composites and tight B5/B9 crops for visual QA."""
     DEBUG_DIR.mkdir(parents=True, exist_ok=True)
-    tier_by_slug = {s.slug: s.tier for s in LAYER_SPECS}
-    code_by_slug = {s.slug: s.legend_code for s in LAYER_SPECS}
+    specs = active_specs or LAYER_SPECS
+    tier_by_slug = {s.slug: s.tier for s in specs}
+    code_by_slug = {s.slug: s.legend_code for s in specs}
 
     def crop(img: np.ndarray, y0: int, y1: int, x0: int, x1: int) -> np.ndarray:
         """
@@ -1837,12 +2026,14 @@ def write_previews(
     hay_bgr: np.ndarray,
     outlines: dict[str, np.ndarray],
     matches_by_slug: dict[str, list[dict]] | None = None,
+    active_specs: list[LayerSpec] | None = None,
 ) -> None:
     """Write pathway preview PNGs under previews/ (with QA labels when matches given)."""
     PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
     matches_by_slug = matches_by_slug or {}
-    tier_by_slug = {s.slug: s.tier for s in LAYER_SPECS}
-    code_by_slug = {s.slug: s.legend_code for s in LAYER_SPECS}
+    specs = active_specs or LAYER_SPECS
+    tier_by_slug = {s.slug: s.tier for s in specs}
+    code_by_slug = {s.slug: s.legend_code for s in specs}
     for pathway, slugs in PATHWAY_HIGHLIGHTS.items():
         img = hay_bgr.copy()
         accent = PATHWAY_ACCENT_BGR.get(pathway)
@@ -1915,6 +2106,67 @@ def run_generate(
         print("✗ Failed to read source or legend PNG", file=sys.stderr)
         return 1
     h, w = hay_bgr.shape[:2]
+    # #region agent log
+    try:
+        import time as _agent_time
+
+        _agent_cls_codes: list[dict] = []
+        if CLASSIFICATION_JSON.is_file():
+            _agent_cls = json.loads(CLASSIFICATION_JSON.read_text(encoding="utf-8"))
+            for _code, _row in (_agent_cls.get("classifications") or {}).items():
+                if _row.get("tier") == 1 or _row.get("searchable"):
+                    _agent_cls_codes.append(
+                        {
+                            "code": _code,
+                            "tier": _row.get("tier"),
+                            "searchable": _row.get("searchable"),
+                            "slug": _row.get("slug"),
+                        }
+                    )
+        _agent_extract_codes: list[str] = []
+        _agent_extract = (
+            IO_ROOT / "legend-extract.json"
+            if IO_ROOT is not None
+            else ROOT / "public/figures/lung-health/debug/legend-extract.json"
+        )
+        if _agent_extract.is_file():
+            _agent_extract_codes = [
+                str(it.get("code"))
+                for it in (json.loads(_agent_extract.read_text(encoding="utf-8")).get("items") or [])
+                if it.get("code")
+            ]
+        with open(
+            "/Users/shawnscomputer/Documents/milad-website/.cursor/debug-df4dd8.log",
+            "a",
+            encoding="utf-8",
+        ) as _agent_f:
+            _agent_f.write(
+                json.dumps(
+                    {
+                        "sessionId": "df4dd8",
+                        "hypothesisId": "H3",
+                        "location": "lung_template_match.py:run_generate:start",
+                        "message": "match run inputs vs classification/extract",
+                        "data": {
+                            "ioRoot": str(IO_ROOT) if IO_ROOT else None,
+                            "cutaway": str(source),
+                            "legend": str(legend),
+                            "cutawayWH": [w, h],
+                            "legendWH": [int(legend_bgr.shape[1]), int(legend_bgr.shape[0])],
+                            "layerSpecCodes": [s.legend_code for s in LAYER_SPECS],
+                            "layerSpecSlugs": [s.slug for s in LAYER_SPECS],
+                            "tier1OrSearchableClassifications": _agent_cls_codes,
+                            "extractCodes": _agent_extract_codes,
+                            "legendCropSlugs": list(LEGEND_CROPS.keys()),
+                        },
+                        "timestamp": int(_agent_time.time() * 1000),
+                    }
+                )
+                + "\n"
+            )
+    except Exception:
+        pass
+    # #endregion
     global SCALE_X, SCALE_Y
     if (w, h) != (CANVAS_W, CANVAS_H):
         # Every ROI / expected-center / exclude-center / radius in LAYER_SPECS
@@ -1932,13 +2184,59 @@ def run_generate(
     else:
         SCALE_X, SCALE_Y = 1.0, 1.0
 
+    active_specs, spec_source = resolve_active_layer_specs(TIER_TO_TEST)
+    # #region agent log
+    try:
+        import time as _agent_time
+
+        with open(
+            "/Users/shawnscomputer/Documents/milad-website/.cursor/debug-df4dd8.log",
+            "a",
+            encoding="utf-8",
+        ) as _agent_f:
+            _agent_f.write(
+                json.dumps(
+                    {
+                        "sessionId": "df4dd8",
+                        "runId": "post-fix",
+                        "hypothesisId": "H3-fix",
+                        "location": "lung_template_match.py:run_generate:active_specs",
+                        "message": "resolved active specs for this run",
+                        "data": {
+                            "specSource": spec_source,
+                            "tierToTest": TIER_TO_TEST,
+                            "activeCodes": [s.legend_code for s in active_specs],
+                            "activeSlugs": [s.slug for s in active_specs],
+                            "requireMatch": [s.require_match for s in active_specs],
+                        },
+                        "timestamp": int(_agent_time.time() * 1000),
+                    }
+                )
+                + "\n"
+            )
+    except Exception:
+        pass
+    # #endregion
+    if not active_specs:
+        print(
+            "✗ No searchable legend items to match "
+            "(classify at least one item as searchable for this tier).",
+            file=sys.stderr,
+        )
+        return 1
+
     LAYER_DIR.mkdir(parents=True, exist_ok=True)
     DEBUG_DIR.mkdir(parents=True, exist_ok=True)
 
     print("✓ OpenCV multi-scale template match (TM_CCOEFF_NORMED)")
     print(f"✓ Outline stroke {OUTLINE_STROKE_PX}px (silhouette + border)")
+    print(
+        f"· Active layers ({spec_source}"
+        + (f", tier≤{TIER_TO_TEST}" if TIER_TO_TEST is not None else "")
+        + f"): {', '.join(f'{s.legend_code}/{s.slug}' for s in active_specs)}"
+    )
     print("· Extracting legend templates…")
-    templates, glyph_silhouettes = extract_legend_templates(legend_bgr)
+    templates, glyph_silhouettes = extract_legend_templates(legend_bgr, active_specs)
     print("· Loading Tier-2 freehand-instance band templates (A1/B1)…")
     band_freehand_tmpls = load_band_freehand_templates(hay_bgr)
     # Centers already claimed by an earlier band slug (A1 before B1 in LAYER_SPECS).
@@ -1953,10 +2251,12 @@ def run_generate(
         "method": "opencv-template-match",
         "canvasWidth": w,
         "canvasHeight": h,
+        "specSource": spec_source,
+        "tierToTest": TIER_TO_TEST,
     }
 
-    # Search tier-1 first (specs list is already ordered)
-    for canonical_spec in LAYER_SPECS:
+    # Search active specs only (classification-driven when present).
+    for canonical_spec in active_specs:
         # Identity when SCALE_X == SCALE_Y == 1.0 (canonical cutaway) — no
         # behavior change for the common case.
         spec = scale_layer_spec(canonical_spec, SCALE_X, SCALE_Y)
@@ -2097,25 +2397,21 @@ def run_generate(
             ],
         }
 
-    for slug in SKIP_SLUGS:
-        bboxes[slug] = write_empty_layer(slug, h, w)
-        print(f"  · T0 {slug}: skipped")
+    if spec_source == "calibrated":
+        for slug in SKIP_SLUGS:
+            bboxes[slug] = write_empty_layer(slug, h, w)
+            print(f"  · T0 {slug}: skipped")
 
     tier1_scores = [
-        report["layers"][s]["bestScore"]
-        for s in (
-            "neutrophils",
-            "alveolar-macrophages",
-            "dendritic-cells",
-            "infection-antiviral-pathway",
-        )
-        if s in report["layers"]
+        layer["bestScore"]
+        for layer in report["layers"].values()
+        if layer.get("tier") == 1 and isinstance(layer.get("bestScore"), (int, float))
     ]
     report["tier1_mean_score"] = round(float(np.mean(tier1_scores)), 4) if tier1_scores else None
     report["qa_errors"] = qa_errors
 
-    write_debug_composites(hay_bgr, outlines, matches_by_slug)
-    write_previews(hay_bgr, outlines, matches_by_slug)
+    write_debug_composites(hay_bgr, outlines, matches_by_slug, active_specs)
+    write_previews(hay_bgr, outlines, matches_by_slug, active_specs)
     if IO_ROOT is None:
         # The runtime TS module describes the published cutaway only; an analysis
         # run must never rewrite it from a test image.
@@ -2137,6 +2433,55 @@ def run_generate(
     except Exception as exc:  # noqa: BLE001 — generate should not fail solely on DB/canvas I/O
         print(f"· Findings DB refresh skipped: {exc}", file=sys.stderr)
 
+    # #region agent log
+    try:
+        import time as _agent_time
+
+        _agent_layer_scores = [
+            {
+                "slug": slug,
+                "code": (report["layers"].get(slug) or {}).get("legendCode"),
+                "tier": (report["layers"].get(slug) or {}).get("tier"),
+                "bestScore": (report["layers"].get(slug) or {}).get("bestScore"),
+                "minScore": (report["layers"].get(slug) or {}).get("minScore"),
+                "matchCount": len((report["layers"].get(slug) or {}).get("matches") or []),
+                "requireMatch": next(
+                    (s.require_match for s in active_specs if s.slug == slug), None
+                ),
+            }
+            for slug in report.get("layers", {})
+        ]
+        with open(
+            "/Users/shawnscomputer/Documents/milad-website/.cursor/debug-df4dd8.log",
+            "a",
+            encoding="utf-8",
+        ) as _agent_f:
+            _agent_f.write(
+                json.dumps(
+                    {
+                        "sessionId": "df4dd8",
+                        "runId": "post-fix",
+                        "hypothesisId": "H1-H2-H5",
+                        "location": "lung_template_match.py:run_generate:qa",
+                        "message": "QA outcome before exit",
+                        "data": {
+                            "canvasWH": [w, h],
+                            "scale": [SCALE_X, SCALE_Y],
+                            "specSource": spec_source,
+                            "qaErrorCount": len(qa_errors),
+                            "qaErrors": qa_errors,
+                            "tier1Mean": report.get("tier1_mean_score"),
+                            "layerScores": _agent_layer_scores,
+                            "willFail": bool(qa_errors),
+                        },
+                        "timestamp": int(_agent_time.time() * 1000),
+                    }
+                )
+                + "\n"
+            )
+    except Exception:
+        pass
+    # #endregion
     if qa_errors:
         print("\n✗ Template-match QA FAILED:", file=sys.stderr)
         for err in qa_errors:
@@ -2162,9 +2507,17 @@ def run_validate() -> int:
     report_w = report.get("canvasWidth", CANVAS_W)
     report_h = report.get("canvasHeight", CANVAS_H)
     val_sx, val_sy = canonical_scale_factors(report_w, report_h)
+    spec_source = report.get("specSource") or "calibrated"
+    tier_ceiling = report.get("tierToTest")
+    if isinstance(tier_ceiling, int):
+        active_specs, _ = resolve_active_layer_specs(tier_ceiling)
+    elif spec_source == "classification":
+        active_specs, _ = resolve_active_layer_specs(None)
+    else:
+        active_specs = list(LAYER_SPECS)
 
-    # Re-check outline assets exist for searchable layers
-    for canonical_spec in LAYER_SPECS:
+    # Re-check outline assets for layers that were actually searched this run.
+    for canonical_spec in active_specs:
         spec = scale_layer_spec(canonical_spec, val_sx, val_sy)
         outline = LAYER_DIR / f"{spec.slug}-outline.png"
         extract = LAYER_DIR / f"{spec.slug}.png"
@@ -2177,15 +2530,15 @@ def run_validate() -> int:
         if not layer:
             errors.append(f"{spec.slug}: missing from match report")
             continue
-        if layer.get("bestScore", 0) < spec.min_score:
+        if spec.require_match and layer.get("bestScore", 0) < spec.min_score:
             errors.append(
                 f"{spec.slug}: bestScore {layer.get('bestScore')} < {spec.min_score}"
             )
-        if not layer.get("matches"):
+        if spec.require_match and not layer.get("matches"):
             errors.append(f"{spec.slug}: zero accepted matches")
         else:
             outline_img = cv2.imread(str(outline), cv2.IMREAD_UNCHANGED)
-            for i, m in enumerate(layer["matches"]):
+            for i, m in enumerate(layer.get("matches") or []):
                 if not any(point_in_roi(m["cx"], m["cy"], r) for r in (spec.accept_rois or spec.rois)):
                     errors.append(
                         f"{spec.slug}[{i}]: center ({m['cx']:.0f},{m['cy']:.0f}) outside ROI"
@@ -2197,37 +2550,37 @@ def run_validate() -> int:
                             f"({m['cx']:.0f},{m['cy']:.0f})"
                         )
 
-    # Required verify composites
-    for name in (
-        "verify-viruses.png",
-        "verify-cigarette.png",
-        "verify-b9-crop.png",
-        "verify-b5-crop.png",
-    ):
-        if not (DEBUG_DIR / name).is_file():
-            errors.append(f"missing debug composite {name}")
+    # Required verify composites — calibrated/published runs only.
+    if spec_source == "calibrated":
+        for name in (
+            "verify-viruses.png",
+            "verify-cigarette.png",
+            "verify-b9-crop.png",
+            "verify-b5-crop.png",
+        ):
+            if not (DEBUG_DIR / name).is_file():
+                errors.append(f"missing debug composite {name}")
 
-    # Pathway verify composites must show outline ink where tier-1 matches land.
-    verify_checks = (
-        ("verify-viruses.png", "infection-antiviral-pathway"),
-        ("verify-cigarette.png", "neutrophils"),
-        ("verify-cigarette.png", "alveolar-macrophages"),
-        ("verify-b5-full.png", "dendritic-cells"),
-    )
-    for fname, slug in verify_checks:
-        path = DEBUG_DIR / fname
-        layer = report.get("layers", {}).get(slug) or {}
-        matches = layer.get("matches") or []
-        if not path.is_file() or not matches:
-            continue
-        # Re-check via outline asset (verify PNG is RGB composite; use outline alpha).
-        outline_img = cv2.imread(str(LAYER_DIR / f"{slug}-outline.png"), cv2.IMREAD_UNCHANGED)
-        if outline_img is None:
-            errors.append(f"{slug}: missing outline for verify overlap")
-            continue
-        for i, m in enumerate(matches):
-            if not outline_overlaps_match(outline_img, m):
-                errors.append(f"{fname}: {slug}[{i}] outline misses match center")
+        # Pathway verify composites must show outline ink where tier-1 matches land.
+        verify_checks = (
+            ("verify-viruses.png", "infection-antiviral-pathway"),
+            ("verify-cigarette.png", "neutrophils"),
+            ("verify-cigarette.png", "alveolar-macrophages"),
+            ("verify-b5-full.png", "dendritic-cells"),
+        )
+        for fname, slug in verify_checks:
+            path = DEBUG_DIR / fname
+            layer = report.get("layers", {}).get(slug) or {}
+            matches = layer.get("matches") or []
+            if not path.is_file() or not matches:
+                continue
+            outline_img = cv2.imread(str(LAYER_DIR / f"{slug}-outline.png"), cv2.IMREAD_UNCHANGED)
+            if outline_img is None:
+                errors.append(f"{slug}: missing outline for verify overlap")
+                continue
+            for i, m in enumerate(matches):
+                if not outline_overlaps_match(outline_img, m):
+                    errors.append(f"{fname}: {slug}[{i}] outline misses match center")
 
     if errors:
         print("✗ lung:validate-layers FAILED:", file=sys.stderr)
@@ -2236,14 +2589,13 @@ def run_validate() -> int:
         return 1
 
     print("✓ lung:validate-layers passed (template-match report + assets)")
-    for slug in (
-        "neutrophils",
-        "alveolar-macrophages",
-        "dendritic-cells",
-        "infection-antiviral-pathway",
-    ):
-        layer = report["layers"][slug]
-        print(f"  · T1 {slug}: best={layer['bestScore']:.3f} n={len(layer['matches'])}")
+    for slug, layer in report.get("layers", {}).items():
+        if layer.get("tier") != 1:
+            continue
+        print(
+            f"  · T1 {slug}: best={float(layer.get('bestScore') or 0):.3f} "
+            f"n={len(layer.get('matches') or [])}"
+        )
     return 0
 
 
@@ -2264,10 +2616,19 @@ def main() -> int:
         default=None,
         help="Override legend PNG path (default: Lung Cutaway Legend Template.png)",
     )
+    parser.add_argument(
+        "--tier-to-test",
+        type=int,
+        default=None,
+        help="Only match searchable classification rows at this tier or below",
+    )
     add_io_root_argument(parser)
     args = parser.parse_args()
     if args.io_root is not None:
         apply_io_root(args.io_root)
+    global TIER_TO_TEST
+    if isinstance(args.tier_to_test, int) and args.tier_to_test >= 1:
+        TIER_TO_TEST = min(3, args.tier_to_test)
     if args.validate and not args.generate:
         return run_validate()
     return run_generate(source_png=args.source, legend_png=args.legend)

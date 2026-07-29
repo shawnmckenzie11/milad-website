@@ -1198,6 +1198,8 @@ async function handle(req, res) {
 						session.cutawayPath,
 						'--legend',
 						session.legendPath,
+						'--tier-to-test',
+						String(tierToTest),
 						...ioRootArgs(startedForId),
 					],
 					ROOT,

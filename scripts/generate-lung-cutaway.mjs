@@ -61,11 +61,13 @@ function resolveIoRoot(argv) {
 const args = process.argv.slice(2);
 const validateOnly = args.includes('--validate');
 const ioRoot = resolveIoRoot(args);
+const tierToTest = flagValue(args, '--tier-to-test');
 const pyArgs = [
 	runner,
 	'scripts/lung_template_match.py',
 	validateOnly ? '--validate' : '--generate',
 	...(ioRoot ? ['--io-root', ioRoot] : []),
+	...(tierToTest ? ['--tier-to-test', tierToTest] : []),
 ];
 
 if (ioRoot) {

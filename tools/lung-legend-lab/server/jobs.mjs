@@ -92,10 +92,41 @@ function pushLog(job, line) {
  */
 function describeFailure(stderrLines, code) {
 	const marked = stderrLines.filter((line) => line.startsWith('✗'));
+	const detailBullets = stderrLines.filter((line) => /^\s+-\s+/.test(line));
 	const candidates = marked.length > 0 ? marked : stderrLines;
 	const reason = candidates[candidates.length - 1];
+	// #region agent log
+	fetch('http://127.0.0.1:7868/ingest/724760d6-ef5a-4796-9efe-f15dc9586e38', {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			'X-Debug-Session-Id': 'df4dd8',
+		},
+		body: JSON.stringify({
+			sessionId: 'df4dd8',
+			runId: 'post-fix',
+			hypothesisId: 'H4',
+			location: 'jobs.mjs:describeFailure',
+			message: 'UI failure reason selection',
+			data: {
+				code,
+				stderrCount: stderrLines.length,
+				marked,
+				detailBullets,
+				chosenReason: reason || null,
+				omitsDetails: marked.length > 0 && detailBullets.length > 0,
+			},
+			timestamp: Date.now(),
+		}),
+	}).catch(() => {});
+	// #endregion
 	if (!reason) return `exit ${code}`;
-	return `${reason.replace(/^✗\s*/, '')} (exit ${code})`;
+	const header = reason.replace(/^✗\s*/, '');
+	if (detailBullets.length > 0) {
+		const details = detailBullets.map((line) => line.replace(/^\s+-\s+/, '').trim()).join('; ');
+		return `${header} ${details} (exit ${code})`;
+	}
+	return `${header} (exit ${code})`;
 }
 
 /**
