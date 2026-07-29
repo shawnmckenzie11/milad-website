@@ -266,6 +266,11 @@ MIN_GLYPH_INK = 12
 MIN_ICON_LABEL_ROWS = 3
 # Section letters for auto-assigned codes (A before the first divider, then B…).
 SECTION_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+# Icon+label OCR upscale. 2× is enough for single-line names and ~2× faster than 3×.
+ICON_LABEL_OCR_SCALE = 2.0
+# Give up on the badged LAYER MAP path after this many consecutive non-badge rows
+# so a plain card with spurious hairlines does not OCR every strip before falling back.
+BADGED_FAIL_ABORT = 2
 
 
 @dataclass
@@ -302,12 +307,15 @@ def clean_label_text(text: str) -> str:
     """
     Tidy a single OCR'd legend label into a display name.
 
-    Collapses whitespace and repairs the one systematic Tesseract confusion in
-    these cards: a bare `|` where the artwork has a roman numeral `I`
-    (e.g. `Type | alveolar cells`).
+    Collapses whitespace and repairs systematic Tesseract confusions on these
+    cards: bare `|` for roman `I`, and `Il` / `I1` for roman `II`
+    (e.g. `Type Il alveolar cells`).
     """
     collapsed = re.sub(r"\s+", " ", text.replace("\n", " ")).strip()
     collapsed = re.sub(r"(?<![A-Za-z0-9])[|]+(?![A-Za-z0-9])", "I", collapsed)
+    collapsed = re.sub(r"\bType\s+Il\b", "Type II", collapsed, flags=re.I)
+    collapsed = re.sub(r"\bType\s+I1\b", "Type II", collapsed, flags=re.I)
+    collapsed = re.sub(r"\bType\s+!\b", "Type I", collapsed, flags=re.I)
     return re.sub(r"\s+", " ", collapsed).strip(" -_·")
 
 
@@ -639,19 +647,26 @@ def extract_badged_rows(
     Extract a hairline-ruled LAYER MAP legend whose rows carry `A1`/`B1` badges.
 
     Returns `[]` when the card is not this layout so the caller can fall back.
+    Aborts after a few consecutive non-badge OCRs so plain icon+label cards with
+    spurious hairlines do not pay for a full-card OCR marathon.
     """
     rows = row_bounds(gray.shape[0], detect_hairline_separators(gray))
     if len(rows) < 8:
         return []
 
     items: list[LegendItem] = []
+    consecutive_fails = 0
     for y0, y1 in rows:
         text_crop = bgr[y0:y1, 90:]
         up = cv2.resize(text_crop, None, fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
         rgb = cv2.cvtColor(up, cv2.COLOR_BGR2RGB)
         parsed = parse_row_text(pytesseract.image_to_string(rgb, config="--psm 6"))
         if parsed is None:
-            return []
+            consecutive_fails += 1
+            if consecutive_fails >= BADGED_FAIL_ABORT:
+                return []
+            continue
+        consecutive_fails = 0
 
         code, name, location, supports = parsed
         # Glyph: left column ink before the badge (~x 0–95)
@@ -668,6 +683,10 @@ def extract_badged_rows(
                 row_path=repo_rel(row_path),
             )
         )
+    # A real LAYER MAP yields most rows as badges; a handful of lucky parses from
+    # a plain card must not win over the icon+label path.
+    if len(items) < 8:
+        return []
     return items
 
 
@@ -677,14 +696,48 @@ def read_label_line(bgr: np.ndarray, line: OcrLine, x0: int, x1: int) -> str:
 
     A single-line crop lets Tesseract use `--psm 7`, which recovers words the
     full-card pass garbles next to icon strokes (e.g. `Red` in `Red blood cells`).
+    Prefer the strip/page text when it is already clean — per-row OCR was the
+    main timeout cost on 20-row Test 2 legends.
     """
     top = max(0, line.top - 3)
     crop = bgr[top : min(bgr.shape[0], line.bottom + 3), x0:x1]
     if crop.size == 0:
         return ""
-    up = cv2.resize(crop, None, fx=3.0, fy=3.0, interpolation=cv2.INTER_CUBIC)
+    up = cv2.resize(
+        crop,
+        None,
+        fx=ICON_LABEL_OCR_SCALE,
+        fy=ICON_LABEL_OCR_SCALE,
+        interpolation=cv2.INTER_CUBIC,
+    )
     rgb = cv2.cvtColor(up, cv2.COLOR_BGR2RGB)
     return clean_label_text(pytesseract.image_to_string(rgb, config="--psm 7"))
+
+
+def label_needs_reread(text: str) -> bool:
+    """
+    Whether the page-pass label looks garbled enough to warrant a per-line OCR.
+
+    Clean single-line names from the strip pass are kept as-is so a 20-row legend
+    does not pay for twenty extra Tesseract launches. Common Tesseract slips on
+    this card (`Type!`, `Type Il` for Type I/II) still force a cheap `--psm 7`
+    reread.
+    """
+    cleaned = clean_label_text(text)
+    if len(cleaned) < 3:
+        return True
+    # Punctuation / symbols that are not part of normal legend vocabulary.
+    if re.search(r"[|!{}[\]@_]", cleaned):
+        return True
+    # Roman-numeral Type I / II lines often OCR as Type! / Type Il / Type 1.
+    if re.search(r"\btype\s+i[l1!]\b", cleaned, re.I) or re.search(
+        r"\btype\s*!\b", cleaned, re.I
+    ):
+        return True
+    letters = sum(ch.isalpha() for ch in cleaned)
+    if letters < max(3, int(0.55 * max(len(cleaned.replace(" ", "")), 1))):
+        return True
+    return False
 
 
 def extract_icon_label_rows(
@@ -698,17 +751,27 @@ def extract_icon_label_rows(
     The label line is the item name; codes are auto-assigned (`A1…`, restarting
     at `B1` after a section divider). `location` / `supports` stay empty because
     this layout states neither — the operator classifies those in the lab.
+
+    Uses **one** OCR pass over the card interior (not full-card + strip +
+    per-row re-OCR). Only garbled names get a targeted `--psm 7` reread.
     """
     interior = card_interior(ink_mask(gray))
     x0, x1, y0, y1 = interior
-    label_x = detect_label_column(ocr_boxes(bgr[y0:y1, x0:x1], x_offset=x0, y_offset=y0))
+    print(f"· icon+label extract: OCR card interior {x1 - x0}×{y1 - y0} @ {ICON_LABEL_OCR_SCALE}×…")
+    boxes = ocr_boxes(
+        bgr[y0:y1, x0:x1],
+        scale=ICON_LABEL_OCR_SCALE,
+        x_offset=x0,
+        y_offset=y0,
+    )
+    label_x = detect_label_column(boxes)
     if label_x is None or label_x - x0 < 4:
         return []
 
     strip_x = max(x0, label_x - 4)
-    lines = group_ocr_lines(
-        ocr_boxes(bgr[y0:y1, strip_x:x1], x_offset=strip_x, y_offset=y0)
-    )
+    # Keep words in the label column (and a little to the right); drop icon junk.
+    label_boxes = [b for b in boxes if b.left >= label_x - LABEL_COLUMN_TOLERANCE]
+    lines = group_ocr_lines(label_boxes)
     glyph_x = (x0 + 2, max(x0 + 3, label_x - 4))
     ink = ink_mask(gray)
     rows = [
@@ -723,10 +786,15 @@ def extract_icon_label_rows(
 
     bands = band_bounds([(ln.top + ln.bottom) // 2 for ln in rows], y0, y1)
     codes = auto_assign_codes(rows, detect_divider_ys(gray, interior))
+    print(f"· icon+label extract: {len(rows)} rows → codes {codes[0]}…{codes[-1]}")
 
     items: list[LegendItem] = []
-    for code, band, line in zip(codes, bands, rows):
-        name = read_label_line(bgr, line, strip_x, x1) or clean_label_text(line.text)
+    reread_count = 0
+    for i, (code, band, line) in enumerate(zip(codes, bands, rows), start=1):
+        name = clean_label_text(line.text)
+        if label_needs_reread(name):
+            reread_count += 1
+            name = read_label_line(bgr, line, strip_x, x1) or name
         glyph_path, row_path = write_item_crops(bgr, code, band, glyph_x, items_dir)
         items.append(
             LegendItem(
@@ -740,6 +808,10 @@ def extract_icon_label_rows(
                 row_path=repo_rel(row_path),
             )
         )
+        if i % 5 == 0 or i == len(rows):
+            print(f"· icon+label extract: wrote {i}/{len(rows)} crops")
+    if reread_count:
+        print(f"· icon+label extract: re-OCR'd {reread_count}/{len(rows)} garbled names")
     return items
 
 
