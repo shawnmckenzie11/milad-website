@@ -33,13 +33,27 @@ type Draft = {
 	agentText: string;
 	/** Image pathway layers (base / cannabis / …). */
 	imagePathways: Array<{ id: string; label: string }>;
-	/** Legend-item asset slugs (A1 → trachea-conducting-airway) — not pathways. */
+	/** Legend detail rows (code + name + pathway); file key is derived from name/code. */
 	stableIds: StableLayerRow[];
 	ontologyJson: string;
 	markdown: string;
 	/** Fields preserved on save but not shown as primary editors. */
 	rest: Record<string, unknown>;
 };
+
+/**
+ * Derive a filesystem / match key from the legend name, falling back to the code.
+ * Replaces the former editable asset-slug field.
+ * @param name - Legend display name
+ * @param code - Legend code (A1, A20, …)
+ */
+function layerKeyFromLegend(name: string | undefined, code: string): string {
+	const fromName = (name || '')
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-+|-+$/g, '');
+	return fromName || code.toLowerCase();
+}
 
 type Props = {
 	profiles: StyleGuideProfileSummary[];
@@ -147,20 +161,23 @@ function profileFromDraft(draft: Draft, baseId: string): Record<string, unknown>
 		headline: draft.headline,
 		namingExamples: draft.stableIds
 			.slice(0, 4)
-			.map((s) => `${s.legendCode || '?'} → ${s.id}`),
+			.map((s) => `${s.legendCode || '?'} → ${s.name || layerKeyFromLegend(s.name, s.legendCode || '')}`),
 	};
 	const layerNaming = {
 		...((draft.rest.layerNaming as object) || {}),
 		convention: draft.convention,
 		stableIds: draft.stableIds
-			.filter((r) => r.id.trim())
-			.map((r) => ({
-				id: r.id.trim(),
-				legendCode: r.legendCode?.trim() || undefined,
-				group: r.group?.trim() || undefined,
-				frameworkAlias: r.frameworkAlias?.trim() || undefined,
-				pathways: (r.pathways || []).filter(Boolean),
-			})),
+			.filter((r) => (r.legendCode || '').trim())
+			.map((r) => {
+				const code = (r.legendCode || '').trim();
+				return {
+					id: layerKeyFromLegend(r.name, code),
+					legendCode: code || undefined,
+					group: r.group?.trim() || undefined,
+					frameworkAlias: r.frameworkAlias?.trim() || undefined,
+					pathways: (r.pathways || []).filter(Boolean),
+				};
+			}),
 	};
 	return {
 		...draft.rest,
@@ -187,10 +204,11 @@ function profileFromDraft(draft: Draft, baseId: string): Record<string, unknown>
 
 /**
  * Merge extracted legend rows into style-guide legend detail rows.
- * Preserves existing slug/group edits; fills pathway from supports ∩ profile pathways.
+ * File/match keys are derived from the legend name (or code); pathway picks are
+ * preserved when still present in the pathway catalog above.
  * @param existing - Current draft stable ids
  * @param legendItems - Extracted legend items
- * @param imagePathways - Profile pathway options
+ * @param imagePathways - Confirmed pathway options
  */
 function mergeLegendDetails(
 	existing: StableLayerRow[],
@@ -201,14 +219,19 @@ function mergeLegendDetails(
 	const byCode = new Map(
 		existing.filter((r) => r.legendCode).map((r) => [r.legendCode as string, r]),
 	);
+	const allowed = new Set(
+		imagePathways.map((p) => p.id.trim()).filter(Boolean),
+	);
 	const layers = imagePathways.map((p) => ({ id: p.id, label: p.label || p.id }));
 	return legendItems.map((it) => {
 		const prev = byCode.get(it.code);
-		const fromSupports = pathwaysFromSupports(it.supports, layers);
-		const pathways =
-			prev?.pathways && prev.pathways.length > 0 ? prev.pathways : fromSupports;
+		const fromSupports = pathwaysFromSupports(it.supports, layers).filter((id) =>
+			allowed.has(id),
+		);
+		const kept = (prev?.pathways || []).filter((id) => allowed.has(id));
+		const pathways = kept.length > 0 ? kept : fromSupports;
 		return {
-			id: (prev?.id || it.slug || '').trim(),
+			id: layerKeyFromLegend(it.name, it.code),
 			legendCode: it.code,
 			group: prev?.group || (it.code.startsWith('A') ? 'base' : 'highlight'),
 			frameworkAlias: prev?.frameworkAlias,
@@ -239,14 +262,18 @@ export function StyleGuidePanel({
 	const [draft, setDraft] = useState<Draft>(() => draftFromProfile(active));
 	const [loadError, setLoadError] = useState<string | null>(null);
 	const [saveAsId, setSaveAsId] = useState('');
+	/** Pathways must be confirmed before legend details are filled from extract. */
+	const [pathwaysConfirmed, setPathwaysConfirmed] = useState(false);
 	const editable = Boolean(onSave || onSaveAsNew);
 	/** Latest extract rows — profile fetch must not close over a stale empty list. */
 	const legendItemsRef = useRef(legendItems);
 	legendItemsRef.current = legendItems;
+	const validPathways = draft.imagePathways.filter((p) => p.id.trim());
 
 	useEffect(() => {
 		let cancelled = false;
 		setLoadError(null);
+		setPathwaysConfirmed(false);
 		if (!id) {
 			setDraft(draftFromProfile(null));
 			return;
@@ -256,15 +283,11 @@ export function StyleGuidePanel({
 				const res = await fetchStyleGuideProfile(id);
 				if (cancelled) return;
 				const next = draftFromProfile(res.profile, res.profile.markdown || '');
-				// Always read the current extract: a slow profile fetch that started
-				// before OCR finished used to merge `[]` and wipe A1–A20 back to the
-				// profile's Test-1 A1–B9 stableIds (looked like extract timed out at ~10).
-				const extracted = legendItemsRef.current;
+				// Load pathway catalog + profile metadata only; legend rows wait until
+				// the operator confirms pathways (avoids filling details too early).
 				setDraft({
 					...next,
-					stableIds: extracted.length
-						? mergeLegendDetails(next.stableIds, extracted, next.imagePathways)
-						: next.stableIds,
+					stableIds: [],
 				});
 				setSaveAsId('');
 			} catch (err) {
@@ -279,13 +302,30 @@ export function StyleGuidePanel({
 	}, [id, active]);
 
 	useEffect(() => {
-		if (!legendItems.length) return;
+		if (!pathwaysConfirmed || !legendItems.length) return;
 		setDraft((prev) => ({
 			...prev,
 			stableIds: mergeLegendDetails(prev.stableIds, legendItems, prev.imagePathways),
 		}));
-	}, [legendItems, bust]);
+	}, [legendItems, bust, pathwaysConfirmed]);
 
+	/**
+	 * Lock in the pathway catalog and populate legend details from extract.
+	 */
+	function confirmPathways() {
+		if (validPathways.length === 0) return;
+		setPathwaysConfirmed(true);
+		const extracted = legendItemsRef.current;
+		setDraft((prev) => ({
+			...prev,
+			imagePathways: prev.imagePathways
+				.map((p) => ({ id: p.id.trim(), label: (p.label || p.id).trim() }))
+				.filter((p) => p.id),
+			stableIds: extracted.length
+				? mergeLegendDetails(prev.stableIds, extracted, prev.imagePathways)
+				: [],
+		}));
+	}
 	if (variant === 'compact') {
 		const brief = active?.uiBrief;
 		return (
@@ -330,109 +370,225 @@ export function StyleGuidePanel({
 		}));
 	}
 
+	const pathwayLayersBlock = (
+		<div className="legend-details-panel pathway-layers-panel style-guide-editor-full">
+			<h3 className="legend-details-title">Image pathway layers (exposure composites)</h3>
+			<p className="muted" style={{ margin: '0.25rem 0 0.65rem' }}>
+				Add, rename, or remove the exposure pathways for this figure first. Confirm them
+				before legend details are filled — each legend item then picks from this list.
+			</p>
+			<div className="style-guide-layer-table pathway-layers-table">
+				<div className="style-guide-layer-row style-guide-layer-row--pathway style-guide-layer-row--head muted">
+					<span>Pathway id</span>
+					<span>Label</span>
+					{editable ? <span /> : null}
+				</div>
+				{draft.imagePathways.map((row, index) => (
+					<div key={`pathway-${index}`} className="style-guide-layer-row style-guide-layer-row--pathway">
+						<input
+							placeholder="pathway-id"
+							value={row.id}
+							disabled={busy || !editable || pathwaysConfirmed}
+							onChange={(e) => {
+								setPathwaysConfirmed(false);
+								setDraft((prev) => ({
+									...prev,
+									imagePathways: prev.imagePathways.map((p, i) =>
+										i === index ? { ...p, id: e.target.value } : p,
+									),
+									stableIds: [],
+								}));
+							}}
+							aria-label={`Pathway id ${index + 1}`}
+						/>
+						<input
+							placeholder="label"
+							value={row.label}
+							disabled={busy || !editable || pathwaysConfirmed}
+							onChange={(e) => {
+								setPathwaysConfirmed(false);
+								setDraft((prev) => ({
+									...prev,
+									imagePathways: prev.imagePathways.map((p, i) =>
+										i === index ? { ...p, label: e.target.value } : p,
+									),
+								}));
+							}}
+							aria-label={`Pathway label ${index + 1}`}
+						/>
+						{editable ? (
+							<button
+								type="button"
+								disabled={busy || pathwaysConfirmed}
+								onClick={() => {
+									setPathwaysConfirmed(false);
+									setDraft((prev) => ({
+										...prev,
+										imagePathways: prev.imagePathways.filter((_, i) => i !== index),
+										stableIds: [],
+									}));
+								}}
+							>
+								Remove
+							</button>
+						) : null}
+					</div>
+				))}
+			</div>
+			{editable && (
+				<div className="pathway-layers-actions">
+					<button
+						type="button"
+						disabled={busy || pathwaysConfirmed}
+						onClick={() => {
+							setPathwaysConfirmed(false);
+							setDraft((prev) => ({
+								...prev,
+								imagePathways: [...prev.imagePathways, { id: '', label: '' }],
+								stableIds: [],
+							}));
+						}}
+					>
+						Add pathway layer
+					</button>
+					{pathwaysConfirmed ? (
+						<button
+							type="button"
+							disabled={busy}
+							onClick={() => {
+								setPathwaysConfirmed(false);
+								setDraft((prev) => ({ ...prev, stableIds: [] }));
+							}}
+						>
+							Edit pathways
+						</button>
+					) : (
+						<button
+							type="button"
+							className="primary"
+							disabled={busy || validPathways.length === 0}
+							onClick={confirmPathways}
+						>
+							Confirm pathways
+						</button>
+					)}
+					{pathwaysConfirmed && (
+						<span className="muted">
+							{validPathways.length} pathway{validPathways.length === 1 ? '' : 's'} confirmed
+						</span>
+					)}
+				</div>
+			)}
+		</div>
+	);
+
 	const legendDetailsBlock = (
 		<div className="legend-details-panel style-guide-editor-full">
 			<h3 className="legend-details-title">Legend Details</h3>
 			<p className="muted" style={{ margin: '0.25rem 0 0.65rem' }}>
-				Auto-filled from the legend image (icon, name, supports text). Assign each row to an
-				image pathway layer from the profile options below.
-				{legendItems.length === 0
-					? ' Waiting for legend text extraction…'
-					: ` ${legendItems.length} legend item${legendItems.length === 1 ? '' : 's'} loaded.`}
+				{!pathwaysConfirmed
+					? 'Confirm image pathway layers above first. Legend items stay empty until then.'
+					: legendItems.length === 0
+						? 'Waiting for legend text extraction…'
+						: `Auto-filled from the legend image (${legendItems.length} item${
+								legendItems.length === 1 ? '' : 's'
+							}). Assign each row to a pathway from the list above.`}
 			</p>
-			<div className="style-guide-layer-table style-guide-legend-slug-table">
-				<div className="style-guide-layer-row style-guide-layer-row--legend-details style-guide-layer-row--head muted">
-					<span>Icon</span>
-					<span>Code</span>
-					<span>Name / supports</span>
-					<span>Asset slug</span>
-					<span>Pathway layer</span>
-					{editable ? <span /> : null}
-				</div>
-				{draft.stableIds.map((row, index) => {
-					const pathwayId = row.pathways?.[0] || '';
-					const code = row.legendCode || '';
-					return (
-						<div
-							key={`${index}-${code || row.id}`}
-							className="style-guide-layer-row style-guide-layer-row--legend-details"
-						>
-							{code ? (
-								<img
-									className="legend-details-glyph"
-									src={assetUrl(`/api/assets/glyph/${code}`, bust)}
-									alt={`${code} icon`}
-									width={44}
-									height={44}
-									draggable={false}
-								/>
-							) : (
-								<span className="legend-details-glyph legend-details-glyph--empty" />
-							)}
-							<strong className="mono">{code || '—'}</strong>
-							<div className="legend-details-meta">
-								<div>{row.name || '—'}</div>
-								<div className="muted">{row.supports || '—'}</div>
-							</div>
-							<input
-								placeholder="asset-slug"
-								value={row.id}
-								disabled={busy || !editable}
-								onChange={(e) => patchLayer(index, { id: e.target.value })}
-								aria-label={`Asset slug ${index + 1}`}
-							/>
-							<select
-								value={pathwayId}
-								disabled={busy || !editable || draft.imagePathways.length === 0}
-								onChange={(e) =>
-									patchLayer(index, {
-										pathways: e.target.value ? [e.target.value] : [],
-									})
-								}
-								aria-label={`Pathway layer ${index + 1}`}
-							>
-								<option value="">—</option>
-								{draft.imagePathways.map((p) => (
-									<option key={p.id} value={p.id}>
-										{p.label || p.id}
-									</option>
-								))}
-							</select>
-							{editable ? (
-								<button
-									type="button"
-									disabled={busy}
-									onClick={() =>
-										setDraft((prev) => ({
-											...prev,
-											stableIds: prev.stableIds.filter((_, i) => i !== index),
-										}))
-									}
-								>
-									Remove
-								</button>
-							) : null}
+			{pathwaysConfirmed ? (
+				<>
+					<div className="style-guide-layer-table style-guide-legend-details-table">
+						<div className="style-guide-layer-row style-guide-layer-row--legend-details style-guide-layer-row--head muted">
+							<span>Icon</span>
+							<span>Code</span>
+							<span>Name / supports</span>
+							<span>Pathway layer</span>
+							{editable ? <span /> : null}
 						</div>
-					);
-				})}
-			</div>
-			{editable && (
-				<button
-					type="button"
-					disabled={busy}
-					onClick={() =>
-						setDraft((prev) => ({
-							...prev,
-							stableIds: [
-								...prev.stableIds,
-								{ id: '', legendCode: '', group: 'highlight', pathways: [] },
-							],
-						}))
-					}
-				>
-					Add legend row
-				</button>
-			)}
+						{draft.stableIds.map((row, index) => {
+							const pathwayId = row.pathways?.[0] || '';
+							const code = row.legendCode || '';
+							return (
+								<div
+									key={`${index}-${code || row.name || index}`}
+									className="style-guide-layer-row style-guide-layer-row--legend-details"
+								>
+									{code ? (
+										<img
+											className="legend-details-glyph"
+											src={assetUrl(`/api/assets/glyph/${code}`, bust)}
+											alt={`${code} icon`}
+											width={44}
+											height={44}
+											draggable={false}
+										/>
+									) : (
+										<span className="legend-details-glyph legend-details-glyph--empty" />
+									)}
+									<strong className="mono">{code || '—'}</strong>
+									<div className="legend-details-meta">
+										<div>{row.name || '—'}</div>
+										<div className="muted">{row.supports || '—'}</div>
+									</div>
+									<select
+										value={pathwayId}
+										disabled={busy || !editable || validPathways.length === 0}
+										onChange={(e) =>
+											patchLayer(index, {
+												pathways: e.target.value ? [e.target.value] : [],
+											})
+										}
+										aria-label={`Pathway layer ${index + 1}`}
+									>
+										<option value="">—</option>
+										{validPathways.map((p) => (
+											<option key={p.id} value={p.id}>
+												{p.label || p.id}
+											</option>
+										))}
+									</select>
+									{editable ? (
+										<button
+											type="button"
+											disabled={busy}
+											onClick={() =>
+												setDraft((prev) => ({
+													...prev,
+													stableIds: prev.stableIds.filter((_, i) => i !== index),
+												}))
+											}
+										>
+											Remove
+										</button>
+									) : null}
+								</div>
+							);
+						})}
+					</div>
+					{editable && (
+						<button
+							type="button"
+							disabled={busy}
+							onClick={() =>
+								setDraft((prev) => ({
+									...prev,
+									stableIds: [
+										...prev.stableIds,
+										{
+											id: '',
+											legendCode: '',
+											name: '',
+											group: 'highlight',
+											pathways: [],
+										},
+									],
+								}))
+							}
+						>
+							Add legend row
+						</button>
+					)}
+				</>
+			) : null}
 		</div>
 	);
 
@@ -464,6 +620,7 @@ export function StyleGuidePanel({
 
 			{editable ? (
 				<div className="style-guide-editor">
+					{pathwayLayersBlock}
 					{legendDetailsBlock}
 					<label>
 						Title
@@ -506,74 +663,6 @@ export function StyleGuidePanel({
 							onChange={(e) => patchDraft({ convention: e.target.value })}
 						/>
 					</label>
-
-					<div className="style-guide-editor-full">
-						<strong className="style-guide-label">
-							Image pathway layers (exposure composites)
-						</strong>
-						<p className="muted" style={{ margin: '0.25rem 0' }}>
-							Legend items (A1–B9) are assigned into these layers — not the reverse.
-						</p>
-						<div className="style-guide-layer-table">
-							{draft.imagePathways.map((row, index) => (
-								<div key={`pathway-${index}`} className="style-guide-layer-row">
-									<input
-										placeholder="pathway-id"
-										value={row.id}
-										disabled={busy}
-										onChange={(e) =>
-											setDraft((prev) => ({
-												...prev,
-												imagePathways: prev.imagePathways.map((p, i) =>
-													i === index ? { ...p, id: e.target.value } : p,
-												),
-											}))
-										}
-										aria-label={`Pathway id ${index + 1}`}
-									/>
-									<input
-										placeholder="label"
-										value={row.label}
-										disabled={busy}
-										onChange={(e) =>
-											setDraft((prev) => ({
-												...prev,
-												imagePathways: prev.imagePathways.map((p, i) =>
-													i === index ? { ...p, label: e.target.value } : p,
-												),
-											}))
-										}
-										aria-label={`Pathway label ${index + 1}`}
-									/>
-									<span />
-									<button
-										type="button"
-										disabled={busy}
-										onClick={() =>
-											setDraft((prev) => ({
-												...prev,
-												imagePathways: prev.imagePathways.filter((_, i) => i !== index),
-											}))
-										}
-									>
-										Remove
-									</button>
-								</div>
-							))}
-						</div>
-						<button
-							type="button"
-							disabled={busy}
-							onClick={() =>
-								setDraft((prev) => ({
-									...prev,
-									imagePathways: [...prev.imagePathways, { id: '', label: '' }],
-								}))
-							}
-						>
-							Add pathway layer
-						</button>
-					</div>
 
 					<label className="style-guide-editor-full">
 						Illustration framework (one per line)
@@ -656,6 +745,7 @@ export function StyleGuidePanel({
 			) : (
 				active && (
 					<div className="style-guide-brief">
+						{pathwayLayersBlock}
 						{legendDetailsBlock}
 						<p className="style-guide-summary">{active.summary}</p>
 						{active.markdownRel && (

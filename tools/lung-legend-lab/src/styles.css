@@ -885,7 +885,23 @@ button:disabled {
 }
 
 .style-guide-layer-row--legend-details {
-	grid-template-columns: 52px 3rem minmax(140px, 1.6fr) minmax(120px, 1.2fr) minmax(140px, 1.3fr) auto;
+	grid-template-columns: 52px 3rem minmax(140px, 1.8fr) minmax(160px, 1.4fr) auto;
+}
+
+.style-guide-layer-row--pathway {
+	grid-template-columns: minmax(140px, 1.2fr) minmax(160px, 1.6fr) auto;
+}
+
+.pathway-layers-panel {
+	margin-bottom: 0.75rem;
+}
+
+.pathway-layers-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem 0.75rem;
+	align-items: center;
+	margin-top: 0.5rem;
 }
 
 .style-guide-layer-row--head {

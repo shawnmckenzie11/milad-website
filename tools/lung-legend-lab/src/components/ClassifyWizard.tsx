@@ -316,7 +316,6 @@ export function ClassifyWizard({
 										</strong>
 										<div className="muted">
 											{it.location || '—'} · {it.supports || '—'}
-											{it.slug ? ` · ${it.slug}` : ''}
 										</div>
 									</header>
 									{it.glyph_path && (

@@ -166,8 +166,8 @@ function MatchOverview({ finding, item, annotation }: OverviewProps) {
 			</dd>
 			<dt>icon</dt>
 			<dd>{item?.iconInterpretation ?? '—'}</dd>
-			<dt>slug</dt>
-			<dd>{slug ?? '—'}</dd>
+			<dt>code</dt>
+			<dd>{code}</dd>
 			<dt>score</dt>
 			<dd>{instance.score != null ? instance.score.toFixed(4) : '—'}</dd>
 			<dt>position</dt>
