@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type {
 	LegendItemRow,
 	StyleGuideProfileBrief,
@@ -240,6 +240,9 @@ export function StyleGuidePanel({
 	const [loadError, setLoadError] = useState<string | null>(null);
 	const [saveAsId, setSaveAsId] = useState('');
 	const editable = Boolean(onSave || onSaveAsNew);
+	/** Latest extract rows — profile fetch must not close over a stale empty list. */
+	const legendItemsRef = useRef(legendItems);
+	legendItemsRef.current = legendItems;
 
 	useEffect(() => {
 		let cancelled = false;
@@ -253,13 +256,15 @@ export function StyleGuidePanel({
 				const res = await fetchStyleGuideProfile(id);
 				if (cancelled) return;
 				const next = draftFromProfile(res.profile, res.profile.markdown || '');
+				// Always read the current extract: a slow profile fetch that started
+				// before OCR finished used to merge `[]` and wipe A1–A20 back to the
+				// profile's Test-1 A1–B9 stableIds (looked like extract timed out at ~10).
+				const extracted = legendItemsRef.current;
 				setDraft({
 					...next,
-					stableIds: mergeLegendDetails(
-						next.stableIds,
-						legendItems,
-						next.imagePathways,
-					),
+					stableIds: extracted.length
+						? mergeLegendDetails(next.stableIds, extracted, next.imagePathways)
+						: next.stableIds,
 				});
 				setSaveAsId('');
 			} catch (err) {
@@ -271,9 +276,7 @@ export function StyleGuidePanel({
 		return () => {
 			cancelled = true;
 		};
-		// legendItems merged in a separate effect after profile load
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- reload draft when profile id changes
-	}, [id]);
+	}, [id, active]);
 
 	useEffect(() => {
 		if (!legendItems.length) return;
