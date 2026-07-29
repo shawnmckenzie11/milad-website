@@ -81,9 +81,11 @@ npm run buddy:sync     # push commits that never made it to the remote
 npm run buddy:off      # pause autonomous commits; buddy:on resumes
 ```
 
-Commits are split by workstream so the lung image-layer analysis and the Projects section
-transition never land in the same commit. Denylisted paths (`.env*`, keys, credentials) and
-token-shaped content are withheld, and withheld paths are named in the commit body.
+Commits are split by workstream so the Image Processing Lab (Tier 1/2 legend matching)
+and the Projects section transition never land in the same commit. On branch
+`image-processing-lab`, autonomous messages use that project overlay. Denylisted paths
+(`.env*`, keys, credentials) and token-shaped content are withheld, and withheld paths
+are named in the commit body.
 
 Per-analysis folders under `tools/lung-legend-lab/workspace/` stay gitignored, so the buddy
 commits the things that make an analysis rebuildable instead — recovery scripts, fixtures,

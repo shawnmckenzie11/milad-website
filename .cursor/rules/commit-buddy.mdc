@@ -32,15 +32,23 @@ Commit at **stage boundaries**, not on every edit:
 Record a stage as you finish it, then commit that workstream:
 
 ```bash
-npm run buddy:note -- --workstream image-layer-analysis "Reclaimed dangling live lease"
+npm run buddy:note -- --workstream image-layer-analysis "Tier 1 B3 circular silhouette recovered from padded legend crop"
 npm run buddy:commit -- --workstream image-layer-analysis \
-  --subject "Isolate legend lab analyses behind reclaimable leases." \
-  --body "Test 1 lost an analysis to a stuck lease, so leases now expire and the matcher reports stderr instead of dying."
+  --subject "Stamp Tier 1 cell outlines from true glyph contours." \
+  --body "Tight match crops were boxing circular neutrophils; the stamp silhouette now grows from the legend ink so Tier 1 hits keep circular rings."
 ```
 
 `buddy:commit` stages only that workstream's paths, screens out secrets and denylisted
 files, refuses empty commits, and pushes the current branch (adding `-u` on first push).
 Run `npm run buddy:check` first when unsure what is dirty.
+
+## Branch: `image-processing-lab`
+
+While on **`image-processing-lab`**, treat commits as **Image Processing Lab** process
+history. Prefer subjects/bodies that name **Tier 1** (confirm/FP calibration, discrete
+cell outlines) or **Tier 2** (geometry-gt, freehand bands, adjacent-as-one), plus the
+legend codes touched. Autonomous checkpoints use the project overlay in
+`.cursor/commit-buddy.json` (`branchProjects.image-processing-lab`).
 
 ## One workstream per commit
 
@@ -48,7 +56,7 @@ Two spun-off workstreams live in this repo and must not be mixed in a single com
 
 | Workstream id | Covers |
 |---------------|--------|
-| `image-layer-analysis` | legend lab, lung template-match pipeline, cutaway layer assets, lung analysis data |
+| `image-layer-analysis` | Image Processing Lab — legend lab, Tier 1/2 matcher, cutaway layers, analysis data |
 | `projects-transition` | Projects section UI, presentation, camera/visual transition |
 | `agent-tooling` | `.cursor/` rules, skills, hooks, agents, the buddy itself |
 | `site` | other site content and chrome |

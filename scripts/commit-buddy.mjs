@@ -60,9 +60,26 @@ function defaultConfig() {
     maxGroupsPerRun: 6,
     sharedWorkstreamId: 'repo',
     workstreams: [],
+    branchProjects: {},
     neverCommitGlobs: [],
     secretPatterns: [],
   };
+}
+
+/**
+ * Resolve the active branch's project overlay from config (if any).
+ *
+ * On `image-processing-lab`, this steers commit subjects and trailers toward
+ * Tier 1 / Tier 2 lab work instead of a generic workstream label.
+ *
+ * @param {string} root Repository root directory.
+ * @param {object} config Effective configuration.
+ * @returns {{branch: string, project: object|null}} Branch name and overlay.
+ */
+function resolveBranchProject(root, config) {
+  const branch = git(root, ['rev-parse', '--abbrev-ref', 'HEAD']).out.trim();
+  const project = config.branchProjects?.[branch] ?? null;
+  return { branch, project };
 }
 
 /**
@@ -688,7 +705,9 @@ function directoryHints(paths, limit = 4) {
  * Build an automatic checkpoint commit message.
  *
  * Subjects are marked `Checkpoint …` so a reader can tell machine checkpoints
- * from deliberate, agent-authored stage commits.
+ * from deliberate, agent-authored stage commits. On a branch with a
+ * `branchProjects` overlay (e.g. `image-processing-lab`), the subject and body
+ * name that project and its Tier 1/2 focus.
  *
  * @param {object} params Message inputs.
  * @param {{id: string, label: string, paths: string[]}} params.group Workstream group.
@@ -697,20 +716,38 @@ function directoryHints(paths, limit = 4) {
  * @param {Array<object>} params.notes Stage notes to fold into the body.
  * @param {string[]} params.editSequence Ordered edit trail from the journal hook.
  * @param {Array<{filePath: string, reason: string}>} params.withheld Paths intentionally not committed.
+ * @param {object|null} [params.branchProject] Active branch project overlay.
+ * @param {string} [params.branch] Current branch name.
  * @returns {string} Full commit message.
  */
-function buildAutoMessage({ group, trigger, reasons, notes, editSequence, withheld }) {
+function buildAutoMessage({ group, trigger, reasons, notes, editSequence, withheld, branchProject, branch }) {
   const count = group.paths.length;
-  const subject = `Checkpoint ${group.label} (${count} file${count === 1 ? '' : 's'}).`;
+  const onLabProject =
+    Boolean(branchProject) &&
+    (!branchProject.primaryWorkstream || branchProject.primaryWorkstream === group.id);
+  const subject = onLabProject
+    ? `${branchProject.checkpointSubject ?? branchProject.project} (${count} file${count === 1 ? '' : 's'}).`
+    : `Checkpoint ${group.label} (${count} file${count === 1 ? '' : 's'}).`;
   const lines = [
     subject,
     '',
-    'Autonomous checkpoint so this stage stays reconstructable from git history.',
+    onLabProject
+      ? `Autonomous Image Processing Lab checkpoint while tuning Tier 1 / Tier 2 matching.`
+      : 'Autonomous checkpoint so this stage stays reconstructable from git history.',
     '',
+  ];
+  if (onLabProject) {
+    lines.push(`Project: ${branchProject.project}.`, `Focus: ${branchProject.focus}.`, '');
+    if (branchProject.messageGuidance) {
+      lines.push(`Guidance: ${branchProject.messageGuidance}`, '');
+    }
+  }
+  lines.push(
     `Trigger: ${trigger} — ${reasons.join('; ')}.`,
     `Workstream: ${group.id} (${group.label}).`,
+    `Branch: ${branch ?? 'unknown'}.`,
     `Areas: ${directoryHints(group.paths).join(', ')}.`,
-  ];
+  );
 
   if (notes.length > 0) {
     lines.push('', 'Stages captured:');
@@ -728,7 +765,12 @@ function buildAutoMessage({ group, trigger, reasons, notes, editSequence, withhe
     for (const item of withheld) lines.push(`- ${item.filePath} (${item.reason})`);
   }
 
-  lines.push('', `Commit-Buddy: auto`, `Commit-Buddy-Workstream: ${group.id}`, CO_AUTHOR_TRAILER);
+  lines.push('', `Commit-Buddy: auto`, `Commit-Buddy-Workstream: ${group.id}`);
+  if (onLabProject) {
+    lines.push(`Commit-Buddy-Project: ${branchProject.project}`);
+    lines.push(`Commit-Buddy-Branch: ${branch}`);
+  }
+  lines.push(CO_AUTHOR_TRAILER);
   return `${lines.join('\n')}\n`;
 }
 
@@ -740,18 +782,34 @@ function buildAutoMessage({ group, trigger, reasons, notes, editSequence, withhe
  * @param {string} [params.body] Why-focused body.
  * @param {{id: string, label: string, paths: string[]}} params.group Workstream group.
  * @param {Array<object>} params.notes Stage notes to fold into the body.
+ * @param {object|null} [params.branchProject] Active branch project overlay.
+ * @param {string} [params.branch] Current branch name.
  * @returns {string} Full commit message.
  */
-function buildStageMessage({ subject, body, group, notes }) {
+function buildStageMessage({ subject, body, group, notes, branchProject, branch }) {
   const normalized = /[.!?]$/.test(subject.trim()) ? subject.trim() : `${subject.trim()}.`;
+  const onLabProject =
+    Boolean(branchProject) &&
+    (!branchProject.primaryWorkstream || branchProject.primaryWorkstream === group.id);
   const lines = [normalized, ''];
+  if (onLabProject) {
+    lines.push(
+      `Image Processing Lab (${branch}) — ${branchProject.focus}.`,
+      '',
+    );
+  }
   if (body) lines.push(body.trim(), '');
   if (notes.length > 0) {
     lines.push('Stages captured:');
     for (const note of notes) lines.push(`- ${note.text}`);
     lines.push('');
   }
-  lines.push(`Commit-Buddy: stage`, `Commit-Buddy-Workstream: ${group.id}`, CO_AUTHOR_TRAILER);
+  lines.push(`Commit-Buddy: stage`, `Commit-Buddy-Workstream: ${group.id}`);
+  if (onLabProject) {
+    lines.push(`Commit-Buddy-Project: ${branchProject.project}`);
+    lines.push(`Commit-Buddy-Branch: ${branch}`);
+  }
+  lines.push(CO_AUTHOR_TRAILER);
   return `${lines.join('\n')}\n`;
 }
 
@@ -879,8 +937,9 @@ function cmdCheck(root, config, args) {
   const report = buildReport(root, config);
   const disabled = findDisabledReason(root, config);
   const blocker = findRepoBlocker(root);
+  const { project: branchProject } = resolveBranchProject(root, config);
   if (args.json) {
-    process.stdout.write(`${JSON.stringify({ ...report, disabled, blocker }, null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify({ ...report, disabled, blocker, branchProject }, null, 2)}\n`);
     return 0;
   }
   const lines = [
@@ -888,6 +947,9 @@ function cmdCheck(root, config, args) {
     `unpushed commits: ${report.unpushed ?? 'unknown'}`,
     `changed files (safe): ${report.changedFiles}`,
   ];
+  if (branchProject) {
+    lines.push(`project overlay: ${branchProject.project} — ${branchProject.focus}`);
+  }
   if (disabled) lines.push(`buddy disabled: ${disabled}`);
   if (blocker) lines.push(`blocked: ${blocker}`);
   for (const group of report.groups) lines.push(`  - ${group.id} (${group.label}): ${group.files} file(s)`);
@@ -942,6 +1004,7 @@ function cmdAuto(root, config, args) {
     const notes = readNotes(root);
     const consumed = new Set();
     const committed = [];
+    const { branch, project: branchProject } = resolveBranchProject(root, config);
     for (const group of report.groups.slice(0, config.maxGroupsPerRun ?? 6)) {
       const scan = scanForSecrets(root, group.paths, config);
       const withheld = [
@@ -960,6 +1023,8 @@ function cmdAuto(root, config, args) {
         notes: groupNotes,
         editSequence: readEditSequence(root, scan.clean),
         withheld,
+        branchProject,
+        branch,
       });
       const result = commitGroup(root, { ...group, paths: scan.clean }, message);
       if (result.ok) {
@@ -1051,7 +1116,15 @@ function cmdCommit(root, config, args) {
     const notes = readNotes(root);
     const groupNotes = [...new Set(selected.flatMap((group) => notesForWorkstream(notes, group.id)))];
     const group = { id: selected.map((entry) => entry.id).join('+'), label: primary.label, paths: scan.clean };
-    const message = buildStageMessage({ subject: args.subject, body: args.body, group, notes: groupNotes });
+    const { branch, project: branchProject } = resolveBranchProject(root, config);
+    const message = buildStageMessage({
+      subject: args.subject,
+      body: args.body,
+      group,
+      notes: groupNotes,
+      branchProject,
+      branch,
+    });
     const result = commitGroup(root, group, message);
     if (!result.ok) {
       process.stderr.write(`commit-buddy: ${result.reason}\n`);

@@ -14,6 +14,7 @@
       "public/figures/lung-health/legend-classification.json",
       "tools/lung-legend-lab/style-guide-profiles/**",
       "tools/lung-legend-lab/server/**",
+      "scripts/lung_*.py",
       "src/pages/projects.astro",
       "src/lib/projectPresentation.ts",
       "src/lib/lungHealthCamera.ts",
@@ -25,10 +26,19 @@
   "maxFileSizeMb": 40,
   "maxGroupsPerRun": 6,
   "sharedWorkstreamId": "repo",
+  "branchProjects": {
+    "image-processing-lab": {
+      "project": "Image Processing Lab",
+      "primaryWorkstream": "image-layer-analysis",
+      "focus": "Tier 1 and Tier 2 legend matching, outlines, freehand geometry-gt, and per-analysis lab pipeline",
+      "checkpointSubject": "Image Processing Lab · Tier 1/2 checkpoint",
+      "messageGuidance": "Name the tier (Tier 1 calibration vs Tier 2 geometry-gt), the legend codes touched (e.g. B3, A1/B1), and why the matcher/lab behaviour changed — not a file list."
+    }
+  },
   "workstreams": [
     {
       "id": "image-layer-analysis",
-      "label": "image layer analysis",
+      "label": "image processing lab",
       "globs": [
         "tools/lung-legend-lab/**",
         "scripts/lung_*.py",

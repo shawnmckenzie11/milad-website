@@ -19,28 +19,16 @@ Manage the background server with `astro dev stop`, `astro dev status`, and `ast
 ## Git checkpoints
 
 Commit and push finished stages without being asked — git history is how the next session
-recovers process. Check what is dirty with `npm run buddy:check`, then:
+recovers process. On branch **`image-processing-lab`**, write Tier 1 / Tier 2–specific
+messages (codes + why). Check what is dirty with `npm run buddy:check`, then:
 
 ```
 npm run buddy:commit -- --workstream image-layer-analysis --subject "…" --body "…"
 ```
 
 Keep one workstream per commit (`image-layer-analysis` vs `projects-transition`). Cursor
-hooks make a fallback `Checkpoint …` commit at the end of each turn if you forget. See
-`.cursor/rules/commit-buddy.mdc`.
-
-## Git checkpoints
-
-Commit and push finished stages without being asked — git history is how the next session
-recovers process. Check what is dirty with `npm run buddy:check`, then:
-
-```
-npm run buddy:commit -- --workstream image-layer-analysis --subject "…" --body "…"
-```
-
-Keep one workstream per commit (`image-layer-analysis` vs `projects-transition`). Cursor
-hooks make a fallback `Checkpoint …` commit at the end of each turn if you forget. See
-`.cursor/rules/commit-buddy.mdc`.
+hooks make a fallback Image Processing Lab checkpoint at the end of each turn if you
+forget. See `.cursor/rules/commit-buddy.mdc`.
 
 ## Documentation
 

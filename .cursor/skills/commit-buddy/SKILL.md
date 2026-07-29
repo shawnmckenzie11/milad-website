@@ -40,14 +40,30 @@ strand work and the matcher surfaces stderr instead of failing with a bare exit 
 already shows).
 
 Autonomous fallback commits are subjected `Checkpoint <workstream> (N files).` so a reader
-can tell machine checkpoints from deliberate stage commits. Both carry trailers:
+can tell machine checkpoints from deliberate stage commits — except on
+**`image-processing-lab`**, where they use
+`Image Processing Lab · Tier 1/2 checkpoint (N files).` Both carry trailers:
 
 ```
 Commit-Buddy: stage            # or: auto
 Commit-Buddy-Workstream: image-layer-analysis
+Commit-Buddy-Project: Image Processing Lab   # on image-processing-lab
+Commit-Buddy-Branch: image-processing-lab
 ```
 
-Future agents can reconstruct process with `git log --grep='Commit-Buddy-Workstream: image-layer-analysis'`.
+Future agents can reconstruct process with
+`git log --grep='Commit-Buddy-Workstream: image-layer-analysis'` or
+`git log --grep='Commit-Buddy-Project: Image Processing Lab'`.
+
+### Message focus on `image-processing-lab`
+
+Name the tier and codes in the subject/body when possible:
+
+- **Tier 1** — confirm/FP calibration, discrete icon outlines (circular cells, etc.)
+- **Tier 2** — geometry-gt freehands, multiple-adjacent-as-one bands, instance templates
+
+**Good:** `Recover Tier 2 A1 lumen band from retired freehand GT.`
+**Bad:** `Update lung_template_match.py.`
 
 ## Workstream boundaries
 
@@ -56,7 +72,7 @@ the config matters.
 
 | Workstream | Includes | Notes |
 |------------|----------|-------|
-| `image-layer-analysis` | `tools/lung-legend-lab/**`, `scripts/lung_*.py`, `scripts/generate-lung-cutaway.mjs`, `public/figures/lung-health/**`, `src/data/lungHealthLayers*.ts`, `src/data/lungHealthFeatureDatabase.ts`, lung rules/skills/agents | Analysis **outputs and data** |
+| `image-layer-analysis` (label: image processing lab) | `tools/lung-legend-lab/**`, `scripts/lung_*.py`, `scripts/generate-lung-cutaway.mjs`, `public/figures/lung-health/**`, `src/data/lungHealthLayers*.ts`, `src/data/lungHealthFeatureDatabase.ts`, lung rules/skills/agents | Tier 1/2 lab **outputs and data** |
 | `projects-transition` | `src/pages/projects.astro`, `src/components/Project*`, `src/components/LungHealth*`, `src/lib/projectPresentation.ts`, `src/lib/lungHealthCamera.ts`, `src/data/lungHealthVisual.ts`, `src/data/lungHealthCutawayGeometry.ts`, `src/data/airwayScene.ts` | **Rendering and transition** of that data |
 | `agent-tooling` | `.cursor/**` (non-lung), `scripts/commit-buddy.mjs`, `AGENTS.md`, `CLAUDE.md` | |
 | `site` | remaining `src/**`, `content/**`, `public/**` | |
