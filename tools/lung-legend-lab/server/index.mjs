@@ -1001,7 +1001,8 @@ async function handle(req, res) {
 
 		if (method === 'GET' && pathname.startsWith('/api/assets/glyph/')) {
 			const code = decodeURIComponent(pathname.slice('/api/assets/glyph/'.length));
-			if (!/^[AB][1-9]$/.test(code)) {
+			// Test 2 legends use A1–A20 (multi-digit). Old /^[AB][1-9]$/ rejected A10+.
+			if (!/^[A-Z][1-9]\d{0,2}$/.test(code)) {
 				sendJson(res, 400, { error: 'invalid code' });
 				return;
 			}
@@ -1336,7 +1337,7 @@ async function handle(req, res) {
 
 		if (method === 'PUT' && pathname.startsWith('/api/classification/')) {
 			const code = decodeURIComponent(pathname.slice('/api/classification/'.length));
-			if (!/^[AB][1-9]$/.test(code)) {
+			if (!/^[A-Z][1-9]\d{0,2}$/.test(code)) {
 				sendJson(res, 400, { error: 'invalid code' });
 				return;
 			}
