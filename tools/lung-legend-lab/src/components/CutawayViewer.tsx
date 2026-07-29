@@ -1,5 +1,6 @@
 import {
 	useEffect,
+	useLayoutEffect,
 	useMemo,
 	useRef,
 	useState,
@@ -31,7 +32,7 @@ import {
 	OUTLINE_FILL_RGBA,
 	OUTLINE_RING_PX,
 } from '../lib/outlineStyle';
-import { ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from './ImageViewPanel';
+import { clampZoom, wheelZoomFactor } from '../lib/zoom';
 
 export type SelectedFinding = {
 	code: string;
@@ -108,8 +109,15 @@ type FlatFinding = SelectedFinding & { minScore: number | null };
 
 const HIT_RADIUS = 42;
 const PICK_RADIUS = 40;
+/** Native cutaway art space — every stored point lives in this coordinate system. */
+const NATIVE_W = 1024;
+const NATIVE_H = 953;
 /** Native cutaway width / height (matches SVG viewBox). */
-const CUTAWAY_ASPECT = 1024 / 953;
+const CUTAWAY_ASPECT = NATIVE_W / NATIVE_H;
+/** Minimum stroke sample spacing in screen px (converted to native per zoom level). */
+const TRACE_SAMPLE_SCREEN_PX = 1.5;
+/** Distance from a viewport edge at which a zoomed trace starts auto-panning. */
+const TRACE_EDGE_PAN_MARGIN = 48;
 
 /**
  * Ensure a polyline is closed by appending the first point when needed.
@@ -176,6 +184,19 @@ export function CutawayViewer({
 		startScrollLeft: number;
 		startScrollTop: number;
 	} | null>(null);
+	/**
+	 * Art point that must stay under a given screen position across the next
+	 * zoom relayout (set by wheel zoom; rail buttons fall back to view centre).
+	 */
+	const zoomFocus = useRef<{
+		native: TracePoint;
+		clientX: number;
+		clientY: number;
+	} | null>(null);
+	/** Art point currently under the viewport centre — anchor for rail zoom. */
+	const viewCenterNative = useRef<TracePoint>({ x: NATIVE_W / 2, y: NATIVE_H / 2 });
+	/** Previous plane width, used to detect a zoom / fit relayout. */
+	const prevPlaneWidth = useRef<number | null>(null);
 
 	/**
 	 * Run a ~1.8s attention flash when hitFlash.nonce changes, then notify parent.
@@ -249,14 +270,21 @@ export function CutawayViewer({
 		if (!el || !onZoomChange) return;
 		/**
 		 * Zoom only when a modifier is held so vertical scroll keeps working.
+		 * Scales multiplicatively by wheel delta and pins the art under the
+		 * cursor so the view creeps instead of jumping.
 		 * @param e - Native wheel event
 		 */
 		function onWheel(e: globalThis.WheelEvent) {
 			if (!(e.ctrlKey || e.metaKey)) return;
 			e.preventDefault();
-			const direction = e.deltaY < 0 ? 1 : -1;
-			const next = Math.round((zoom + direction * ZOOM_STEP) * 100) / 100;
-			onZoomChange?.(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, next)));
+			const next = clampZoom(zoom * wheelZoomFactor(e.deltaY));
+			if (next === zoom) return;
+			zoomFocus.current = {
+				native: toNativeClient(e.clientX, e.clientY),
+				clientX: e.clientX,
+				clientY: e.clientY,
+			};
+			onZoomChange?.(next);
 		}
 		el.addEventListener('wheel', onWheel, { passive: false });
 		return () => el.removeEventListener('wheel', onWheel);
@@ -270,6 +298,31 @@ export function CutawayViewer({
 		el.scrollLeft = 0;
 		el.scrollTop = 0;
 	}, [zoom, fitWidthPx]);
+
+	/**
+	 * Keep the anchor art point under the same screen position after a zoom
+	 * relayout: wheel zoom pins the cursor, rail zoom pins the view centre.
+	 * Runs before paint so the correction is never visible as a jump.
+	 */
+	useLayoutEffect(() => {
+		const vp = viewportRef.current;
+		const stage = stageRef.current;
+		const prev = prevPlaneWidth.current;
+		prevPlaneWidth.current = planeWidthPx;
+		if (!vp || !stage || planeWidthPx == null || prev == null || planeWidthPx === prev) {
+			return;
+		}
+		const focus = zoomFocus.current;
+		zoomFocus.current = null;
+		const viewRect = vp.getBoundingClientRect();
+		const anchor = focus?.native ?? viewCenterNative.current;
+		const targetX = focus ? focus.clientX : viewRect.left + viewRect.width / 2;
+		const targetY = focus ? focus.clientY : viewRect.top + viewRect.height / 2;
+		const stageRect = stage.getBoundingClientRect();
+		vp.scrollLeft += stageRect.left + (anchor.x / NATIVE_W) * stageRect.width - targetX;
+		vp.scrollTop += stageRect.top + (anchor.y / NATIVE_H) * stageRect.height - targetY;
+		rememberViewCenter();
+	}, [planeWidthPx]);
 
 	const flats: FlatFinding[] = useMemo(() => {
 		const purged = collectPurgedHits(trainingFeedback, annotations);
@@ -395,16 +448,81 @@ export function CutawayViewer({
 	}, [editMode]);
 
 	/**
-	 * Map a pointer event into native 1024×953 cutaway coordinates.
-	 * @param e - Pointer event with client coordinates
+	 * Map a screen position into native 1024×953 cutaway coordinates.
+	 *
+	 * The stage box is the zoom plane itself (the base image fills it exactly),
+	 * so the rect ratio already divides out zoom and scroll: results are always
+	 * native art pixels — the same space as match reports, freehand GT, and the
+	 * analysis cutaway — never screen/CSS pixels.
+	 *
+	 * @param clientX - Viewport-relative screen x
+	 * @param clientY - Viewport-relative screen y
 	 */
-	function toNative(e: { clientX: number; clientY: number }): { x: number; y: number } {
+	function toNativeClient(clientX: number, clientY: number): TracePoint {
 		const el = stageRef.current;
 		if (!el) return { x: 0, y: 0 };
 		const rect = el.getBoundingClientRect();
-		const x = ((e.clientX - rect.left) / rect.width) * 1024;
-		const y = ((e.clientY - rect.top) / rect.height) * 953;
-		return { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 };
+		if (rect.width < 1 || rect.height < 1) return { x: 0, y: 0 };
+		const x = ((clientX - rect.left) / rect.width) * NATIVE_W;
+		const y = ((clientY - rect.top) / rect.height) * NATIVE_H;
+		return {
+			x: Math.round(Math.min(NATIVE_W, Math.max(0, x)) * 10) / 10,
+			y: Math.round(Math.min(NATIVE_H, Math.max(0, y)) * 10) / 10,
+		};
+	}
+
+	/**
+	 * Map a pointer event into native 1024×953 cutaway coordinates.
+	 * @param e - Pointer event with client coordinates
+	 */
+	function toNative(e: { clientX: number; clientY: number }): TracePoint {
+		return toNativeClient(e.clientX, e.clientY);
+	}
+
+	/**
+	 * Cache the art point under the viewport centre so rail zoom can pin it.
+	 */
+	function rememberViewCenter() {
+		const vp = viewportRef.current;
+		if (!vp) return;
+		const r = vp.getBoundingClientRect();
+		viewCenterNative.current = toNativeClient(r.left + r.width / 2, r.top + r.height / 2);
+	}
+
+	/**
+	 * Minimum spacing between stored stroke samples, in native units.
+	 * Held constant on screen so a zoomed trace records proportionally finer
+	 * detail instead of the same coarse native step.
+	 */
+	function traceSampleGap(): number {
+		return Math.max(0.3, TRACE_SAMPLE_SCREEN_PX / Math.max(1, zoom));
+	}
+
+	/**
+	 * Nudge the zoomed viewport when a live trace approaches its edge, so a
+	 * region larger than the visible area can still be drawn continuously.
+	 * @param clientX - Pointer screen x
+	 * @param clientY - Pointer screen y
+	 */
+	function autoPanForTrace(clientX: number, clientY: number) {
+		const vp = viewportRef.current;
+		if (!vp || zoom <= 1) return;
+		const r = vp.getBoundingClientRect();
+		/**
+		 * Scroll delta for one axis, ramping up as the pointer passes the margin.
+		 * @param pos - Pointer position on the axis
+		 * @param min - Leading edge of the viewport on the axis
+		 * @param max - Trailing edge of the viewport on the axis
+		 */
+		const nudge = (pos: number, min: number, max: number): number => {
+			const overLead = min + TRACE_EDGE_PAN_MARGIN - pos;
+			if (overLead > 0) return -Math.min(24, overLead * 0.6);
+			const overTrail = pos - (max - TRACE_EDGE_PAN_MARGIN);
+			if (overTrail > 0) return Math.min(24, overTrail * 0.6);
+			return 0;
+		};
+		vp.scrollLeft += nudge(clientX, r.left, r.right);
+		vp.scrollTop += nudge(clientY, r.top, r.bottom);
 	}
 
 	/**
@@ -449,31 +567,14 @@ export function CutawayViewer({
 	}
 
 	/**
-	 * Stroke color: confirmed → green; unconfirmed / unreviewed → yellow; reassigned → amber.
-	 * False positives are purged from overlays (never drawn).
-	 * @param ann - Annotation for this center, if any
-	 */
-	function strokeFor(ann: Annotation | undefined): string {
-		if (ann?.label === 'confirmed') return '#1e8449';
-		if (ann?.label === 'reassigned') return '#b9770e';
-		return '#e6b800';
-	}
-
-	/**
-	 * Handle stage pointer-down for select, scroll-pan (when zoomed), or freehand-classify.
+	 * Handle stage pointer-down for scroll-pan (when zoomed), freehand-classify,
+	 * or select. Pan is checked first so a zoomed trace can be repositioned
+	 * without leaving freehand mode.
 	 * @param e - Pointer event
 	 */
 	function onStagePointerDown(e: PointerEvent<HTMLDivElement>) {
 		const pt = toNative(e);
 		setCursor(pt);
-
-		if (editMode === 'freehand-classify') {
-			setClosedPreview(null);
-			setTracing(true);
-			setTracePoints([pt]);
-			e.currentTarget.setPointerCapture(e.pointerId);
-			return;
-		}
 
 		const wantPan =
 			zoom > 1 && (e.button === 1 || e.altKey || (e.button === 0 && e.shiftKey));
@@ -485,6 +586,14 @@ export function CutawayViewer({
 				startScrollLeft: viewportRef.current.scrollLeft,
 				startScrollTop: viewportRef.current.scrollTop,
 			};
+			e.currentTarget.setPointerCapture(e.pointerId);
+			return;
+		}
+
+		if (editMode === 'freehand-classify') {
+			setClosedPreview(null);
+			setTracing(true);
+			setTracePoints([pt]);
 			e.currentTarget.setPointerCapture(e.pointerId);
 			return;
 		}
@@ -507,13 +616,16 @@ export function CutawayViewer({
 			const dy = e.clientY - panDrag.current.originY;
 			viewportRef.current.scrollLeft = panDrag.current.startScrollLeft - dx;
 			viewportRef.current.scrollTop = panDrag.current.startScrollTop - dy;
+			rememberViewCenter();
 			return;
 		}
 
 		if (!tracing || editMode !== 'freehand-classify') return;
+		autoPanForTrace(e.clientX, e.clientY);
+		const gap = traceSampleGap();
 		setTracePoints((prev) => {
 			const last = prev[prev.length - 1];
-			if (last && Math.hypot(last.x - pt.x, last.y - pt.y) < 1.5) return prev;
+			if (last && Math.hypot(last.x - pt.x, last.y - pt.y) < gap) return prev;
 			return [...prev, pt];
 		});
 	}
@@ -525,28 +637,52 @@ export function CutawayViewer({
 	function onStagePointerUp(e: PointerEvent<HTMLDivElement>) {
 		if (panDrag.current && panDrag.current.pointerId === e.pointerId) {
 			panDrag.current = null;
+			rememberViewCenter();
 			return;
 		}
 
 		if (!tracing || editMode !== 'freehand-classify') return;
-		setTracing(false);
 		const points = [...tracePoints];
 		const last = toNative(e);
 		const tail = points[points.length - 1];
-		if (!tail || Math.hypot(tail.x - last.x, tail.y - last.y) > 1) {
+		if (!tail || Math.hypot(tail.x - last.x, tail.y - last.y) > traceSampleGap()) {
 			points.push(last);
 		}
+		finishTrace(points);
+	}
+
+	/**
+	 * Hand a finished stroke to the parent (or discard a stub).
+	 * @param points - Stroke samples in native cutaway coords
+	 */
+	function finishTrace(points: TracePoint[]) {
+		setTracing(false);
 		setTracePoints([]);
 		if (points.length < 3) return;
 		setClosedPreview(points);
 		onFreehandComplete(points);
 	}
 
+	/**
+	 * Salvage a stroke whose gesture the browser cancelled (scroll takeover,
+	 * context menu, pointer loss) instead of leaving the stage stuck in tracing.
+	 * @param e - Pointer cancel event
+	 */
+	function onStagePointerCancel(e: PointerEvent<HTMLDivElement>) {
+		if (panDrag.current && panDrag.current.pointerId === e.pointerId) {
+			panDrag.current = null;
+			return;
+		}
+		if (!tracing) return;
+		finishTrace([...tracePoints]);
+	}
+
 	const stageClass = [
 		'viewer-stage',
 		editMode === 'freehand-classify' ? 'mode-freehand' : '',
 		editMode === 'select' ? 'mode-select' : '',
-		zoom > 1 ? 'mode-zoomed' : '',
+		// Keep the crosshair while tracing — grab cursor only applies to pannable modes.
+		zoom > 1 && editMode !== 'freehand-classify' ? 'mode-zoomed' : '',
 	]
 		.filter(Boolean)
 		.join(' ');
@@ -556,7 +692,7 @@ export function CutawayViewer({
 
 	return (
 		<div className={`viewer-wrap${processing ? ' viewer-wrap--processing' : ''}`}>
-			<div ref={viewportRef} className="viewer-viewport">
+			<div ref={viewportRef} className="viewer-viewport" onScroll={rememberViewCenter}>
 				<div
 					className="viewer-zoom-plane"
 					style={
@@ -572,6 +708,7 @@ export function CutawayViewer({
 						onPointerLeave={() => setCursor(null)}
 						onPointerDown={onStagePointerDown}
 						onPointerUp={onStagePointerUp}
+						onPointerCancel={onStagePointerCancel}
 						aria-busy={processing || undefined}
 					>
 						<img
@@ -614,7 +751,6 @@ export function CutawayViewer({
 								const cy = f.instance.cy ?? 0;
 								const score = f.instance.score ?? 0;
 								const ann = annotationFor(f.code, f.instance.cx ?? 0, f.instance.cy ?? 0);
-								const finalStroke = strokeFor(ann);
 								const labelCode = ann?.reassignedCode || f.code;
 								const tierBit = f.tier != null ? `T${f.tier}` : '';
 								const short = f.name.trim().split(/\s+/).slice(0, 2).join(' ');
@@ -663,6 +799,8 @@ export function CutawayViewer({
 												/>
 											</g>
 										)}
+										{/* Invisible pick target — matches are shown by their
+										    outline layer, never a centre marker. */}
 										<circle
 											className="hit-target"
 											cx={cx}
@@ -670,21 +808,6 @@ export function CutawayViewer({
 											r={HIT_RADIUS}
 											fill="transparent"
 											stroke="none"
-										/>
-										<circle
-											className="hit-ring"
-											cx={cx}
-											cy={cy}
-											r={isSelected || isFlash ? 18 : 12}
-											fill={
-												isFlash
-													? 'rgba(255, 210, 74, 0.45)'
-													: isSelected
-														? `${finalStroke}55`
-														: `${finalStroke}33`
-											}
-											stroke={isFlash ? '#ffd24a' : finalStroke}
-											strokeWidth={isSelected || isFlash ? 4 : 2}
 										/>
 										{showLabels && (
 											<g

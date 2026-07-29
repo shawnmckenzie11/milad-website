@@ -344,6 +344,9 @@ button:disabled {
 
 .viewer-stage.mode-freehand {
 	cursor: crosshair;
+	/* Own the gesture: a zoomed viewport is scrollable, so without this the
+	   browser pans on touch/pen instead of letting the stroke through. */
+	touch-action: none;
 }
 
 .viewer-wrap--processing .viewer-stage {
@@ -385,8 +388,10 @@ button:disabled {
 	cursor: pointer;
 }
 
-.hit.selected .hit-ring {
-	filter: drop-shadow(0 0 3px rgba(255, 210, 74, 0.85));
+/* Matches carry no centre marker — selection reads on the label chip. */
+.hit.selected .hit-label-bg {
+	stroke: #ffd24a;
+	stroke-width: 1.5;
 }
 
 /* Even radial pulse from bbox center — out quickly, then slowly back in. */
@@ -419,7 +424,6 @@ button:disabled {
 	}
 }
 
-.hit.hit--flash .hit-ring,
 .freehand-saved.hit--flash .freehand-saved-poly {
 	filter: drop-shadow(0 0 14px rgba(255, 214, 10, 0.95));
 }
@@ -446,10 +450,6 @@ button:disabled {
 .hit.hit--flash .hit-label-bg,
 .freehand-saved.hit--flash .hit-label-bg {
 	filter: drop-shadow(0 0 8px rgba(255, 210, 74, 0.9));
-}
-
-.hit.ann-unreviewed .hit-ring {
-	stroke: #e6b800;
 }
 
 .resize-handle {

@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import type { LegendItemRow } from '../types';
 import { assetUrl } from '../api';
 import type { PathwayLayer } from '../lib/styleGuideLayers';
+import { ZOOM_MAX, ZOOM_MIN, ZOOM_STEP, clampZoom } from '../lib/zoom';
 
 type Props = {
 	/** Legend rows for the current Tier to Test. */
@@ -32,10 +33,6 @@ type Props = {
 	bust?: number;
 	busy?: boolean;
 };
-
-const ZOOM_MIN = 1;
-const ZOOM_MAX = 4;
-const ZOOM_STEP = 0.25;
 
 /**
  * Narrow left rail beside the cutaway: pathway visibility, legend-item
@@ -128,8 +125,7 @@ export function ImageViewPanel({
 	 * @param direction - +1 zoom in, −1 zoom out
 	 */
 	function bumpZoom(direction: 1 | -1) {
-		const next = Math.round((zoom + direction * ZOOM_STEP) * 100) / 100;
-		onZoomChange(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, next)));
+		onZoomChange(clampZoom(zoom + direction * ZOOM_STEP));
 	}
 
 	/**
@@ -275,5 +271,3 @@ export function ImageViewPanel({
 		</aside>
 	);
 }
-
-export { ZOOM_MIN, ZOOM_MAX, ZOOM_STEP };
