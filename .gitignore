@@ -41,3 +41,6 @@ scripts/tmp-*.mjs
 
 # cursor debug dumps
 .cursor/debug-*.log
+
+# commit buddy runtime state (logs, stage notes, lock)
+.cursor/commit-buddy/

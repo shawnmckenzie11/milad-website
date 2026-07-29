@@ -1,0 +1,135 @@
+{
+  "enabled": true,
+  "push": true,
+  "gates": {
+    "minChangedFiles": 5,
+    "minMinutesSinceLastCommit": 25,
+    "cooldownMinutes": 6,
+    "milestoneMinFiles": 2,
+    "burstMultiplier": 3,
+    "milestoneGlobs": [
+      "src/data/lungHealthLayers.generated.ts",
+      "src/data/lungHealthFeatureDatabase.ts",
+      "public/figures/lung-health/layers/**",
+      "public/figures/lung-health/legend-classification.json",
+      "tools/lung-legend-lab/style-guide-profiles/**",
+      "tools/lung-legend-lab/server/**",
+      "src/pages/projects.astro",
+      "src/lib/projectPresentation.ts",
+      "src/lib/lungHealthCamera.ts",
+      "package.json",
+      ".cursor/rules/**",
+      ".cursor/skills/**"
+    ]
+  },
+  "maxFileSizeMb": 40,
+  "maxGroupsPerRun": 6,
+  "sharedWorkstreamId": "repo",
+  "workstreams": [
+    {
+      "id": "image-layer-analysis",
+      "label": "image layer analysis",
+      "globs": [
+        "tools/lung-legend-lab/**",
+        "scripts/lung_*.py",
+        "scripts/requirements-lung.txt",
+        "scripts/run-lung-python.mjs",
+        "scripts/generate-lung-cutaway.mjs",
+        "public/figures/lung-health/**",
+        "src/data/lungHealthLayers.generated.ts",
+        "src/data/lungHealthLayers.ts",
+        "src/data/lungHealthFeatureDatabase.ts",
+        ".cursor/skills/lung-legend-template-match/**",
+        ".cursor/rules/lung-legend-rl-feedback.mdc",
+        ".cursor/rules/lung-biomedical-illustration.mdc",
+        ".cursor/agents/lung-cutaway-layers.md",
+        ".cursor/agents/lung-legend-rl-feedback.md"
+      ]
+    },
+    {
+      "id": "projects-transition",
+      "label": "projects section transition",
+      "globs": [
+        "src/pages/projects.astro",
+        "src/components/Project*",
+        "src/components/LungHealth*",
+        "src/components/AirwayExplorer.astro",
+        "src/components/ProgramTabs.astro",
+        "src/lib/projectPresentation.ts",
+        "src/lib/lungHealthCamera.ts",
+        "src/data/projects.json",
+        "src/data/airwayScene.ts",
+        "src/data/lungHealthVisual.ts",
+        "src/data/lungHealthCutawayGeometry.ts",
+        ".cursor/agents/lung-visual-transition.md"
+      ]
+    },
+    {
+      "id": "agent-tooling",
+      "label": "agent tooling",
+      "globs": [
+        ".cursor/**",
+        "scripts/commit-buddy.mjs",
+        "AGENTS.md",
+        "CLAUDE.md"
+      ]
+    },
+    {
+      "id": "site",
+      "label": "site content and chrome",
+      "globs": [
+        "src/**",
+        "content/**",
+        "public/**",
+        "astro.config.*",
+        "scripts/sync-research.mjs"
+      ]
+    },
+    {
+      "id": "repo",
+      "label": "repo configuration",
+      "globs": [
+        "**"
+      ]
+    }
+  ],
+  "neverCommitGlobs": [
+    ".env",
+    ".env.*",
+    "**/.env",
+    "**/.env.*",
+    "**/*.pem",
+    "**/*.key",
+    "**/*.p12",
+    "**/*.pfx",
+    "**/*.keystore",
+    "**/*.mobileprovision",
+    "**/id_rsa*",
+    "**/id_ed25519*",
+    "**/credentials",
+    "**/credentials.json",
+    "**/*credentials*.json",
+    "**/service-account*.json",
+    "**/secrets.*",
+    "**/.npmrc",
+    "**/.netrc",
+    "**/.ssh/**",
+    "**/.aws/**",
+    "**/*.sqlite",
+    "**/*.sqlite3"
+  ],
+  "secretPatterns": [
+    { "id": "private-key-block", "pattern": "-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----" },
+    { "id": "aws-access-key", "pattern": "\\b(?:AKIA|ASIA)[0-9A-Z]{16}\\b" },
+    { "id": "github-token", "pattern": "\\bgh[pousr]_[A-Za-z0-9]{20,}\\b" },
+    { "id": "slack-token", "pattern": "\\bxox[abprs]-[A-Za-z0-9-]{10,}\\b" },
+    { "id": "google-api-key", "pattern": "\\bAIza[0-9A-Za-z_-]{35}\\b" },
+    { "id": "openai-style-key", "pattern": "\\bsk-(?:ant-|proj-|live-)?[A-Za-z0-9_-]{24,}\\b" },
+    { "id": "cloudflare-api-token", "pattern": "CLOUDFLARE_API_(?:TOKEN|KEY)\\s*[:=]\\s*['\"]?[A-Za-z0-9_-]{20,}" },
+    {
+      "id": "inline-credential-assignment",
+      "pattern": "(?:api[_-]?key|secret[_-]?key|client[_-]?secret|access[_-]?token|password)\\s*[:=]\\s*['\"][^'\"\\s]{12,}['\"]",
+      "flags": "i"
+    }
+  ]
+}

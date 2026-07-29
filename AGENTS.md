@@ -16,6 +16,32 @@ astro dev --background
 
 Manage the background server with `astro dev stop`, `astro dev status`, and `astro dev logs`.
 
+## Git checkpoints
+
+Commit and push finished stages without being asked — git history is how the next session
+recovers process. Check what is dirty with `npm run buddy:check`, then:
+
+```
+npm run buddy:commit -- --workstream image-layer-analysis --subject "…" --body "…"
+```
+
+Keep one workstream per commit (`image-layer-analysis` vs `projects-transition`). Cursor
+hooks make a fallback `Checkpoint …` commit at the end of each turn if you forget. See
+`.cursor/rules/commit-buddy.mdc`.
+
+## Git checkpoints
+
+Commit and push finished stages without being asked — git history is how the next session
+recovers process. Check what is dirty with `npm run buddy:check`, then:
+
+```
+npm run buddy:commit -- --workstream image-layer-analysis --subject "…" --body "…"
+```
+
+Keep one workstream per commit (`image-layer-analysis` vs `projects-transition`). Cursor
+hooks make a fallback `Checkpoint …` commit at the end of each turn if you forget. See
+`.cursor/rules/commit-buddy.mdc`.
+
 ## Documentation
 
 Full documentation: https://docs.astro.build

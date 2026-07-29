@@ -18,6 +18,13 @@
     "lung:findings": "node scripts/run-lung-python.mjs scripts/lung_findings_db.py",
     "lung:lab": "npm --prefix tools/lung-legend-lab start",
     "lung:lab:install": "npm --prefix tools/lung-legend-lab install",
+    "buddy:check": "node scripts/commit-buddy.mjs check",
+    "buddy:commit": "node scripts/commit-buddy.mjs commit",
+    "buddy:note": "node scripts/commit-buddy.mjs note",
+    "buddy:sync": "node scripts/commit-buddy.mjs sync",
+    "buddy:on": "node scripts/commit-buddy.mjs on",
+    "buddy:off": "node scripts/commit-buddy.mjs off",
+    "lung:lab:recover-test1": "node tools/lung-legend-lab/scripts/recover-test1-baseline.mjs",
     "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {

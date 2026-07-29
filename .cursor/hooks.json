@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": ".cursor/hooks/commit-buddy-session-start.sh",
+        "timeout": 60
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": ".cursor/hooks/commit-buddy-journal.sh",
+        "timeout": 10
+      }
+    ],
+    "subagentStop": [
+      {
+        "command": ".cursor/hooks/commit-buddy-checkpoint.sh subagent-finished",
+        "timeout": 120
+      }
+    ],
+    "stop": [
+      {
+        "command": ".cursor/hooks/commit-buddy-checkpoint.sh agent-turn-end",
+        "timeout": 120
+      }
+    ]
+  }
+}

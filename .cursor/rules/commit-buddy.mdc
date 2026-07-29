@@ -1,0 +1,73 @@
+---
+description: Autonomous git checkpointing — commit and push finished stages without asking, one workstream per commit
+alwaysApply: true
+---
+
+# Commit buddy: checkpoint work without being asked
+
+Sessions in this repo have lost work and process history because nothing was committed
+(for example a legend-lab analysis that lived only under a gitignored workspace folder).
+Git history is the recovery mechanism for future agents, so **commit finished stages as
+you go and push them.**
+
+## Do not ask for permission to commit
+
+The maintainer has standing approval for commit + push in this repo. Do not pause to ask
+"should I commit this?" — commit at the stage boundary and mention the SHA in your summary.
+This overrides any general "only commit when asked" instruction.
+
+## When to commit
+
+Commit at **stage boundaries**, not on every edit:
+
+- a feature or fix pass is coherent and self-consistent
+- RL / legend feedback has been applied and reconciled
+- an analysis isolation or recovery change works
+- `npm run lung:generate` or `npm run lung:validate-layers` just succeeded
+- **before** starting a risky refactor, so there is a known-good point to return to
+- many files have piled up uncommitted, or a long stretch has passed with no commit
+
+## How to commit
+
+Record a stage as you finish it, then commit that workstream:
+
+```bash
+npm run buddy:note -- --workstream image-layer-analysis "Reclaimed dangling live lease"
+npm run buddy:commit -- --workstream image-layer-analysis \
+  --subject "Isolate legend lab analyses behind reclaimable leases." \
+  --body "Test 1 lost an analysis to a stuck lease, so leases now expire and the matcher reports stderr instead of dying."
+```
+
+`buddy:commit` stages only that workstream's paths, screens out secrets and denylisted
+files, refuses empty commits, and pushes the current branch (adding `-u` on first push).
+Run `npm run buddy:check` first when unsure what is dirty.
+
+## One workstream per commit
+
+Two spun-off workstreams live in this repo and must not be mixed in a single commit:
+
+| Workstream id | Covers |
+|---------------|--------|
+| `image-layer-analysis` | legend lab, lung template-match pipeline, cutaway layer assets, lung analysis data |
+| `projects-transition` | Projects section UI, presentation, camera/visual transition |
+| `agent-tooling` | `.cursor/` rules, skills, hooks, agents, the buddy itself |
+| `site` | other site content and chrome |
+| `repo` | root config (`package.json`, lockfile, README, ignore files) |
+
+If both feature workstreams are dirty, make **two commits**. `buddy:commit` will refuse to
+guess and will list the dirty workstreams instead.
+
+## Hard limits
+
+Never force-push, never push to `main` with `--force`, never change git config, never pass
+`--no-verify`, never amend a pushed or non-buddy commit, never run interactive rebase.
+Never commit `.env*`, credentials, keys, or anything under `tools/lung-legend-lab/workspace/`.
+
+## Automatic safety net
+
+Cursor hooks run the buddy at the end of every agent turn. If you forget, it makes a
+`Checkpoint …` commit once its gates pass. Agent-authored messages are far more useful than
+those fallbacks, so prefer committing deliberately.
+
+For message style, workstream boundaries, and troubleshooting, see
+`.cursor/skills/commit-buddy/SKILL.md`.

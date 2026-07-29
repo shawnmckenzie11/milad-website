@@ -68,6 +68,28 @@ npm run preview
 
 `npm run build` writes a static site to `dist/`, suitable for Cloudflare Pages or any static host.
 
+## Commit buddy (autonomous checkpoints)
+
+Agent sessions in this repo commit and push finished stages on their own so process history
+survives restarts. The engine is [`scripts/commit-buddy.mjs`](scripts/commit-buddy.mjs),
+configured by [`.cursor/commit-buddy.json`](.cursor/commit-buddy.json) and triggered by
+Cursor hooks in [`.cursor/hooks.json`](.cursor/hooks.json).
+
+```bash
+npm run buddy:check    # what is dirty, and whether a checkpoint is due
+npm run buddy:sync     # push commits that never made it to the remote
+npm run buddy:off      # pause autonomous commits; buddy:on resumes
+```
+
+Commits are split by workstream so the lung image-layer analysis and the Projects section
+transition never land in the same commit. Denylisted paths (`.env*`, keys, credentials) and
+token-shaped content are withheld, and withheld paths are named in the commit body.
+
+Per-analysis folders under `tools/lung-legend-lab/workspace/` stay gitignored, so the buddy
+commits the things that make an analysis rebuildable instead — recovery scripts, fixtures,
+pipeline artifacts, and generated layer data. Export an analysis into a tracked location if
+it needs to survive.
+
 ## Project layout
 
 ```
