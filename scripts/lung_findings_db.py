@@ -178,18 +178,45 @@ def _extract_field_map(
 
 
 def _report_by_code(report: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
-    """Index template-match report layers by legendCode."""
+    """
+    Index template-match report layers by analysis letter code when present.
+
+    Accepts either ``legendCode`` (legacy) or ``sourceCode`` (slug-first reports).
+    Layers with neither are skipped here and joined later by slug.
+    """
     by_code: dict[str, dict[str, Any]] = {}
     if not report:
         return by_code
     for slug, layer in (report.get("layers") or {}).items():
-        code = layer.get("legendCode")
+        code = layer.get("legendCode") or layer.get("sourceCode")
         if not code:
             continue
         entry = dict(layer)
         entry["slug"] = slug
         by_code[str(code)] = entry
     return by_code
+
+
+def _report_by_slug(report: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
+    """Index template-match report layers by stable slug (report key / layer.slug)."""
+    by_slug: dict[str, dict[str, Any]] = {}
+    if not report:
+        return by_slug
+    for slug, layer in (report.get("layers") or {}).items():
+        key = str(layer.get("slug") or slug or "").strip()
+        if not key:
+            continue
+        entry = dict(layer)
+        entry["slug"] = key
+        by_slug[key] = entry
+    return by_slug
+
+
+def _slugify_name(name: str | None) -> str:
+    """Kebab-case stable id from a legend item name (no letter-code fallback)."""
+    import re
+
+    return re.sub(r"[^a-z0-9]+", "-", (name or "").lower()).strip("-")
 
 
 def _mean(scores: list[float]) -> float | None:
@@ -225,6 +252,7 @@ def upsert_findings_db(
     supports_map = _extract_field_map(extract, "supports")
     location_map = _extract_field_map(extract, "location")
     report_by_code = _report_by_code(match_report)
+    report_by_slug = _report_by_slug(match_report)
     prior_items = (prior or {}).get("items") or {}
     prior_runs = list((prior or {}).get("runs") or [])
 
@@ -257,19 +285,27 @@ def upsert_findings_db(
         "byCode": {},
     }
 
-    codes = sorted(classifications.keys(), key=lambda c: (c[0], int(c[1:])))
+    def _code_sort_key(c: str) -> tuple:
+        if len(c) >= 2 and c[1:].isdigit():
+            return (c[0], int(c[1:]))
+        return (c, 0)
+
+    codes = sorted(classifications.keys(), key=_code_sort_key)
     for code in codes:
         cls = classifications[code]
-        layer = report_by_code.get(code)
-        prior_item = prior_items.get(code) or {}
-        # Prefer non-empty classification slug; else match-report key; else prior / known.
+        name = names.get(code) or ""
+        # Prefer classification slug; else name→slug; else prior / known map.
         slug = (
             (cls.get("slug") or "").strip()
-            or (layer or {}).get("slug")
-            or (prior_item.get("slug") or "").strip()
+            or _slugify_name(name)
+            or (prior_items.get(code) or {}).get("slug")
             or (_KNOWN_SLUGS.get(code) or {}).get("slug")
             or ""
         )
+        layer = report_by_code.get(code) or (report_by_slug.get(slug) if slug else None)
+        prior_item = prior_items.get(code) or {}
+        if not slug and layer:
+            slug = str(layer.get("slug") or "")
         raw_tier = cls.get("tier", 0)
         tier = int(raw_tier) if raw_tier is not None and raw_tier != "" else 0
         searchable = bool(cls.get("searchable")) if "searchable" in cls else tier > 0

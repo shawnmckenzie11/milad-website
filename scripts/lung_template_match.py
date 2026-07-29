@@ -2767,6 +2767,10 @@ def run_generate(
         report["layers"][spec.slug] = {
             "tier": spec.tier,
             "slug": spec.slug,
+            # Keep both keys so findings DB / UI can join this analysis's extract
+            # rows (still keyed by OCR letter when present) without using codes
+            # as cross-analysis skill identity.
+            "legendCode": spec.legend_code or None,
             "sourceCode": spec.legend_code or None,
             "iconInterpretation": spec.icon_interpretation,
             "minScore": spec.min_score,
