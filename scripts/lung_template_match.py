@@ -634,14 +634,14 @@ LAYER_SPECS: list[LayerSpec] = [
         slug="inflammatory-signaling",
         legend_code="B7",
         tier=2,
-        # RL confirmed lumen @ (878,311); keep junction soft prior (cigarette path).
+        # Tier-2 calibration (Test 1): confirmed lumen ~(878,311) + junction ~(558,804).
         rois=[SIGNALING_LUMEN, JUNCTION],
         scales=_scales_for_tier(2, 0.75, 1.15, 0.05),
         min_score=0.70,
         min_score_secondary=0.64,
         modes=("color", "gray"),
         max_matches=2,
-        expected_centers=[(878, 311), (562, 805)],
+        expected_centers=[(878, 311), (558, 804)],
         accept_rois=[SIGNALING_LUMEN, JUNCTION],
         max_component_side=120,
         max_pixel_count=2500,
@@ -684,6 +684,8 @@ LAYER_SPECS: list[LayerSpec] = [
         tier=2,
         # Legend glyph vs cutaway band is weak; freehand-instance rematch (own + A1
         # band GT) recovers similar lining segments. Reject tiny glyph stamps.
+        # Tier-2 calibration (Test 1): expert confirmed dual lumen-band hits
+        # ~(676,217) and ~(744,218) — keep as expected_centers must-hits.
         rois=[
             dict(x0=520, y0=100, x1=800, y1=320),
             dict(x0=530, y0=110, x1=690, y1=280),
@@ -693,7 +695,7 @@ LAYER_SPECS: list[LayerSpec] = [
         min_score_secondary=0.30,
         modes=("gray", "color"),
         max_matches=3,
-        expected_centers=[(604, 202), (710, 219), (603, 199)],
+        expected_centers=[(676, 217), (744, 218), (604, 202)],
         accept_rois=[dict(x0=500, y0=90, x1=820, y1=340)],
         max_component_side=200,
         min_component_side=55,
