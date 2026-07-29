@@ -13,17 +13,9 @@
  *   rejected a valid distant instance (A1 mid-stem) against a lumen-band outline.
  */
 
-import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
-import {
-	ANNOTATIONS_JSON,
-	TRAINING_FEEDBACK_JSON,
-	FINDINGS_DB,
-	MATCH_REPORT,
-	FREEHAND_ICONS_DIR,
-} from './paths.mjs';
-import { analysisPaths } from './analyses.mjs';
+import { storeFor } from './analyses.mjs';
 
 /** Max distance (px) between match and freehand centroids for a “same place” hit. */
 export const FREEHAND_MATCH_CENTROID_MAX_DIST = 40;
@@ -165,9 +157,14 @@ function removeFindingInstance(findings, code, cx, cy) {
 }
 
 /**
- * Reconcile live workspace freehands vs match report / findings.
+ * Reconcile one analysis's freehand outlines against its own match report.
  *
- * @param {{ analysisId?: string | null }} [opts]
+ * Every read and write is resolved from `analysisId`, so a reconcile pass for
+ * the analysis a job ran on stays correct even if the operator has since opened
+ * a different analysis in the UI.
+ *
+ * @param {{ analysisId?: string | null }} [opts] - Analysis to reconcile; omit
+ *   for defaults mode (the checked-in site store)
  * @returns {Promise<{
  *   supersededFreehands: Array<{ id: string, code: string, match: object }>,
  *   rejectedMatches: Array<{ code: string, cx: number, cy: number, reason: string }>,
@@ -179,10 +176,11 @@ export async function reconcileFreehandWithMatches(opts = {}) {
 	const log = [];
 	const supersededFreehands = [];
 	const rejectedMatches = [];
+	const store = storeFor(opts.analysisId);
 
-	const feedbackDoc = (await loadJson(TRAINING_FEEDBACK_JSON)) || { feedback: [] };
-	const findings = (await loadJson(FINDINGS_DB)) || { items: {} };
-	const report = (await loadJson(MATCH_REPORT)) || { layers: {} };
+	const feedbackDoc = (await loadJson(store.trainingFeedback)) || { feedback: [] };
+	const findings = (await loadJson(store.findings)) || { items: {} };
+	const report = (await loadJson(store.matchReport)) || { layers: {} };
 	let feedbackList = Array.isArray(feedbackDoc.feedback) ? [...feedbackDoc.feedback] : [];
 
 	/** @type {Map<string, object[]>} code → every accepted match from the report */
@@ -305,30 +303,16 @@ export async function reconcileFreehandWithMatches(opts = {}) {
 		});
 		for (const entry of retired) {
 			if (!entry?.iconRel) continue;
-			try {
-				const abs = path.isAbsolute(entry.iconRel)
-					? entry.iconRel
-					: path.join(path.dirname(FREEHAND_ICONS_DIR), '..', entry.iconRel);
-				// Prefer workspace freehand-icons by basename.
-				const live = path.join(FREEHAND_ICONS_DIR, path.basename(String(entry.iconRel)));
-				await fsp.unlink(live).catch(() => {});
-				if (opts.analysisId) {
-					const ap = analysisPaths(opts.analysisId);
-					await fsp
-						.unlink(path.join(ap.freehandIcons, path.basename(String(entry.iconRel))))
-						.catch(() => {});
-				}
-				if (fs.existsSync(abs) && abs !== live) {
-					await fsp.unlink(abs).catch(() => {});
-				}
-			} catch {
-				/* ignore */
-			}
+			// Icons live in this analysis's own freehand-icons dir; match by basename
+			// so a legacy repo-relative iconRel still resolves.
+			await fsp
+				.unlink(path.join(store.freehandIcons, path.basename(String(entry.iconRel))))
+				.catch(() => {});
 		}
 	}
 
 	if (supersededFreehands.length > 0 || rejectedMatches.length > 0) {
-		await saveJson(TRAINING_FEEDBACK_JSON, {
+		await saveJson(store.trainingFeedback, {
 			feedback: feedbackList,
 			updatedAt: now,
 			lastReconcileAt: now,
@@ -338,7 +322,7 @@ export async function reconcileFreehandWithMatches(opts = {}) {
 			updatedAt: now,
 			lastFreehandReconcileAt: now,
 		};
-		await saveJson(FINDINGS_DB, findings);
+		await saveJson(store.findings, findings);
 	}
 
 	return { supersededFreehands, rejectedMatches, log };

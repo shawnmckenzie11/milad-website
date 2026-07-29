@@ -2,9 +2,16 @@
 """
 Legend item extraction + observability-tier fixtures for the lung cutaway.
 
-Extracts linear legend text (code, name, location, supports) from a LAYER MAP
-PNG in the same format as `Lung Cutaway Legend Template.png`, then self-tests
-against the user's established observability classifications.
+Two legend layouts are supported by the same extractor:
+
+1. **Badged LAYER MAP** (`Lung Cutaway Legend Template.png`): hairline-ruled
+   rows, an `A1`/`B1` code badge per row, plus `(location)` and `Supports:`
+   lines. Codes and pathway text come straight from the legend.
+2. **Icon + label card**: a plain card with one icon per row and a single line
+   of label text, no code badges and often no rules at all. The label line *is*
+   the name; codes are auto-assigned `A1…An`, restarting at `B1` after each
+   divider rule. `location` / `supports` stay empty — nothing in the legend
+   states them, so they are left for the operator to classify.
 
 Interactive prompting is available for *future* legends (`--prompt`); for the
 current legend, classifications are already known — use `--self-test` (default).
@@ -23,13 +30,39 @@ import cv2
 import numpy as np
 import pytesseract
 
+from lung_io_paths import add_io_root_argument, analysis_layout, site_layout
+
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_LEGEND = ROOT / "public/figures/lung-health/Lung Cutaway Legend Template.png"
 ITEMS_DIR = ROOT / "public/figures/lung-health/debug/legend-items"
+#: Checked-in crop dir; never pruned, unlike an analysis's own copy.
+SITE_ITEMS_DIR = site_layout()["legend_items"]
 EXTRACT_JSON = ROOT / "public/figures/lung-health/debug/legend-extract.json"
 CLASSIFICATION_JSON = ROOT / "public/figures/lung-health/legend-classification.json"
 LAYERS_TS = ROOT / "src/data/lungHealthLayers.ts"
 MATCH_REPORT = ROOT / "public/figures/lung-health/debug/template-match-report.json"
+
+#: Set by --io-root; when present extraction stays inside that analysis.
+IO_ROOT: Path | None = None
+
+
+def apply_io_root(io_root: Path) -> None:
+    """
+    Write extracted legend rows/glyphs into one analysis's own folder.
+
+    Two analyses use the same legend codes (``A1``…``B9``), so a shared crop
+    directory means the second extract silently replaces the first analysis's
+    glyph images.
+
+    :param io_root: Analysis folder (``workspace/analyses/{id}``).
+    """
+    global IO_ROOT, ITEMS_DIR, EXTRACT_JSON, CLASSIFICATION_JSON, MATCH_REPORT
+    layout = analysis_layout(io_root)
+    IO_ROOT = layout["root"]
+    ITEMS_DIR = layout["legend_items"]
+    EXTRACT_JSON = layout["extract"]
+    CLASSIFICATION_JSON = layout["classification"]
+    MATCH_REPORT = layout["match_report"]
 
 # ---------------------------------------------------------------------------
 # Classification guidelines (verbatim intent from the project owner)
@@ -208,7 +241,7 @@ EXPECTED_NAMES: dict[str, str] = {
 
 @dataclass
 class LegendItem:
-    """One extracted LAYER MAP row."""
+    """One extracted legend row."""
 
     code: str
     name: str
@@ -220,10 +253,284 @@ class LegendItem:
     row_path: str
 
 
+# Layout heuristics shared by both extraction paths. Legend cards are light with
+# dark ink, so a single luminance cut separates ink from card/background.
+INK_THRESHOLD = 235
+# A rule spanning most of the card is a frame/divider, not glyph or text ink.
+RULE_COVERAGE = 0.7
+# Slack when deciding whether an OCR line starts at the label column.
+LABEL_COLUMN_TOLERANCE = 9
+# A legend row needs a glyph beside its label; below this it is a header/rule.
+MIN_GLYPH_INK = 12
+# Fewer icon+label rows than this means the layout guess was wrong.
+MIN_ICON_LABEL_ROWS = 3
+# Section letters for auto-assigned codes (A before the first divider, then B…).
+SECTION_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+
+@dataclass
+class OcrBox:
+    """One OCR word box in legend-image pixel coordinates."""
+
+    left: int
+    top: int
+    right: int
+    bottom: int
+    text: str
+    conf: float
+    line_key: tuple[int, int, int]
+
+
+@dataclass
+class OcrLine:
+    """One OCR text line in legend-image pixel coordinates."""
+
+    left: int
+    top: int
+    right: int
+    bottom: int
+    text: str
+
+
 def normalize_name(name: str) -> str:
     """Collapse whitespace/punctuation for name comparison."""
     cleaned = re.sub(r"[^A-Z0-9]+", " ", name.upper()).strip()
     return re.sub(r"\s+", " ", cleaned)
+
+
+def clean_label_text(text: str) -> str:
+    """
+    Tidy a single OCR'd legend label into a display name.
+
+    Collapses whitespace and repairs the one systematic Tesseract confusion in
+    these cards: a bare `|` where the artwork has a roman numeral `I`
+    (e.g. `Type | alveolar cells`).
+    """
+    collapsed = re.sub(r"\s+", " ", text.replace("\n", " ")).strip()
+    collapsed = re.sub(r"(?<![A-Za-z0-9])[|]+(?![A-Za-z0-9])", "I", collapsed)
+    return re.sub(r"\s+", " ", collapsed).strip(" -_·")
+
+
+def repo_rel(path: Path) -> str:
+    """Repo-relative path when possible, else absolute (`--io-root` may be anywhere)."""
+    try:
+        return str(path.resolve().relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
+def ink_mask(gray: np.ndarray) -> np.ndarray:
+    """Boolean mask of non-background pixels on a light legend card."""
+    return gray < INK_THRESHOLD
+
+
+def rule_columns(ink: np.ndarray) -> list[int]:
+    """X positions of near-full-height vertical rules (the card frame)."""
+    coverage = ink.mean(axis=0)
+    return [int(x) for x in np.nonzero(coverage > RULE_COVERAGE)[0]]
+
+
+def rule_rows(ink: np.ndarray, x0: int, x1: int) -> list[int]:
+    """Y positions of near-full-width horizontal rules within `x0`–`x1`."""
+    if x1 <= x0:
+        return []
+    coverage = ink[:, x0:x1].mean(axis=1)
+    return [int(y) for y in np.nonzero(coverage > RULE_COVERAGE)[0]]
+
+
+def frame_bounds(positions: list[int], extent: int) -> tuple[int, int]:
+    """
+    Inner edges of the card border along one axis.
+
+    Only rules hugging the card edge are border; a section divider drawn across
+    the card is also a full-width rule, and treating it as the border would
+    silently discard every row on one side of it.
+    """
+    margin = max(4, int(extent * 0.15))
+    start = 0
+    low = sorted(p for p in positions if p <= margin)
+    if low:
+        start = low[0]
+        for p in low[1:]:
+            # A gap means a separate rule, not more of the border stroke.
+            if p - start > 2:
+                break
+            start = p
+        start += 1
+    end = extent
+    high = sorted((p for p in positions if p >= extent - margin), reverse=True)
+    if high:
+        end = high[0]
+        for p in high[1:]:
+            if end - p > 2:
+                break
+            end = p
+    return start, end
+
+
+def card_interior(ink: np.ndarray) -> tuple[int, int, int, int]:
+    """
+    Bounds just inside the card frame as `(x0, x1, y0, y1)`.
+
+    Cards without a drawn frame fall back to the full image.
+    """
+    h, w = ink.shape
+    x0, x1 = frame_bounds(rule_columns(ink), w)
+    y0, y1 = frame_bounds(rule_rows(ink, x0, x1), h)
+    return x0, x1, y0, y1
+
+
+def ocr_boxes(
+    image: np.ndarray,
+    *,
+    scale: float = 3.0,
+    x_offset: int = 0,
+    y_offset: int = 0,
+    config: str = "--psm 6",
+) -> list[OcrBox]:
+    """
+    OCR `image` and return word boxes mapped back to legend-image coordinates.
+
+    `x_offset` / `y_offset` re-apply the crop origin so callers can OCR a strip
+    of the card and still reason in full-image pixels.
+    """
+    up = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+    rgb = cv2.cvtColor(up, cv2.COLOR_BGR2RGB)
+    data = pytesseract.image_to_data(rgb, config=config, output_type=pytesseract.Output.DICT)
+    boxes: list[OcrBox] = []
+    for i, raw_text in enumerate(data["text"]):
+        text = str(raw_text).strip()
+        if not text:
+            continue
+        try:
+            conf = float(data["conf"][i])
+        except (TypeError, ValueError):
+            conf = -1.0
+        left = x_offset + int(data["left"][i] / scale)
+        top = y_offset + int(data["top"][i] / scale)
+        boxes.append(
+            OcrBox(
+                left=left,
+                top=top,
+                right=left + int(data["width"][i] / scale),
+                bottom=top + int(data["height"][i] / scale),
+                text=text,
+                conf=conf,
+                line_key=(
+                    int(data["block_num"][i]),
+                    int(data["par_num"][i]),
+                    int(data["line_num"][i]),
+                ),
+            )
+        )
+    return boxes
+
+
+def group_ocr_lines(boxes: list[OcrBox]) -> list[OcrLine]:
+    """Merge word boxes into text lines using Tesseract's block/par/line ids."""
+    grouped: dict[tuple[int, int, int], list[OcrBox]] = {}
+    for box in boxes:
+        grouped.setdefault(box.line_key, []).append(box)
+    lines: list[OcrLine] = []
+    for words in grouped.values():
+        ordered = sorted(words, key=lambda b: b.left)
+        lines.append(
+            OcrLine(
+                left=min(b.left for b in ordered),
+                top=min(b.top for b in ordered),
+                right=max(b.right for b in ordered),
+                bottom=max(b.bottom for b in ordered),
+                text=" ".join(b.text for b in ordered),
+            )
+        )
+    lines.sort(key=lambda ln: ln.top)
+    return lines
+
+
+def detect_label_column(boxes: list[OcrBox]) -> int | None:
+    """
+    X where the label text column starts (icons sit to its left).
+
+    Labels share one left edge across every row, so the modal left edge of
+    text-height word boxes is the column; icon strokes OCR'd as junk scatter.
+    """
+    candidates = [b for b in boxes if 6 <= (b.bottom - b.top) <= 26 and b.conf >= 50]
+    if len(candidates) < MIN_ICON_LABEL_ROWS:
+        return None
+    bins: dict[int, list[int]] = {}
+    for box in candidates:
+        bins.setdefault(box.left // 4, []).append(box.left)
+    best = max(bins.values(), key=len)
+    if len(best) < MIN_ICON_LABEL_ROWS:
+        return None
+    return min(best)
+
+
+def is_label_like(text: str) -> bool:
+    """Whether an OCR line reads as a real label rather than rule/border noise."""
+    words = re.findall(r"[A-Za-z][A-Za-z'’\-]*", text)
+    return any(len(w) >= 3 for w in words) and len(re.sub(r"[^A-Za-z0-9]", "", text)) >= 3
+
+
+def band_bounds(centers: list[int], y0: int, y1: int) -> list[tuple[int, int]]:
+    """
+    Split `y0`–`y1` into one band per label center, cutting at midpoints.
+
+    Icons are taller than their label text, so bands are grown to the midpoint
+    between neighbouring labels (using the local gap at the ends) rather than to
+    the text box itself.
+    """
+    bands: list[tuple[int, int]] = []
+    for i, center in enumerate(centers):
+        above = center - centers[i - 1] if i > 0 else 0
+        below = centers[i + 1] - center if i + 1 < len(centers) else 0
+        # Single-row legends have no neighbour gap to borrow from.
+        gap = above or below or 40
+        top = center - (above or gap) // 2
+        bottom = center + (below or gap) // 2
+        bands.append((max(y0, top), min(y1, bottom)))
+    return bands
+
+
+def detect_divider_ys(gray: np.ndarray, interior: tuple[int, int, int, int]) -> list[int]:
+    """
+    Y positions of section dividers inside the card.
+
+    Both hairline rules and solid full-width rules count; the card's own top and
+    bottom borders are excluded by `card_interior`.
+    """
+    x0, x1, y0, y1 = interior
+    ink = ink_mask(gray)
+    candidates = set(detect_hairline_separators(gray)) | set(rule_rows(ink, x0, x1))
+    inside = sorted(y for y in candidates if y0 < y < y1)
+    merged: list[int] = []
+    for y in inside:
+        if not merged or y - merged[-1] > 8:
+            merged.append(y)
+    return merged
+
+
+def auto_assign_codes(lines: list[OcrLine], dividers: list[int]) -> list[str]:
+    """
+    Assign `A1…An` down the legend, starting a new letter after each divider.
+
+    A divider counts when it falls in the gap between two labels. A legend with
+    no dividers yields one `A` section; one divider yields `A…` then `B…`,
+    matching the badged LAYER MAP convention. Cards ruled between *every* row
+    carry no section information, so those rules are ignored.
+    """
+    if len(lines) > 2 and len(dividers) >= len(lines) - 1:
+        dividers = []
+    codes: list[str] = []
+    section = 0
+    index = 0
+    for i, line in enumerate(lines):
+        if i > 0 and any(lines[i - 1].bottom <= d <= line.top for d in dividers):
+            section = min(section + 1, len(SECTION_LETTERS) - 1)
+            index = 0
+        index += 1
+        codes.append(f"{SECTION_LETTERS[section]}{index}")
+    return codes
 
 
 def detect_hairline_separators(gray: np.ndarray) -> list[int]:
@@ -275,14 +582,14 @@ def parse_row_text(text: str) -> tuple[str, str, str, str] | None:
     location = ""
     supports = ""
 
-    # First line should start with A#/B#
-    m = re.match(r"^([AB])\s*([1-9])\s*[_\-]?\s*(.+)$", lines[0], re.I)
+    # First line should start with a code badge (A1, B12, …)
+    m = re.match(r"^([A-Z])\s*([1-9][0-9]?)\s*[_\-]?\s*(.+)$", lines[0], re.I)
     if m:
         code = f"{m.group(1).upper()}{m.group(2)}"
         name_parts.append(m.group(3).strip(" _-"))
     else:
         # Code alone on first token
-        m2 = re.match(r"^([AB])\s*([1-9])\s*$", lines[0], re.I)
+        m2 = re.match(r"^([A-Z])\s*([1-9][0-9]?)\s*$", lines[0], re.I)
         if not m2:
             return None
         code = f"{m2.group(1).upper()}{m2.group(2)}"
@@ -305,49 +612,50 @@ def parse_row_text(text: str) -> tuple[str, str, str, str] | None:
     return code, name, location, supports
 
 
-def extract_legend_items(legend_path: Path) -> list[LegendItem]:
+def write_item_crops(
+    bgr: np.ndarray,
+    code: str,
+    band: tuple[int, int],
+    glyph_x: tuple[int, int],
+    items_dir: Path,
+) -> tuple[Path, Path]:
+    """Write the row strip and its glyph crop for one legend item."""
+    y0, y1 = band
+    gx0, gx1 = glyph_x
+    row_bgr = bgr[y0:y1, :]
+    row_path = items_dir / f"{code}-row.png"
+    glyph_path = items_dir / f"{code}-glyph.png"
+    cv2.imwrite(str(row_path), row_bgr)
+    cv2.imwrite(str(glyph_path), bgr[y0:y1, gx0:gx1].copy())
+    return glyph_path, row_path
+
+
+def extract_badged_rows(
+    bgr: np.ndarray,
+    gray: np.ndarray,
+    items_dir: Path,
+) -> list[LegendItem]:
     """
-    Extract legend items from a LAYER MAP PNG (hairline rows + OCR names).
+    Extract a hairline-ruled LAYER MAP legend whose rows carry `A1`/`B1` badges.
 
-    Writes per-row / glyph crops under debug/legend-items/ and returns items.
+    Returns `[]` when the card is not this layout so the caller can fall back.
     """
-    if not legend_path.is_file():
-        raise FileNotFoundError(f"Legend PNG not found: {legend_path}")
-
-    bgr = cv2.imread(str(legend_path), cv2.IMREAD_COLOR)
-    if bgr is None:
-        raise RuntimeError(f"Failed to read legend PNG: {legend_path}")
-
-    gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-    separators = detect_hairline_separators(gray)
-    rows = row_bounds(gray.shape[0], separators)
+    rows = row_bounds(gray.shape[0], detect_hairline_separators(gray))
     if len(rows) < 8:
-        raise RuntimeError(
-            f"Expected ~13 legend rows from hairlines; got {len(rows)}. "
-            "Legend format may differ from LAYER MAP template."
-        )
+        return []
 
-    ITEMS_DIR.mkdir(parents=True, exist_ok=True)
     items: list[LegendItem] = []
-
     for y0, y1 in rows:
-        row_bgr = bgr[y0:y1, :]
-        text_crop = row_bgr[:, 90:]
+        text_crop = bgr[y0:y1, 90:]
         up = cv2.resize(text_crop, None, fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
         rgb = cv2.cvtColor(up, cv2.COLOR_BGR2RGB)
-        ocr_text = pytesseract.image_to_string(rgb, config="--psm 6")
-        parsed = parse_row_text(ocr_text)
+        parsed = parse_row_text(pytesseract.image_to_string(rgb, config="--psm 6"))
         if parsed is None:
-            raise RuntimeError(f"Failed to parse legend row y={y0}-{y1}:\n{ocr_text}")
+            return []
 
         code, name, location, supports = parsed
         # Glyph: left column ink before the badge (~x 0–95)
-        glyph = row_bgr[:, 8:95].copy()
-        row_path = ITEMS_DIR / f"{code}-row.png"
-        glyph_path = ITEMS_DIR / f"{code}-glyph.png"
-        cv2.imwrite(str(row_path), row_bgr)
-        cv2.imwrite(str(glyph_path), glyph)
-
+        glyph_path, row_path = write_item_crops(bgr, code, (y0, y1), (8, 95), items_dir)
         items.append(
             LegendItem(
                 code=code,
@@ -356,22 +664,179 @@ def extract_legend_items(legend_path: Path) -> list[LegendItem]:
                 supports=supports,
                 row_y0=y0,
                 row_y1=y1,
-                glyph_path=str(glyph_path.relative_to(ROOT)),
-                row_path=str(row_path.relative_to(ROOT)),
+                glyph_path=repo_rel(glyph_path),
+                row_path=repo_rel(row_path),
             )
         )
+    return items
 
-    # Stable A/B then numeric order
+
+def read_label_line(bgr: np.ndarray, line: OcrLine, x0: int, x1: int) -> str:
+    """
+    Re-read one label line on its own for a cleaner name than the page pass.
+
+    A single-line crop lets Tesseract use `--psm 7`, which recovers words the
+    full-card pass garbles next to icon strokes (e.g. `Red` in `Red blood cells`).
+    """
+    top = max(0, line.top - 3)
+    crop = bgr[top : min(bgr.shape[0], line.bottom + 3), x0:x1]
+    if crop.size == 0:
+        return ""
+    up = cv2.resize(crop, None, fx=3.0, fy=3.0, interpolation=cv2.INTER_CUBIC)
+    rgb = cv2.cvtColor(up, cv2.COLOR_BGR2RGB)
+    return clean_label_text(pytesseract.image_to_string(rgb, config="--psm 7"))
+
+
+def extract_icon_label_rows(
+    bgr: np.ndarray,
+    gray: np.ndarray,
+    items_dir: Path,
+) -> list[LegendItem]:
+    """
+    Extract a plain icon + single-line-label legend card.
+
+    The label line is the item name; codes are auto-assigned (`A1…`, restarting
+    at `B1` after a section divider). `location` / `supports` stay empty because
+    this layout states neither — the operator classifies those in the lab.
+    """
+    interior = card_interior(ink_mask(gray))
+    x0, x1, y0, y1 = interior
+    label_x = detect_label_column(ocr_boxes(bgr[y0:y1, x0:x1], x_offset=x0, y_offset=y0))
+    if label_x is None or label_x - x0 < 4:
+        return []
+
+    strip_x = max(x0, label_x - 4)
+    lines = group_ocr_lines(
+        ocr_boxes(bgr[y0:y1, strip_x:x1], x_offset=strip_x, y_offset=y0)
+    )
+    glyph_x = (x0 + 2, max(x0 + 3, label_x - 4))
+    ink = ink_mask(gray)
+    rows = [
+        line
+        for line in lines
+        if line.left - label_x <= LABEL_COLUMN_TOLERANCE
+        and is_label_like(line.text)
+        and _has_glyph_ink(ink, line, glyph_x, interior)
+    ]
+    if len(rows) < MIN_ICON_LABEL_ROWS:
+        return []
+
+    bands = band_bounds([(ln.top + ln.bottom) // 2 for ln in rows], y0, y1)
+    codes = auto_assign_codes(rows, detect_divider_ys(gray, interior))
+
+    items: list[LegendItem] = []
+    for code, band, line in zip(codes, bands, rows):
+        name = read_label_line(bgr, line, strip_x, x1) or clean_label_text(line.text)
+        glyph_path, row_path = write_item_crops(bgr, code, band, glyph_x, items_dir)
+        items.append(
+            LegendItem(
+                code=code,
+                name=name,
+                location="",
+                supports="",
+                row_y0=band[0],
+                row_y1=band[1],
+                glyph_path=repo_rel(glyph_path),
+                row_path=repo_rel(row_path),
+            )
+        )
+    return items
+
+
+def _has_glyph_ink(
+    ink: np.ndarray,
+    line: OcrLine,
+    glyph_x: tuple[int, int],
+    interior: tuple[int, int, int, int],
+) -> bool:
+    """
+    Whether a glyph sits left of this text line.
+
+    Card borders and the `LEGEND` heading also OCR as lines; only real items have
+    icon ink beside them, so this is what separates rows from chrome.
+    """
+    x0, x1, y0, y1 = interior
+    top = max(y0, line.top - 4)
+    bottom = min(y1, line.bottom + 4)
+    if bottom <= top:
+        return False
+    region = ink[top:bottom, glyph_x[0] : glyph_x[1]]
+    # Ignore rows the frame detector already flagged as rules.
+    rules = set(rule_rows(ink, x0, x1))
+    keep = [i for i in range(top, bottom) if i not in rules]
+    if not keep:
+        return False
+    return int(region[[i - top for i in keep], :].sum()) >= MIN_GLYPH_INK
+
+
+def prune_stale_crops(items_dir: Path, codes: set[str]) -> int:
+    """
+    Delete row/glyph crops in `items_dir` for codes this legend no longer has.
+
+    Only used for per-analysis item folders: a previous legend's `B9-glyph.png`
+    left beside a new `A9-glyph.png` would otherwise be served as this legend's
+    icon.
+    """
+    if not items_dir.is_dir():
+        return 0
+    keep = {f"{code}-glyph.png" for code in codes} | {f"{code}-row.png" for code in codes}
+    removed = 0
+    for path in items_dir.glob("*.png"):
+        if path.name in keep:
+            continue
+        path.unlink()
+        removed += 1
+    return removed
+
+
+def extract_legend_items(
+    legend_path: Path,
+    items_dir: Path | None = None,
+) -> list[LegendItem]:
+    """
+    Extract legend items from a legend PNG, detecting which layout it uses.
+
+    Tries the badged LAYER MAP layout first, then the plain icon + label card.
+    Writes per-row / glyph crops into `items_dir` (default `ITEMS_DIR`, which
+    ``--io-root`` repoints at one analysis) and returns items in code order.
+    """
+    if not legend_path.is_file():
+        raise FileNotFoundError(f"Legend PNG not found: {legend_path}")
+
+    bgr = cv2.imread(str(legend_path), cv2.IMREAD_COLOR)
+    if bgr is None:
+        raise RuntimeError(f"Failed to read legend PNG: {legend_path}")
+
+    target_dir = items_dir or ITEMS_DIR
+    target_dir.mkdir(parents=True, exist_ok=True)
+    gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+
+    items = extract_badged_rows(bgr, gray, target_dir)
+    if not items:
+        items = extract_icon_label_rows(bgr, gray, target_dir)
+    if not items:
+        raise RuntimeError(
+            f"No legend rows found in {legend_path.name}. Expected either a "
+            "hairline-ruled LAYER MAP with A#/B# badges, or a card with one "
+            "icon plus one line of label text per row."
+        )
+
     items.sort(key=lambda it: (it.code[0], int(it.code[1:])))
+    # The site dir holds checked-in crops for the published figure; only an
+    # analysis-scoped dir may be pruned back to this legend's own codes.
+    if target_dir.resolve() != SITE_ITEMS_DIR.resolve():
+        prune_stale_crops(target_dir, {it.code for it in items})
     return items
 
 
 def write_extract_json(
     items: list[LegendItem],
-    path: Path = EXTRACT_JSON,
+    path: Path | None = None,
     source: Path | None = None,
 ) -> None:
     """Persist extracted legend items for inspection / downstream tools."""
+    # Resolved at call time so --io-root redirection applies.
+    path = path or EXTRACT_JSON
     path.parent.mkdir(parents=True, exist_ok=True)
     src = source or DEFAULT_LEGEND
     try:
@@ -386,8 +851,9 @@ def write_extract_json(
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
-def write_classification_json(path: Path = CLASSIFICATION_JSON) -> None:
+def write_classification_json(path: Path | None = None) -> None:
     """Write owner-known classifications for the current legend."""
+    path = path or CLASSIFICATION_JSON
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "source": str(DEFAULT_LEGEND.relative_to(ROOT)),
@@ -598,8 +1064,8 @@ def main() -> int:
     parser.add_argument(
         "--legend",
         type=Path,
-        default=DEFAULT_LEGEND,
-        help="Path to LAYER MAP legend PNG",
+        default=None,
+        help="Path to LAYER MAP legend PNG (default: this analysis's legend, else the site legend)",
     )
     parser.add_argument(
         "--self-test",
@@ -616,19 +1082,25 @@ def main() -> int:
         action="store_true",
         help="Extract items to JSON without classification checks",
     )
+    add_io_root_argument(parser)
     args = parser.parse_args()
+    if args.io_root is not None:
+        apply_io_root(args.io_root)
+    legend = args.legend or (
+        analysis_layout(IO_ROOT)["legend"] if IO_ROOT is not None else DEFAULT_LEGEND
+    )
 
     if args.prompt:
-        return run_prompt_future(args.legend)
+        return run_prompt_future(legend)
     if args.extract_only:
-        items = extract_legend_items(args.legend)
-        write_extract_json(items, source=args.legend)
+        items = extract_legend_items(legend)
+        write_extract_json(items, source=legend)
         for it in items:
             print(f"{it.code}\t{it.name}\t{it.supports}")
         print(f"✓ Wrote {EXTRACT_JSON}")
         return 0
     # default: self-test
-    return run_self_test(args.legend)
+    return run_self_test(legend)
 
 
 if __name__ == "__main__":

@@ -23,19 +23,14 @@
  *   node tools/lung-legend-lab/scripts/recover-test1-baseline.mjs [--id <analysis-id>] [--force]
  *
  * Idempotent: re-running refreshes the same analysis id in place. Never touches
- * any other analysis folder, and never writes the shared live pipeline paths —
- * opening the analysis in the lab is what restores it into the live workspace.
+ * any other analysis folder, and never writes the published site tree — the
+ * recovered folder *is* the analysis, so opening it in the lab needs no copying.
  */
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import {
-	analysisPaths,
-	updateAnalysisMeta,
-	readLiveOwnerId,
-	setLiveOwnerId,
-} from '../server/analyses.mjs';
+import { analysisPaths, updateAnalysisMeta } from '../server/analyses.mjs';
 import {
 	DEFAULT_STYLE_GUIDE_PROFILE_ID,
 	writeStyleGuideSnapshot,
@@ -200,13 +195,6 @@ async function main() {
 		styleGuideProfileId: DEFAULT_STYLE_GUIDE_PROFILE_ID,
 		hasStyleGuideSnapshot: fs.existsSync(paths.styleGuideJson),
 	});
-
-	// A lease naming an analysis that no longer exists blocks every snapshot.
-	const owner = await readLiveOwnerId();
-	if (owner && !fs.existsSync(analysisPaths(owner).meta)) {
-		await setLiveOwnerId(null);
-		console.log(`· Released dangling live lease held by missing analysis ${owner}`);
-	}
 
 	const findings = countIn(paths.findings, (d) => Object.keys(d.items || {}).length);
 	const hits = countIn(paths.matchReport, (d) => Object.keys(d.layers || {}).length);

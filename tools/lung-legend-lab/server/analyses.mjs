@@ -5,6 +5,11 @@
  * holding cutaway/legend images plus extract, classification, match,
  * findings, annotations, outline layers, legend glyph crops, and a
  * style-guide snapshot (profile JSON/MD + synthesized legend context).
+ *
+ * That folder is the **store of record**: the API reads and writes it directly
+ * and the Python steps receive it as `--io-root`. There is no shared live tree
+ * to lease, flush or clear, so opening a second analysis in the UI cannot
+ * disturb work in progress on the first one.
  */
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
@@ -12,9 +17,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import {
 	WORKSPACE,
-	LIVE_OWNER_PATH,
-	DEFAULT_CUTAWAY,
-	DEFAULT_LEGEND,
+	LEGACY_LIVE_OWNER_PATH,
 	EXTRACT_JSON,
 	CLASSIFICATION_JSON,
 	FINDINGS_DB,
@@ -22,9 +25,8 @@ import {
 	ANNOTATIONS_JSON,
 	TRAINING_FEEDBACK_JSON,
 	FREEHAND_ICONS_DIR,
-	LAYERS_DIR,
-	LEGEND_ITEMS_DIR,
 	FIGURES,
+	SITE_STORE,
 	RL_FEEDBACK_JSON,
 	RL_FEEDBACK_MD,
 	toRepoRel,
@@ -111,6 +113,7 @@ export function analysisDir(id) {
 export function analysisPaths(id) {
 	const root = analysisDir(id);
 	return {
+		analysisId: id,
 		root,
 		meta: path.join(root, 'meta.json'),
 		cutaway: path.join(root, 'cutaway.png'),
@@ -124,6 +127,11 @@ export function analysisPaths(id) {
 		layers: path.join(root, 'layers'),
 		legendItems: path.join(root, 'legend-items'),
 		freehandIcons: path.join(root, 'freehand-icons'),
+		// Matcher working dirs; kept per analysis so two runs never share glyph
+		// templates, previews or verify composites. Mirrors lung_io_paths.py.
+		templates: path.join(root, 'templates'),
+		previews: path.join(root, 'previews'),
+		debug: path.join(root, 'debug'),
 		styleGuide: path.join(root, 'style-guide'),
 		styleGuideJson: path.join(root, 'style-guide', 'profile.json'),
 		styleGuideMd: path.join(root, 'style-guide', 'profile.md'),
@@ -135,149 +143,108 @@ export function analysisPaths(id) {
 }
 
 /**
- * Read the analysis id that currently owns the shared live pipeline paths.
- * `null` means unowned (fresh workspace or no analysis bound).
- * @returns {Promise<string | null>}
- */
-export async function readLiveOwnerId() {
-	try {
-		const raw = JSON.parse(await fsp.readFile(LIVE_OWNER_PATH, 'utf8'));
-		return typeof raw.analysisId === 'string' && raw.analysisId ? raw.analysisId : null;
-	} catch {
-		return null;
-	}
-}
-
-/**
- * Claim (or release) the live workspace for one analysis.
- * @param {string | null} id - Analysis id, or null to release
- * @returns {Promise<string | null>}
- */
-export async function setLiveOwnerId(id) {
-	await fsp.mkdir(WORKSPACE, { recursive: true });
-	await fsp.writeFile(
-		LIVE_OWNER_PATH,
-		JSON.stringify(
-			{
-				analysisId: id || null,
-				claimedAt: new Date().toISOString(),
-				note: 'Only this analysis may snapshot the shared live pipeline outputs.',
-			},
-			null,
-			2,
-		),
-		'utf8',
-	);
-	return id || null;
-}
-
-/**
- * Whether the analysis holding the live lease still exists on disk.
- * A lease naming a folder that is gone (analysis deleted outside the app, or a
- * crash between `rm` and lease release) is dangling: it can never be reclaimed
- * by its owner, so it would silently block *every* other analysis from
- * snapshotting and make the lab look like it lost all pipeline results.
- * @param {string | null} owner - Lease holder id
- * @returns {boolean}
- */
-function liveOwnerExists(owner) {
-	return Boolean(owner) && fs.existsSync(analysisPaths(owner).meta);
-}
-
-/**
- * Whether `id` may write the shared live state back into its own folder.
- * An unowned workspace is adopted by the first writer so legacy sessions keep
- * working, and a lease left behind by a deleted analysis is treated the same
- * way rather than deadlocking the shared pipeline paths.
- * @param {string} id
- * @returns {Promise<boolean>}
- */
-export async function canSnapshotLive(id) {
-	const owner = await readLiveOwnerId();
-	if (owner === id) return true;
-	if (!owner || !liveOwnerExists(owner)) {
-		if (owner) {
-			console.warn(
-				`[lung-lab] live lease held by missing analysis ${owner}; reassigning to ${id}`,
-			);
-		}
-		await setLiveOwnerId(id);
-		return true;
-	}
-	return false;
-}
-
-/**
- * Reset the shared live pipeline state so a newly claimed analysis starts from
- * nothing instead of inheriting the previous analysis's outputs.
+ * Resolve the store a request or job must operate on.
  *
- * Deliberately leaves the checked-in PNGs in `layers/` and `debug/legend-items/`
- * on disk (they are site artwork / repo artifacts). Isolation for those comes
- * from per-analysis snapshots plus per-analysis asset serving, not deletion.
+ * Passing an explicit id is the supported way for a job to keep writing its own
+ * analysis after the operator opens another one; `null` means "defaults mode"
+ * (no analysis bound) and resolves to the published site tree.
  *
+ * @param {string | null | undefined} analysisId
+ * @returns {ReturnType<typeof analysisPaths> | typeof SITE_STORE}
+ */
+export function storeFor(analysisId) {
+	return analysisId ? analysisPaths(analysisId) : SITE_STORE;
+}
+
+/**
+ * Ensure the per-analysis working directories exist before a job writes them.
+ * @param {ReturnType<typeof analysisPaths> | typeof SITE_STORE} store
  * @returns {Promise<void>}
  */
-export async function clearLiveWorkspace() {
-	const now = new Date().toISOString();
-	await writeJson(EXTRACT_JSON, { items: [], source: null, updatedAt: now });
-	await writeJson(CLASSIFICATION_JSON, {
-		source: null,
-		guidelines: '',
-		classifications: {},
-		updatedAt: now,
-		updatedBy: 'lung-legend-lab',
-	});
-	await writeJson(FINDINGS_DB, { items: {}, runs: [], meta: { phase: 'new analysis' } });
-	await writeJson(MATCH_REPORT, { layers: {}, method: 'opencv-template-match' });
-	await writeJson(ANNOTATIONS_JSON, { annotations: [], updatedAt: now });
-	await writeJson(TRAINING_FEEDBACK_JSON, { feedback: [], updatedAt: now });
-	await writeJson(RL_FEEDBACK_JSON, {
-		tierToTest: 1,
-		generatedAt: null,
-		summary: null,
-		cursor: null,
-		note: 'No RL feedback exported for this analysis yet.',
-	});
-	await fsp.writeFile(RL_FEEDBACK_MD, '# RL feedback\n\n(none yet)\n', 'utf8');
-	await emptyPngDir(FREEHAND_ICONS_DIR);
+export async function ensureStoreDirs(store) {
+	for (const dir of [store.root, store.layers, store.legendItems, store.freehandIcons, store.debug]) {
+		if (dir) await fsp.mkdir(dir, { recursive: true });
+	}
+}
+
+/**
+ * Fold a pre-lease-removal workspace into per-analysis stores, then drop the
+ * lease file.
+ *
+ * Older builds kept the *only* copy of some in-flight state in the shared
+ * `workspace/` + `public/figures` tree and snapshotted it into the lease holder
+ * later. Files are imported only when the analysis has none of its own, so a
+ * stale shared file can never overwrite saved per-analysis data.
+ *
+ * @returns {Promise<{owner: string | null, imported: string[]}>}
+ */
+export async function migrateLegacyLiveWorkspace() {
+	if (!fs.existsSync(LEGACY_LIVE_OWNER_PATH)) return { owner: null, imported: [] };
+	let owner = null;
+	try {
+		const raw = JSON.parse(await fsp.readFile(LEGACY_LIVE_OWNER_PATH, 'utf8'));
+		owner = typeof raw.analysisId === 'string' && raw.analysisId ? raw.analysisId : null;
+	} catch {
+		owner = null;
+	}
+	const imported = [];
+	if (owner && fs.existsSync(analysisPaths(owner).meta)) {
+		const paths = analysisPaths(owner);
+		/** @type {Array<[string, string, string]>} live path, analysis path, label */
+		const candidates = [
+			[EXTRACT_JSON, paths.extract, 'legend-extract.json'],
+			[CLASSIFICATION_JSON, paths.classification, 'legend-classification.json'],
+			[FINDINGS_DB, paths.findings, 'legend-findings-db.json'],
+			[MATCH_REPORT, paths.matchReport, 'template-match-report.json'],
+			[ANNOTATIONS_JSON, paths.annotations, 'lab-annotations.json'],
+			[TRAINING_FEEDBACK_JSON, paths.trainingFeedback, 'lab-training-feedback.json'],
+			[RL_FEEDBACK_JSON, paths.rlFeedback, 'rl-feedback.json'],
+			[RL_FEEDBACK_MD, paths.rlFeedbackMd, 'rl-feedback-prompt.md'],
+		];
+		for (const [from, to, label] of candidates) {
+			if (fs.existsSync(to)) continue;
+			if (await copyIfExists(from, to)) imported.push(label);
+		}
+		if ((await copyMissingPngs(FREEHAND_ICONS_DIR, paths.freehandIcons)) > 0) {
+			imported.push('freehand-icons/');
+		}
+	}
+	await fsp.rm(LEGACY_LIVE_OWNER_PATH, { force: true });
 	// Legacy shared image copies: analyses now point straight at their own files.
 	for (const legacy of ['active-cutaway.png', 'active-legend.png']) {
 		await fsp.rm(path.join(WORKSPACE, legacy), { force: true });
 	}
+	return { owner, imported };
 }
 
 /**
- * Write pretty JSON, creating parent directories.
- * @param {string} filePath
- * @param {unknown} data
- * @returns {Promise<void>}
+ * Copy PNGs the destination does not already have, keeping every file the
+ * destination owns.
+ *
+ * Used by the one-time legacy migration, where the analysis's own copy always
+ * wins over whatever the retired shared workspace happened to hold.
+ *
+ * @param {string} srcDir
+ * @param {string} destDir
+ * @returns {Promise<number>} Number of files copied in
  */
-async function writeJson(filePath, data) {
-	await fsp.mkdir(path.dirname(filePath), { recursive: true });
-	await fsp.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
-}
-
-/**
- * Delete every PNG in a directory (kept, so live dirs never mix two analyses).
- * @param {string} dir
- * @returns {Promise<number>}
- */
-async function emptyPngDir(dir) {
-	await fsp.mkdir(dir, { recursive: true });
-	let removed = 0;
-	for (const name of await fsp.readdir(dir)) {
-		if (!name.endsWith('.png')) continue;
-		await fsp.rm(path.join(dir, name), { force: true });
-		removed += 1;
+async function copyMissingPngs(srcDir, destDir) {
+	await fsp.mkdir(destDir, { recursive: true });
+	if (!fs.existsSync(srcDir)) return 0;
+	let copied = 0;
+	for (const name of (await fsp.readdir(srcDir)).filter((n) => n.endsWith('.png'))) {
+		const dest = path.join(destDir, name);
+		if (fs.existsSync(dest)) continue;
+		await fsp.copyFile(path.join(srcDir, name), dest);
+		copied += 1;
 	}
-	return removed;
+	return copied;
 }
 
 /**
  * Copy PNGs from `srcDir` to `destDir` and drop dest PNGs the source no longer
- * has, so a snapshot cannot accumulate another analysis's leftovers.
- * Skipped entirely when the source is empty but the destination is not — an
- * empty live dir must never wipe a saved analysis.
+ * has. Only used when importing an outside store into an analysis; skipped when
+ * the source is empty so an import can never wipe a saved analysis.
  *
  * @param {string} srcDir
  * @param {string} destDir
@@ -360,61 +327,10 @@ async function analysisOwnedNames(id) {
 }
 
 /**
- * Snapshot this analysis's own outline PNGs from the shared layers dir.
- * Filtering by owned slugs is what stops a sibling analysis's outlines (left in
- * the shared dir by the site build or a previous run) from being saved here.
- *
- * @param {string} destDir
- * @param {Set<string>} slugs - Layer slugs owned by this analysis
- * @returns {Promise<number>}
- */
-async function snapshotLayers(destDir, slugs) {
-	const wanted = new Set();
-	for (const slug of slugs) {
-		wanted.add(`${slug}.png`);
-		wanted.add(`${slug}-outline.png`);
-	}
-	return copyPngSubset(LAYERS_DIR, destDir, wanted);
-}
-
-/**
- * Restore an analysis's outline PNGs into the shared layers dir.
- * Additive on purpose: that dir also holds checked-in site artwork.
- * @param {string} srcDir
- * @returns {Promise<number>}
- */
-async function restoreLayers(srcDir) {
-	return copyPngSubset(srcDir, LAYERS_DIR, null);
-}
-
-/**
- * Snapshot this analysis's own legend glyph/row crops.
- * @param {string} destDir
- * @param {Set<string>} codes - Legend codes owned by this analysis
- * @returns {Promise<number>}
- */
-async function snapshotLegendItems(destDir, codes) {
-	const wanted = new Set();
-	for (const code of codes) {
-		wanted.add(`${code}-glyph.png`);
-		wanted.add(`${code}-row.png`);
-	}
-	return copyPngSubset(LEGEND_ITEMS_DIR, destDir, wanted);
-}
-
-/**
- * Restore legend glyph/row crops into the live debug folder (additive).
- * @param {string} srcDir
- * @returns {Promise<number>}
- */
-async function restoreLegendItems(srcDir) {
-	return copyPngSubset(srcDir, LEGEND_ITEMS_DIR, null);
-}
-
-/**
  * Copy PNGs from `srcDir` into `destDir`, optionally limited to `wanted`
- * filenames. When a filter is given, dest PNGs outside it are pruned so the
- * snapshot holds only this analysis's files.
+ * filenames. Used when *importing* an outside store (the checked-in site tree)
+ * into an analysis; copies are additive so an import cannot delete an analysis's
+ * own artwork.
  *
  * @param {string} srcDir
  * @param {string} destDir
@@ -432,80 +348,49 @@ async function copyPngSubset(srcDir, destDir, wanted) {
 		await fsp.copyFile(path.join(srcDir, name), path.join(destDir, name));
 		copied += 1;
 	}
-	if (wanted && wanted.size > 0) {
-		for (const name of (await fsp.readdir(destDir)).filter((n) => n.endsWith('.png'))) {
-			if (!wanted.has(name)) await fsp.rm(path.join(destDir, name), { force: true });
-		}
-	}
 	return copied;
 }
 
 /**
- * Copy live freehand legend-style icons into an analysis snapshot.
- * @param {string} destDir
- * @returns {Promise<number>}
- */
-async function snapshotFreehandIcons(destDir) {
-	return mirrorPngDir(FREEHAND_ICONS_DIR, destDir);
-}
-
-/**
- * Restore freehand icons into the live workspace folder.
- * Prunes icons belonging to another analysis's review session.
- * @param {string} srcDir
- * @returns {Promise<number>}
- */
-async function restoreFreehandIcons(srcDir) {
-	await emptyPngDir(FREEHAND_ICONS_DIR);
-	return mirrorPngDir(srcDir, FREEHAND_ICONS_DIR);
-}
-
-/**
- * Snapshot live RL feedback artifacts into the analysis folder.
- * @param {ReturnType<typeof analysisPaths>} paths
+ * Import another store's pipeline artifacts into an analysis folder.
+ *
+ * Only used for deliberate adoption ("seed from the checked-in figures", "save
+ * my defaults-mode work as an analysis"). Never called on analysis switch, so
+ * opening one analysis cannot rewrite another's files.
+ *
+ * @param {string} id - Destination analysis id
+ * @param {typeof SITE_STORE | ReturnType<typeof analysisPaths>} from - Source store
  * @returns {Promise<void>}
  */
-async function snapshotRlFeedback(paths) {
-	await copyIfExists(RL_FEEDBACK_JSON, paths.rlFeedback);
-	await copyIfExists(RL_FEEDBACK_MD, paths.rlFeedbackMd);
+export async function importStoreIntoAnalysis(id, from) {
+	const paths = analysisPaths(id);
+	await fsp.mkdir(paths.root, { recursive: true });
+	await copyIfExists(from.cutaway, paths.cutaway);
+	await copyIfExists(from.legend, paths.legend);
+	await copyIfExists(from.extract, paths.extract);
+	await copyIfExists(from.classification, paths.classification);
+	await copyIfExists(from.findings, paths.findings);
+	await copyIfExists(from.matchReport, paths.matchReport);
+	await copyIfExists(from.annotations, paths.annotations);
+	await copyIfExists(from.trainingFeedback, paths.trainingFeedback);
+	await copyIfExists(from.rlFeedback, paths.rlFeedback);
+	await copyIfExists(from.rlFeedbackMd, paths.rlFeedbackMd);
+	const owned = await analysisOwnedNames(id);
+	const layerNames = new Set();
+	for (const slug of owned.slugs) {
+		layerNames.add(`${slug}.png`);
+		layerNames.add(`${slug}-outline.png`);
+	}
+	const glyphNames = new Set();
+	for (const code of owned.codes) {
+		glyphNames.add(`${code}-glyph.png`);
+		glyphNames.add(`${code}-row.png`);
+	}
+	await copyPngSubset(from.layers, paths.layers, layerNames.size > 0 ? layerNames : null);
+	await copyPngSubset(from.legendItems, paths.legendItems, glyphNames.size > 0 ? glyphNames : null);
+	await mirrorPngDir(from.freehandIcons, paths.freehandIcons);
 	if (!fs.existsSync(paths.rlFeedbackHistory)) {
-		await fsp.writeFile(
-			paths.rlFeedbackHistory,
-			JSON.stringify({ entries: [] }, null, 2),
-			'utf8',
-		);
-	}
-}
-
-/**
- * Restore RL feedback into the live workspace (empty stubs when missing).
- * @param {ReturnType<typeof analysisPaths>} paths
- * @returns {Promise<void>}
- */
-async function restoreRlFeedback(paths) {
-	if (fs.existsSync(paths.rlFeedback)) {
-		await copyIfExists(paths.rlFeedback, RL_FEEDBACK_JSON);
-	} else {
-		await fsp.writeFile(
-			RL_FEEDBACK_JSON,
-			JSON.stringify(
-				{
-					tierToTest: 1,
-					generatedAt: null,
-					summary: null,
-					cursor: null,
-					note: 'No RL feedback exported for this analysis yet.',
-				},
-				null,
-				2,
-			),
-			'utf8',
-		);
-	}
-	if (fs.existsSync(paths.rlFeedbackMd)) {
-		await copyIfExists(paths.rlFeedbackMd, RL_FEEDBACK_MD);
-	} else {
-		await fsp.writeFile(RL_FEEDBACK_MD, '# RL feedback\n\n(none yet)\n', 'utf8');
+		await fsp.writeFile(paths.rlFeedbackHistory, JSON.stringify({ entries: [] }, null, 2), 'utf8');
 	}
 }
 
@@ -659,19 +544,7 @@ export async function seedCurrentAnalysis() {
 	const paths = analysisPaths(id);
 	await fsp.mkdir(paths.root, { recursive: true });
 
-	await copyIfExists(DEFAULT_CUTAWAY, paths.cutaway);
-	await copyIfExists(DEFAULT_LEGEND, paths.legend);
-	await copyIfExists(EXTRACT_JSON, paths.extract);
-	await copyIfExists(CLASSIFICATION_JSON, paths.classification);
-	await copyIfExists(FINDINGS_DB, paths.findings);
-	await copyIfExists(MATCH_REPORT, paths.matchReport);
-	await copyIfExists(ANNOTATIONS_JSON, paths.annotations);
-	await copyIfExists(TRAINING_FEEDBACK_JSON, paths.trainingFeedback);
-	const owned = await analysisOwnedNames(id);
-	await snapshotLayers(paths.layers, owned.slugs);
-	await snapshotLegendItems(paths.legendItems, owned.codes);
-	await snapshotFreehandIcons(paths.freehandIcons);
-	await snapshotRlFeedback(paths);
+	await importStoreIntoAnalysis(id, SITE_STORE);
 	const existing = fs.existsSync(paths.meta)
 		? JSON.parse(await fsp.readFile(paths.meta, 'utf8'))
 		: null;
@@ -805,33 +678,17 @@ export async function updateAnalysisMeta(id, patch) {
 }
 
 /**
- * Copy live JSON into the analysis snapshot unless the live file is an empty stub
- * that would wipe a richer saved copy.
- * @param {string} from - Live path
- * @param {string} to - Snapshot path
- * @param {(data: object | null) => number} richness - Higher = keep/copy; 0 = empty stub
- */
-async function copyJsonUnlessEmpty(from, to, richness) {
-	const live = await readJsonIfExists(from);
-	const prior = await readJsonIfExists(to);
-	const liveN = richness(live);
-	const priorN = richness(prior);
-	if (liveN > 0 || priorN === 0) {
-		await copyIfExists(from, to);
-	}
-}
-
-/**
- * Snapshot the live workspace / pipeline outputs into an analysis folder.
+ * Persist session state for one analysis (meta + style-guide/legend context).
  *
- * Refuses to write when another analysis holds the live lease: the shared
- * pipeline paths then describe *that* analysis, and copying them here is the
- * cross-analysis contamination this guard exists to prevent.
+ * The analysis's databases are written in place by the API and the pipeline, so
+ * this no longer copies pipeline artifacts anywhere and no longer consults a
+ * lease. It is safe to call for analysis A while the operator is looking at
+ * analysis B: every path it touches is inside A's own folder.
  *
  * @param {string} id
  * @param {{
- *   cutawayPath: string,
- *   legendPath: string,
+ *   cutawayPath?: string,
+ *   legendPath?: string,
  *   usingDefaults?: boolean,
  *   phase?: 'classify' | 'refine',
  *   screen?: 'home' | 'classify' | 'refine',
@@ -843,47 +700,12 @@ async function copyJsonUnlessEmpty(from, to, richness) {
  * }} session
  * @returns {Promise<AnalysisMeta>}
  */
-export async function snapshotAnalysis(id, session) {
+export async function saveAnalysisSession(id, session) {
 	const paths = analysisPaths(id);
-	if (!(await canSnapshotLive(id))) {
-		const owner = await readLiveOwnerId();
-		console.warn(
-			`[lung-lab] skipped snapshot of ${id}: live workspace is owned by ${owner}`,
-		);
-		return (await getAnalysisMeta(id)) || updateAnalysisMeta(id, {});
-	}
 	await fsp.mkdir(paths.root, { recursive: true });
-	await copyIfExists(session.cutawayPath, paths.cutaway);
-	await copyIfExists(session.legendPath, paths.legend);
-	await copyJsonUnlessEmpty(
-		EXTRACT_JSON,
-		paths.extract,
-		(d) => (Array.isArray(d?.items) ? d.items.length : 0),
-	);
-	await copyJsonUnlessEmpty(
-		CLASSIFICATION_JSON,
-		paths.classification,
-		(d) => Object.keys(d?.classifications || {}).length,
-	);
-	await copyJsonUnlessEmpty(
-		FINDINGS_DB,
-		paths.findings,
-		(d) => Object.keys(d?.items || {}).length,
-	);
-	await copyJsonUnlessEmpty(
-		MATCH_REPORT,
-		paths.matchReport,
-		(d) => Object.keys(d?.layers || {}).length,
-	);
-	// Copied verbatim (an emptied review list is a legitimate edit): the live
-	// lease above is what keeps another analysis's stubs out of this folder.
-	await copyIfExists(ANNOTATIONS_JSON, paths.annotations);
-	await copyIfExists(TRAINING_FEEDBACK_JSON, paths.trainingFeedback);
-	const owned = await analysisOwnedNames(id);
-	await snapshotLayers(paths.layers, owned.slugs);
-	await snapshotLegendItems(paths.legendItems, owned.codes);
-	await snapshotFreehandIcons(paths.freehandIcons);
-	await snapshotRlFeedback(paths);
+	// Adopt images that still live outside the folder (defaults / legacy sessions).
+	if (session.cutawayPath) await copyIfExists(session.cutawayPath, paths.cutaway);
+	if (session.legendPath) await copyIfExists(session.legendPath, paths.legend);
 
 	const prior = await getAnalysisMeta(id);
 	const profileId =
@@ -928,7 +750,13 @@ export async function snapshotAnalysis(id, session) {
 }
 
 /**
- * Restore an analysis into the live pipeline paths and return session pointers.
+ * Open an analysis: validate it, heal its resume state, return session pointers.
+ *
+ * Opening is a **read** of the target analysis and a pointer change in
+ * `session.json`. Nothing is copied into or out of a shared tree, so opening
+ * analysis B while a job or agent is working on analysis A leaves every one of
+ * A's files untouched.
+ *
  * @param {string} id
  * @returns {Promise<{
  *   cutawayPath: string,
@@ -944,31 +772,20 @@ export async function snapshotAnalysis(id, session) {
  *   updatedAt: string,
  * }>}
  */
-export async function restoreAnalysis(id) {
+export async function openAnalysis(id) {
 	const paths = analysisPaths(id);
 	const meta = await getAnalysisMeta(id);
 	if (!meta || !fs.existsSync(paths.cutaway) || !fs.existsSync(paths.legend)) {
 		throw new Error(`Analysis ${id} is missing images`);
 	}
-
-	// Claim the live lease before any copy so a snapshot for the analysis we are
-	// leaving cannot capture this analysis's freshly restored state.
-	await setLiveOwnerId(id);
-
-	await copyIfExists(paths.extract, EXTRACT_JSON);
-	await copyIfExists(paths.classification, CLASSIFICATION_JSON);
-	await copyIfExists(paths.findings, FINDINGS_DB);
-	await copyIfExists(paths.matchReport, MATCH_REPORT);
-	await copyIfExists(paths.annotations, ANNOTATIONS_JSON);
-	if (fs.existsSync(paths.trainingFeedback)) {
-		await copyIfExists(paths.trainingFeedback, TRAINING_FEEDBACK_JSON);
-	} else {
-		await fsp.writeFile(TRAINING_FEEDBACK_JSON, JSON.stringify({ feedback: [] }, null, 2), 'utf8');
+	await ensureStoreDirs(paths);
+	if (!fs.existsSync(paths.trainingFeedback)) {
+		await fsp.writeFile(
+			paths.trainingFeedback,
+			JSON.stringify({ feedback: [] }, null, 2),
+			'utf8',
+		);
 	}
-	await restoreLayers(paths.layers);
-	await restoreLegendItems(paths.legendItems);
-	await restoreFreehandIcons(paths.freehandIcons);
-	await restoreRlFeedback(paths);
 
 	const maxUnlocked =
 		typeof meta.maxUnlockedTier === 'number' && meta.maxUnlockedTier >= 1
@@ -997,7 +814,7 @@ export async function restoreAnalysis(id) {
 	}
 
 	return {
-		// Read straight from the analysis folder — no shared working copies.
+		// The analysis folder is the store of record — no shared working copies.
 		cutawayPath: paths.cutaway,
 		legendPath: paths.legend,
 		usingDefaults: Boolean(meta.usingDefaults),
@@ -1113,11 +930,7 @@ export async function deleteAnalysis(id) {
 	const index = await readIndex();
 	index.analyses = index.analyses.filter((a) => a.id !== id);
 	await writeIndex(index);
-	// Release the lease and scrub live state so the next analysis cannot inherit
-	// (or be blamed for) the deleted analysis's pipeline outputs.
-	if ((await readLiveOwnerId()) === id) {
-		await setLiveOwnerId(null);
-		await clearLiveWorkspace();
-	}
+	// Nothing else to scrub: this analysis's databases lived only in its folder,
+	// and no other analysis shared them.
 	return { ok: true, id };
 }

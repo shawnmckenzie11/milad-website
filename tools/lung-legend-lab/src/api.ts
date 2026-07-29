@@ -210,7 +210,7 @@ export function fetchAnalyses(): Promise<{ analyses: LabState['analyses'] }> {
 	return getJson('/api/analyses');
 }
 
-/** Open (restore) a saved analysis into the live workspace. */
+/** Point the session at a saved analysis; its files stay where they are. */
 export function openAnalysis(id: string): Promise<{ ok: boolean }> {
 	return sendJson(`/api/analyses/${encodeURIComponent(id)}/open`, 'POST');
 }
@@ -255,7 +255,7 @@ export function seedCurrentAnalysis(): Promise<{ ok: boolean }> {
 	return sendJson('/api/analyses/seed-current', 'POST');
 }
 
-/** Snapshot live workspace into the active (or new) analysis. */
+/** Persist session state onto the active analysis (creating one if unbound). */
 export function saveCurrentAnalysis(name?: string): Promise<{ ok: boolean }> {
 	return sendJson('/api/analyses/save-current', 'POST', { name });
 }

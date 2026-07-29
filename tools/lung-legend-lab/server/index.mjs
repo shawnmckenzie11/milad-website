@@ -15,15 +15,7 @@ import {
 	SESSION_PATH,
 	DEFAULT_CUTAWAY,
 	DEFAULT_LEGEND,
-	EXTRACT_JSON,
-	CLASSIFICATION_JSON,
-	FINDINGS_DB,
-	MATCH_REPORT,
-	ANNOTATIONS_JSON,
-	TRAINING_FEEDBACK_JSON,
-	FREEHAND_ICONS_DIR,
-	RL_FEEDBACK_JSON,
-	RL_FEEDBACK_MD,
+	SITE_STORE,
 	LAYERS_DIR,
 	DEBUG_DIR,
 	FIGURES,
@@ -39,8 +31,8 @@ import {
 	listAnalyses,
 	summarizeAnalysis,
 	createAnalysis,
-	snapshotAnalysis,
-	restoreAnalysis,
+	saveAnalysisSession,
+	openAnalysis,
 	writeAnalysisImages,
 	updateAnalysisMeta,
 	getAnalysisMeta,
@@ -50,9 +42,10 @@ import {
 	appendRlFeedbackHistory,
 	analysisPaths,
 	resolveActiveTierToTest,
-	readLiveOwnerId,
-	setLiveOwnerId,
-	clearLiveWorkspace,
+	storeFor,
+	ensureStoreDirs,
+	importStoreIntoAnalysis,
+	migrateLegacyLiveWorkspace,
 } from './analyses.mjs';
 import { reconcileFreehandWithMatches } from './freehandMatchReconcile.mjs';
 import {
@@ -111,6 +104,9 @@ function withKnownSlug(code, cls) {
 	return known ? { ...cls, slug: known } : cls;
 }
 
+/** True once the legacy-workspace migration has run for this process. */
+let legacyWorkspaceMigrated = false;
+
 /**
  * Ensure workspace + analyses store exist.
  * First launch (no session.json) seeds the checked-in cutaway analysis.
@@ -121,11 +117,19 @@ function withKnownSlug(code, cls) {
 async function ensureWorkspace() {
 	await fsp.mkdir(WORKSPACE, { recursive: true });
 	await ensureAnalysesStore();
+	if (!legacyWorkspaceMigrated) {
+		legacyWorkspaceMigrated = true;
+		const migrated = await migrateLegacyLiveWorkspace();
+		if (migrated.owner) {
+			const detail = migrated.imported.length > 0 ? migrated.imported.join(', ') : 'nothing to import';
+			console.log(`· Retired live lease held by ${migrated.owner} (${detail})`);
+		}
+	}
 	if (!fs.existsSync(SESSION_PATH)) {
 		const seeded = await seedCurrentAnalysis();
-		const restored = await restoreAndReconcile(seeded.id);
+		const opened = await openAndReconcile(seeded.id);
 		await writeSession({
-			...restored,
+			...opened,
 			screen: 'refine',
 			phase: 'refine',
 		});
@@ -135,19 +139,16 @@ async function ensureWorkspace() {
 }
 
 /**
- * Bring a pre-lease session up to date: hand the live lease to whatever analysis
- * the session is bound to, and repoint image paths from the old shared
- * `workspace/active-*.png` copies at the analysis's own files.
+ * Repoint a legacy session's image paths at the bound analysis's own files.
+ * Older builds pointed the session at shared `workspace/active-*.png` copies.
  * @returns {Promise<void>}
  */
 async function adoptLegacySession() {
 	const raw = await loadJson(SESSION_PATH);
 	const id = typeof raw?.analysisId === 'string' ? raw.analysisId : null;
 	if (!id) return;
-	if (!(await readLiveOwnerId())) await setLiveOwnerId(id);
 	const paths = analysisPaths(id);
 	if (
-		(await readLiveOwnerId()) === id &&
 		fs.existsSync(paths.cutaway) &&
 		fs.existsSync(paths.legend) &&
 		(raw.cutawayPath !== paths.cutaway || raw.legendPath !== paths.legend)
@@ -191,14 +192,33 @@ async function readSession() {
 }
 
 /**
- * Snapshot the active analysis after pipeline steps (best-effort).
+ * Resolve the store the current request should read and write.
+ *
+ * Requests from the UI act on the analysis the session is viewing; with no
+ * analysis bound (defaults mode) they act on the checked-in site tree.
+ *
+ * @returns {Promise<{store: ReturnType<typeof analysisPaths> | typeof SITE_STORE, session: object}>}
+ */
+async function activeStore() {
+	const session = await readSession();
+	const store = storeFor(session.analysisId);
+	await ensureStoreDirs(store);
+	return { store, session };
+}
+
+/**
+ * Persist session/meta state for the analysis the session is viewing.
+ *
+ * Only touches that analysis's own folder, so it can never overwrite another
+ * analysis's databases.
+ *
  * @returns {Promise<object | null>}
  */
-async function snapshotActiveIfAny() {
+async function saveActiveSessionMeta() {
 	const session = await readSession();
 	if (!session.analysisId) return null;
 	const meta = await getAnalysisMeta(session.analysisId);
-	return snapshotAnalysis(session.analysisId, {
+	return saveAnalysisSession(session.analysisId, {
 		cutawayPath: session.cutawayPath,
 		legendPath: session.legendPath,
 		usingDefaults: session.usingDefaults,
@@ -212,51 +232,39 @@ async function snapshotActiveIfAny() {
 }
 
 /**
- * Flush live state into the analysis that owns it, before handing the live
- * workspace to another analysis. No-op when nothing owns the lease.
- * @returns {Promise<string | null>} The analysis id that was flushed
- */
-async function flushLiveBeforeSwitch() {
-	const session = await readSession();
-	const owner = await readLiveOwnerId();
-	const id = session.analysisId;
-	if (!id || (owner && owner !== id)) return null;
-	try {
-		await snapshotActiveIfAny();
-	} catch (err) {
-		console.warn(
-			'[lung-lab] flush before switch:',
-			err instanceof Error ? err.message : String(err),
-		);
-	}
-	return id;
-}
-
-/**
- * Snapshot after an async pipeline job, but only if the analysis that started it
- * still holds the live lease. A job that lands after the operator switched
- * analyses must not write its outputs into the new analysis (or vice versa).
+ * Record a finished pipeline job against the analysis it was started for.
+ *
+ * The job wrote into that analysis's own folder (`--io-root`), so this runs
+ * unconditionally — switching analyses mid-job no longer discards the result,
+ * which was the old failure mode ("snapshot skipped: analysis changed").
  *
  * @param {string | null} startedForId - Analysis id captured when the job began
  * @param {import('./jobs.mjs').Job} job - Job whose log records the outcome
  * @returns {Promise<void>}
  */
-async function snapshotJobResult(startedForId, job) {
+async function recordJobForAnalysis(startedForId, job) {
 	if (!startedForId) return;
-	const owner = await readLiveOwnerId();
-	const session = await readSession();
-	if (owner !== startedForId || session.analysisId !== startedForId) {
-		job.log.push(
-			`· Snapshot skipped: analysis changed since job start (${startedForId} → ${owner || 'none'})`,
-		);
-		return;
-	}
 	try {
-		await snapshotActiveIfAny();
-		job.log.push('· Analysis snapshot saved');
+		const meta = await getAnalysisMeta(startedForId);
+		await saveAnalysisSession(startedForId, {
+			styleGuideProfileId: meta?.styleGuideProfileId || null,
+			maxUnlockedTier: meta?.maxUnlockedTier,
+			tierToTest: meta?.tierToTest,
+			usingDefaults: meta?.usingDefaults,
+		});
+		job.log.push(`· Results saved to analysis ${startedForId}`);
 	} catch (err) {
-		job.log.push(`· Snapshot warn: ${err instanceof Error ? err.message : String(err)}`);
+		job.log.push(`· Save warn: ${err instanceof Error ? err.message : String(err)}`);
 	}
+}
+
+/**
+ * Python `--io-root` args for a job, or none in defaults mode.
+ * @param {string | null} analysisId - Analysis the job runs for
+ * @returns {string[]}
+ */
+function ioRootArgs(analysisId) {
+	return analysisId ? ['--io-root', analysisPaths(analysisId).root] : [];
 }
 
 /**
@@ -271,40 +279,38 @@ async function analysisNeedsImages(id) {
 }
 
 /**
- * Restore an analysis into live paths, then heal stale freehand↔match duplicates.
- * Reconcile runs even without a rematch so opening an old snapshot cannot leave
- * both a freehand and a compatible/incompatible hit visible in the DB.
+ * Open an analysis, then heal stale freehand↔match duplicates inside it.
+ * Reconcile runs even without a rematch so opening an older analysis cannot
+ * leave both a freehand and a compatible/incompatible hit visible in the DB.
  *
  * @param {string} id - Analysis id
- * @returns {Promise<object>} Restored session pointers from `restoreAnalysis`
+ * @returns {Promise<object>} Session pointers from `openAnalysis`
  */
-async function restoreAndReconcile(id) {
-	const restored = await restoreAnalysis(id);
+async function openAndReconcile(id) {
+	const opened = await openAnalysis(id);
 	try {
 		const reconciled = await reconcileFreehandWithMatches({ analysisId: id });
 		if (
 			reconciled.supersededFreehands.length > 0 ||
 			reconciled.rejectedMatches.length > 0
 		) {
-			await snapshotAnalysis(id, {
-				cutawayPath: restored.cutawayPath,
-				legendPath: restored.legendPath,
-				usingDefaults: restored.usingDefaults,
-				phase: restored.phase === 'classify' ? 'classify' : 'refine',
-				screen: restored.screen,
-				refineScreen: restored.refineScreen,
-				tierToTest: restored.tierToTest,
-				styleGuideProfileId: restored.styleGuideProfileId || null,
-				maxUnlockedTier: restored.maxUnlockedTier,
+			await saveAnalysisSession(id, {
+				usingDefaults: opened.usingDefaults,
+				phase: opened.phase === 'classify' ? 'classify' : 'refine',
+				screen: opened.screen,
+				refineScreen: opened.refineScreen,
+				tierToTest: opened.tierToTest,
+				styleGuideProfileId: opened.styleGuideProfileId || null,
+				maxUnlockedTier: opened.maxUnlockedTier,
 			});
 		}
 	} catch (err) {
 		console.warn(
-			'[lung-lab] freehand reconcile on restore:',
+			'[lung-lab] freehand reconcile on open:',
 			err instanceof Error ? err.message : String(err),
 		);
 	}
-	return restored;
+	return opened;
 }
 
 /**
@@ -460,11 +466,12 @@ function scrubHitReviewData(annotationsList, feedbackList, code, cx, cy) {
  * Active annotations keep only confirmed / reassigned (and other non-FP labels).
  * FP coords remain in `lab-training-feedback.json` for Generate Feedback Prompt.
  *
+ * @param {{annotations: string, trainingFeedback: string}} store - Store to migrate
  * @returns {Promise<{ annotations: object, trainingFeedback: object, purgedCount: number }>}
  */
-async function migrateFalsePositivesOutOfActiveStore() {
-	const existingAnn = (await loadJson(ANNOTATIONS_JSON)) || { annotations: [] };
-	const existingFb = (await loadJson(TRAINING_FEEDBACK_JSON)) || { feedback: [] };
+async function migrateFalsePositivesOutOfActiveStore(store) {
+	const existingAnn = (await loadJson(store.annotations)) || { annotations: [] };
+	const existingFb = (await loadJson(store.trainingFeedback)) || { feedback: [] };
 	const list = Array.isArray(existingAnn.annotations) ? [...existingAnn.annotations] : [];
 	const feedbackList = Array.isArray(existingFb.feedback) ? [...existingFb.feedback] : [];
 
@@ -490,8 +497,8 @@ async function migrateFalsePositivesOutOfActiveStore() {
 	};
 
 	if (purgedCount > 0) {
-		await saveJson(ANNOTATIONS_JSON, annotations);
-		await saveJson(TRAINING_FEEDBACK_JSON, trainingFeedback);
+		await saveJson(store.annotations, annotations);
+		await saveJson(store.trainingFeedback, trainingFeedback);
 	}
 
 	return { annotations, trainingFeedback, purgedCount };
@@ -644,25 +651,24 @@ function runLungPythonSync(scriptArgs) {
  * @returns {Promise<object>}
  */
 async function buildState() {
-	const session = await readSession();
+	const { store, session } = await activeStore();
 	// Purge already-classified FPs from active annotations into the RL archive.
-	const migrated = await migrateFalsePositivesOutOfActiveStore();
+	const migrated = await migrateFalsePositivesOutOfActiveStore(store);
 	const [extract, classification, findings, matchReport, rlFeedback] = await Promise.all([
-		loadJson(EXTRACT_JSON),
-		loadJson(CLASSIFICATION_JSON),
-		loadJson(FINDINGS_DB),
-		loadJson(MATCH_REPORT),
-		loadJson(RL_FEEDBACK_JSON),
+		loadJson(store.extract),
+		loadJson(store.classification),
+		loadJson(store.findings),
+		loadJson(store.matchReport),
+		loadJson(store.rlFeedback),
 	]);
 	const annotations = migrated.annotations;
 	const trainingFeedback = migrated.trainingFeedback;
 
-	// Outline list comes from the active analysis's own snapshot; the shared
-	// layers dir also holds checked-in site artwork from other analyses.
+	// Outlines come from this analysis's own layers dir; the site layers dir holds
+	// published artwork that belongs to no analysis.
 	const outlineSlugs = [];
 	try {
-		const dir = session.analysisId ? analysisPaths(session.analysisId).layers : LAYERS_DIR;
-		for (const name of await fsp.readdir(dir)) {
+		for (const name of await fsp.readdir(store.layers)) {
 			if (name.endsWith('-outline.png')) {
 				outlineSlugs.push(name.replace(/-outline\.png$/, ''));
 			}
@@ -706,6 +712,9 @@ async function buildState() {
 	return {
 		ok: true,
 		maintainerOnly: true,
+		analysis: session.analysisId
+			? describeAnalysisContext(session.analysisId, analysisMeta)
+			: null,
 		session: {
 			...session,
 			cutawayRel: toRepoRel(session.cutawayPath),
@@ -738,13 +747,53 @@ async function buildState() {
 		annotations: annotations || { annotations: [] },
 		trainingFeedback: trainingFeedback || { feedback: [] },
 		rlCursor: rlFeedback?.cursor || null,
+		// Where this view's data actually lives. With an analysis open these are
+		// its own files; with none open they are the published site figures.
 		paths: {
-			extract: toRepoRel(EXTRACT_JSON),
-			classification: toRepoRel(CLASSIFICATION_JSON),
-			findings: toRepoRel(FINDINGS_DB),
-			matchReport: toRepoRel(MATCH_REPORT),
-			annotations: toRepoRel(ANNOTATIONS_JSON),
-			trainingFeedback: toRepoRel(TRAINING_FEEDBACK_JSON),
+			extract: toRepoRel(store.extract),
+			classification: toRepoRel(store.classification),
+			findings: toRepoRel(store.findings),
+			matchReport: toRepoRel(store.matchReport),
+			annotations: toRepoRel(store.annotations),
+			trainingFeedback: toRepoRel(store.trainingFeedback),
+		},
+	};
+}
+
+/**
+ * Analysis-scoped locations an agent should read and write for one analysis.
+ *
+ * Everything here lives under `workspace/analyses/{id}/` and is the store of
+ * record, so a prompt built from it stays correct — and stays writable — after
+ * the owner opens a different analysis in the UI.
+ *
+ * @param {string} id - Analysis id
+ * @param {object | null} meta - Analysis meta.json contents
+ * @returns {object}
+ */
+function describeAnalysisContext(id, meta) {
+	const p = analysisPaths(id);
+	return {
+		id,
+		name: meta?.name || id,
+		dirRel: toRepoRel(p.root),
+		usingDefaults: Boolean(meta?.usingDefaults),
+		styleGuideProfileId: meta?.styleGuideProfileId || null,
+		// How an agent or CLI targets this analysis instead of "whatever is open".
+		ioRootRel: toRepoRel(p.root),
+		generateCommand: `npm run lung:generate -- --analysis ${id}`,
+		paths: {
+			cutaway: toRepoRel(p.cutaway),
+			legend: toRepoRel(p.legend),
+			matchReport: toRepoRel(p.matchReport),
+			findings: toRepoRel(p.findings),
+			annotations: toRepoRel(p.annotations),
+			trainingFeedback: toRepoRel(p.trainingFeedback),
+			layers: toRepoRel(p.layers),
+			legendItems: toRepoRel(p.legendItems),
+			legendContext: toRepoRel(p.legendContext),
+			styleGuide: toRepoRel(p.styleGuide),
+			rlFeedbackHistory: toRepoRel(p.rlFeedbackHistory),
 		},
 	};
 }
@@ -762,22 +811,19 @@ function firstNonEmpty(...values) {
 }
 
 /**
- * Resolve a lab asset from the active analysis's own folder, falling back to the
- * shared live dir. Serving per-analysis keeps another analysis's PNGs (which
+ * Resolve a lab asset from the open analysis's own folder, falling back to the
+ * published site dir. Serving per-analysis keeps another analysis's PNGs (which
  * share filenames) out of this session's views.
  *
- * @param {'layers' | 'legendItems' | 'freehandIcons'} bucket - Analysis subfolder
+ * @param {'layers' | 'legendItems' | 'freehandIcons'} bucket - Store subfolder
  * @param {string} fileName - Basename to serve
- * @param {string} sharedDir - Live fallback directory
  * @returns {Promise<string>} Absolute path to serve
  */
-async function activeAssetPath(bucket, fileName, sharedDir) {
-	const session = await readSession();
-	if (session.analysisId) {
-		const candidate = path.join(analysisPaths(session.analysisId)[bucket], fileName);
-		if (fs.existsSync(candidate)) return candidate;
-	}
-	return path.join(sharedDir, fileName);
+async function activeAssetPath(bucket, fileName) {
+	const { store } = await activeStore();
+	const candidate = path.join(store[bucket], fileName);
+	if (fs.existsSync(candidate)) return candidate;
+	return path.join(SITE_STORE[bucket], fileName);
 }
 
 /**
@@ -868,10 +914,11 @@ async function handle(req, res) {
 		}
 
 		if (method === 'GET' && pathname === '/api/items') {
+			const { store } = await activeStore();
 			const [extract, classification, findings] = await Promise.all([
-				loadJson(EXTRACT_JSON),
-				loadJson(CLASSIFICATION_JSON),
-				loadJson(FINDINGS_DB),
+				loadJson(store.extract),
+				loadJson(store.classification),
+				loadJson(store.findings),
 			]);
 			const criteria =
 				findings?.criteria ||
@@ -892,33 +939,39 @@ async function handle(req, res) {
 		}
 
 		if (method === 'GET' && pathname === '/api/findings') {
-			sendJson(res, 200, (await loadJson(FINDINGS_DB)) || { error: 'missing' });
+			const { store } = await activeStore();
+			sendJson(res, 200, (await loadJson(store.findings)) || { error: 'missing' });
 			return;
 		}
 
 		if (method === 'GET' && pathname === '/api/match-report') {
-			sendJson(res, 200, (await loadJson(MATCH_REPORT)) || { error: 'missing' });
+			const { store } = await activeStore();
+			sendJson(res, 200, (await loadJson(store.matchReport)) || { error: 'missing' });
 			return;
 		}
 
 		if (method === 'GET' && pathname === '/api/extract') {
-			sendJson(res, 200, (await loadJson(EXTRACT_JSON)) || { error: 'missing' });
+			const { store } = await activeStore();
+			sendJson(res, 200, (await loadJson(store.extract)) || { error: 'missing' });
 			return;
 		}
 
 		if (method === 'GET' && pathname === '/api/classification') {
-			sendJson(res, 200, (await loadJson(CLASSIFICATION_JSON)) || { error: 'missing' });
+			const { store } = await activeStore();
+			sendJson(res, 200, (await loadJson(store.classification)) || { error: 'missing' });
 			return;
 		}
 
 		if (method === 'GET' && pathname === '/api/annotations') {
-			const migrated = await migrateFalsePositivesOutOfActiveStore();
+			const { store } = await activeStore();
+			const migrated = await migrateFalsePositivesOutOfActiveStore(store);
 			sendJson(res, 200, migrated.annotations);
 			return;
 		}
 
 		if (method === 'GET' && pathname === '/api/training-feedback') {
-			const migrated = await migrateFalsePositivesOutOfActiveStore();
+			const { store } = await activeStore();
+			const migrated = await migrateFalsePositivesOutOfActiveStore(store);
 			sendJson(res, 200, migrated.trainingFeedback);
 			return;
 		}
@@ -942,7 +995,7 @@ async function handle(req, res) {
 				return;
 			}
 			const name = `${slug}-outline.png`;
-			await sendFile(res, await activeAssetPath('layers', name, LAYERS_DIR), 'image/png');
+			await sendFile(res, await activeAssetPath('layers', name), 'image/png');
 			return;
 		}
 
@@ -953,11 +1006,7 @@ async function handle(req, res) {
 				return;
 			}
 			const name = `${code}-glyph.png`;
-			await sendFile(
-				res,
-				await activeAssetPath('legendItems', name, path.join(DEBUG_DIR, 'legend-items')),
-				'image/png',
-			);
+			await sendFile(res, await activeAssetPath('legendItems', name), 'image/png');
 			return;
 		}
 
@@ -968,11 +1017,7 @@ async function handle(req, res) {
 				return;
 			}
 			const fileName = id.endsWith('.png') ? id : `${id}.png`;
-			await sendFile(
-				res,
-				await activeAssetPath('freehandIcons', fileName, FREEHAND_ICONS_DIR),
-				'image/png',
-			);
+			await sendFile(res, await activeAssetPath('freehandIcons', fileName), 'image/png');
 			return;
 		}
 
@@ -999,10 +1044,9 @@ async function handle(req, res) {
 		}
 
 		if (method === 'POST' && pathname === '/api/reset-defaults') {
-			// Unbinds the live workspace: save the current analysis, then release
-			// the lease so nothing further is attributed to it.
-			await flushLiveBeforeSwitch();
-			await setLiveOwnerId(null);
+			// Only unbinds this session's view. The analysis keeps its own files, so
+			// there is nothing to flush and nothing another worker can lose.
+			await saveActiveSessionMeta();
 			const session = await writeSession({
 				cutawayPath: DEFAULT_CUTAWAY,
 				legendPath: DEFAULT_LEGEND,
@@ -1049,7 +1093,7 @@ async function handle(req, res) {
 				updatedAt: new Date().toISOString(),
 			});
 			if (next.analysisId) {
-				await snapshotAnalysis(next.analysisId, {
+				await saveAnalysisSession(next.analysisId, {
 					cutawayPath,
 					legendPath,
 					usingDefaults,
@@ -1069,17 +1113,29 @@ async function handle(req, res) {
 
 		if (method === 'POST' && pathname === '/api/extract') {
 			const session = await readSession();
+			// Bound at request time: the job keeps writing this analysis even if the
+			// operator opens another one before it finishes.
 			const startedForId = session.analysisId;
-			const job = createJob('extract', { legend: toRepoRel(session.legendPath) });
+			const job = createJob('extract', {
+				legend: toRepoRel(session.legendPath),
+				analysisId: startedForId,
+			});
 			void (async () => {
 				await runProcessJob(
 					job,
 					process.execPath,
-					[RUN_LUNG_PYTHON, OBSERVABILITY_PY, '--extract-only', '--legend', session.legendPath],
+					[
+						RUN_LUNG_PYTHON,
+						OBSERVABILITY_PY,
+						'--extract-only',
+						'--legend',
+						session.legendPath,
+						...ioRootArgs(startedForId),
+					],
 					ROOT,
 				);
 				if (job.status === 'succeeded') {
-					await snapshotJobResult(startedForId, job);
+					await recordJobForAnalysis(startedForId, job);
 				}
 			})();
 			sendJson(res, 202, serializeJob(job));
@@ -1117,6 +1173,7 @@ async function handle(req, res) {
 				legend: toRepoRel(session.legendPath),
 				tierToTest,
 				rlFeedback: rlWritten,
+				analysisId: startedForId,
 			});
 			void (async () => {
 				job.log.push(`· Tier to Test: ${tierToTest}`);
@@ -1140,16 +1197,20 @@ async function handle(req, res) {
 						session.cutawayPath,
 						'--legend',
 						session.legendPath,
+						...ioRootArgs(startedForId),
 					],
 					ROOT,
 				);
 				if (job.status === 'succeeded') {
 					pushFindingsRefresh(job);
-					const findingsJob = createJob('findings', { parent: job.id });
+					const findingsJob = createJob('findings', {
+						parent: job.id,
+						analysisId: startedForId,
+					});
 					await runProcessJob(
 						findingsJob,
 						process.execPath,
-						[RUN_LUNG_PYTHON, FINDINGS_DB_PY, '--no-canvas'],
+						[RUN_LUNG_PYTHON, FINDINGS_DB_PY, '--no-canvas', ...ioRootArgs(startedForId)],
 						ROOT,
 					);
 					job.meta.findingsJobId = findingsJob.id;
@@ -1171,7 +1232,7 @@ async function handle(req, res) {
 							`· Freehand reconcile warn: ${err instanceof Error ? err.message : String(err)}`,
 						);
 					}
-					await snapshotJobResult(startedForId, job);
+					await recordJobForAnalysis(startedForId, job);
 				}
 			})();
 			sendJson(res, 202, serializeJob(job));
@@ -1179,7 +1240,8 @@ async function handle(req, res) {
 		}
 
 		if (method === 'GET' && pathname === '/api/rl-feedback') {
-			const data = (await loadJson(RL_FEEDBACK_JSON)) || null;
+			const { store } = await activeStore();
+			const data = (await loadJson(store.rlFeedback)) || null;
 			sendJson(res, 200, {
 				ok: true,
 				feedback: data,
@@ -1202,10 +1264,8 @@ async function handle(req, res) {
 				ok: true,
 				cursor: body.cursor || null,
 				paths: {
-					md: written.md ? toRepoRel(written.md) : null,
-					json: written.json ? toRepoRel(written.json) : null,
-					workspaceMd: written.workspaceMd ? toRepoRel(written.workspaceMd) : null,
-					workspaceJson: written.workspaceJson ? toRepoRel(written.workspaceJson) : null,
+					md: toRepoRel(written.md),
+					json: toRepoRel(written.json),
 				},
 			});
 			return;
@@ -1213,11 +1273,16 @@ async function handle(req, res) {
 
 		if (method === 'POST' && pathname === '/api/findings/refresh') {
 			const startedForId = (await readSession()).analysisId;
-			const job = createJob('findings', {});
+			const job = createJob('findings', { analysisId: startedForId });
 			void (async () => {
-				await runProcessJob(job, process.execPath, [RUN_LUNG_PYTHON, FINDINGS_DB_PY, '--no-canvas'], ROOT);
+				await runProcessJob(
+					job,
+					process.execPath,
+					[RUN_LUNG_PYTHON, FINDINGS_DB_PY, '--no-canvas', ...ioRootArgs(startedForId)],
+					ROOT,
+				);
 				if (job.status === 'succeeded') {
-					await snapshotJobResult(startedForId, job);
+					await recordJobForAnalysis(startedForId, job);
 				}
 			})();
 			sendJson(res, 202, serializeJob(job));
@@ -1226,8 +1291,9 @@ async function handle(req, res) {
 
 		if (method === 'PUT' && pathname === '/api/classification') {
 			const body = JSON.parse((await readBody(req, 2 * 1024 * 1024)).toString('utf8'));
-			const existing = (await loadJson(CLASSIFICATION_JSON)) || {
-				source: toRepoRel(DEFAULT_LEGEND),
+			const { store, session } = await activeStore();
+			const existing = (await loadJson(store.classification)) || {
+				source: toRepoRel(session.legendPath || DEFAULT_LEGEND),
 				guidelines: '',
 				subTierHelp: {},
 				iconInterpretationHelp: {},
@@ -1248,10 +1314,14 @@ async function handle(req, res) {
 			if (typeof body.guidelines === 'string') existing.guidelines = body.guidelines;
 			existing.updatedAt = new Date().toISOString();
 			existing.updatedBy = 'lung-legend-lab';
-			await saveJson(CLASSIFICATION_JSON, existing);
+			await saveJson(store.classification, existing);
 
 			// Keep findings DB classification fields in sync without a full match rerun.
-			const findingsSync = runLungPythonSync([FINDINGS_DB_PY, '--no-canvas']);
+			const findingsSync = runLungPythonSync([
+				FINDINGS_DB_PY,
+				'--no-canvas',
+				...ioRootArgs(session.analysisId),
+			]);
 			if (findingsSync.status !== 0) {
 				sendJson(res, 500, {
 					error: 'classification saved but findings sync failed',
@@ -1259,7 +1329,7 @@ async function handle(req, res) {
 				});
 				return;
 			}
-			await snapshotActiveIfAny();
+			await saveActiveSessionMeta();
 			sendJson(res, 200, { ok: true, classification: existing });
 			return;
 		}
@@ -1271,8 +1341,9 @@ async function handle(req, res) {
 				return;
 			}
 			const patch = JSON.parse((await readBody(req, 256 * 1024)).toString('utf8'));
-			const existing = (await loadJson(CLASSIFICATION_JSON)) || {
-				source: toRepoRel(DEFAULT_LEGEND),
+			const { store, session } = await activeStore();
+			const existing = (await loadJson(store.classification)) || {
+				source: toRepoRel(session.legendPath || DEFAULT_LEGEND),
 				classifications: {},
 			};
 			const prev = existing.classifications?.[code] || {};
@@ -1298,8 +1369,12 @@ async function handle(req, res) {
 			existing.classifications = { ...existing.classifications, [code]: next };
 			existing.updatedAt = new Date().toISOString();
 			existing.updatedBy = 'lung-legend-lab';
-			await saveJson(CLASSIFICATION_JSON, existing);
-			const findingsSync = runLungPythonSync([FINDINGS_DB_PY, '--no-canvas']);
+			await saveJson(store.classification, existing);
+			const findingsSync = runLungPythonSync([
+				FINDINGS_DB_PY,
+				'--no-canvas',
+				...ioRootArgs(session.analysisId),
+			]);
 			if (findingsSync.status !== 0) {
 				sendJson(res, 500, {
 					error: 'classification saved but findings sync failed',
@@ -1307,14 +1382,15 @@ async function handle(req, res) {
 				});
 				return;
 			}
-			await snapshotActiveIfAny();
+			await saveActiveSessionMeta();
 			sendJson(res, 200, { ok: true, code, classification: next });
 			return;
 		}
 
 		if (method === 'PUT' && pathname === '/api/annotations') {
 			const body = JSON.parse((await readBody(req, 2 * 1024 * 1024)).toString('utf8'));
-			const existing = (await loadJson(ANNOTATIONS_JSON)) || { annotations: [] };
+			const { store } = await activeStore();
+			const existing = (await loadJson(store.annotations)) || { annotations: [] };
 			const list = Array.isArray(existing.annotations) ? [...existing.annotations] : [];
 			const entry = {
 				id: body.id || `${body.code}:${body.cx}:${body.cy}`,
@@ -1332,7 +1408,7 @@ async function handle(req, res) {
 			// False positives are archived to training feedback then removed from the
 			// active annotation store so they no longer appear as review items.
 			if (entry.label === 'false-positive') {
-				const fb = (await loadJson(TRAINING_FEEDBACK_JSON)) || { feedback: [] };
+				const fb = (await loadJson(store.trainingFeedback)) || { feedback: [] };
 				const feedbackList = Array.isArray(fb.feedback) ? [...fb.feedback] : [];
 				ensureFpFeedbackEntry(feedbackList, entry, entry.updatedAt);
 				const withoutFp = list.filter(
@@ -1347,9 +1423,9 @@ async function handle(req, res) {
 					feedback: feedbackList,
 					updatedAt: entry.updatedAt,
 				};
-				await saveJson(ANNOTATIONS_JSON, next);
-				await saveJson(TRAINING_FEEDBACK_JSON, trainingFeedback);
-				await snapshotActiveIfAny();
+				await saveJson(store.annotations, next);
+				await saveJson(store.trainingFeedback, trainingFeedback);
+				await saveActiveSessionMeta();
 				sendJson(res, 200, {
 					ok: true,
 					annotations: next,
@@ -1363,7 +1439,7 @@ async function handle(req, res) {
 			if (idx >= 0) list[idx] = { ...list[idx], ...entry };
 			else list.push(entry);
 			const next = { annotations: list, updatedAt: entry.updatedAt };
-			await saveJson(ANNOTATIONS_JSON, next);
+			await saveJson(store.annotations, next);
 
 			// Mirror review labels into training feedback for tier-1 conclusion history.
 			const kindMap = {
@@ -1372,7 +1448,7 @@ async function handle(req, res) {
 			};
 			const feedbackKind = kindMap[entry.label];
 			if (feedbackKind) {
-				const fb = (await loadJson(TRAINING_FEEDBACK_JSON)) || { feedback: [] };
+				const fb = (await loadJson(store.trainingFeedback)) || { feedback: [] };
 				const feedbackList = Array.isArray(fb.feedback) ? [...fb.feedback] : [];
 				feedbackList.push({
 					id: `ann-${entry.id}-${Date.now()}`,
@@ -1396,20 +1472,21 @@ async function handle(req, res) {
 						createdAt: entry.updatedAt,
 					});
 				}
-				await saveJson(TRAINING_FEEDBACK_JSON, {
+				await saveJson(store.trainingFeedback, {
 					feedback: feedbackList,
 					updatedAt: entry.updatedAt,
 				});
 			}
 
-			await snapshotActiveIfAny();
+			await saveActiveSessionMeta();
 			sendJson(res, 200, { ok: true, annotations: next });
 			return;
 		}
 
 		if (method === 'POST' && pathname === '/api/training-feedback') {
 			const body = JSON.parse((await readBody(req, 4 * 1024 * 1024)).toString('utf8'));
-			const existing = (await loadJson(TRAINING_FEEDBACK_JSON)) || { feedback: [] };
+			const { store } = await activeStore();
+			const existing = (await loadJson(store.trainingFeedback)) || { feedback: [] };
 			const list = Array.isArray(existing.feedback) ? [...existing.feedback] : [];
 			const allowed = new Set([
 				'relocate',
@@ -1443,19 +1520,12 @@ async function handle(req, res) {
 				body.iconPngBase64.length > 32
 			) {
 				try {
-					await fsp.mkdir(FREEHAND_ICONS_DIR, { recursive: true });
+					// One copy, inside this analysis's own folder.
 					const safeId = String(entryId).replace(/[^\w.-]+/g, '_');
-					const fileName = `${safeId}.png`;
-					const abs = path.join(FREEHAND_ICONS_DIR, fileName);
+					const abs = path.join(store.freehandIcons, `${safeId}.png`);
 					const b64 = body.iconPngBase64.replace(/^data:image\/png;base64,/, '');
 					await fsp.writeFile(abs, Buffer.from(b64, 'base64'));
 					iconRel = toRepoRel(abs);
-					const liveSession = await readSession();
-					if (liveSession?.analysisId) {
-						const ap = analysisPaths(liveSession.analysisId);
-						await fsp.mkdir(ap.freehandIcons, { recursive: true });
-						await fsp.copyFile(abs, path.join(ap.freehandIcons, fileName));
-					}
 				} catch {
 					iconRel = null;
 				}
@@ -1487,18 +1557,19 @@ async function handle(req, res) {
 			};
 			list.push(entry);
 			const next = { feedback: list, updatedAt: createdAt };
-			await saveJson(TRAINING_FEEDBACK_JSON, next);
-			await snapshotActiveIfAny();
+			await saveJson(store.trainingFeedback, next);
+			await saveActiveSessionMeta();
 			sendJson(res, 200, { ok: true, trainingFeedback: next });
 			return;
 		}
 
 		if (method === 'POST' && pathname === '/api/annotations/clear') {
-			await saveJson(ANNOTATIONS_JSON, {
+			const { store } = await activeStore();
+			await saveJson(store.annotations, {
 				annotations: [],
 				updatedAt: new Date().toISOString(),
 			});
-			await snapshotActiveIfAny();
+			await saveActiveSessionMeta();
 			sendJson(res, 200, { ok: true });
 			return;
 		}
@@ -1517,8 +1588,9 @@ async function handle(req, res) {
 			const deleteCode = Boolean(body.deleteCode);
 			const now = new Date().toISOString();
 
-			const existingAnn = (await loadJson(ANNOTATIONS_JSON)) || { annotations: [] };
-			const existingFb = (await loadJson(TRAINING_FEEDBACK_JSON)) || { feedback: [] };
+			const { store } = await activeStore();
+			const existingAnn = (await loadJson(store.annotations)) || { annotations: [] };
+			const existingFb = (await loadJson(store.trainingFeedback)) || { feedback: [] };
 			let annotationsList = Array.isArray(existingAnn.annotations)
 				? [...existingAnn.annotations]
 				: [];
@@ -1538,20 +1610,10 @@ async function handle(req, res) {
 				freehandRemoved = feedbackList.length < before;
 				for (const entry of removed) {
 					if (!entry?.iconRel) continue;
-					try {
-						const abs = path.isAbsolute(entry.iconRel)
-							? entry.iconRel
-							: path.join(ROOT, entry.iconRel);
-						await fsp.unlink(abs).catch(() => {});
-						const liveSession = await readSession();
-						if (liveSession?.analysisId) {
-							const ap = analysisPaths(liveSession.analysisId);
-							const copy = path.join(ap.freehandIcons, path.basename(abs));
-							await fsp.unlink(copy).catch(() => {});
-						}
-					} catch {
-						/* ignore icon cleanup errors */
-					}
+					// Icons live in this store's own freehand-icons dir.
+					await fsp
+						.unlink(path.join(store.freehandIcons, path.basename(String(entry.iconRel))))
+						.catch(() => {});
 				}
 			} else if (deleteCode) {
 				if (!code) {
@@ -1582,7 +1644,7 @@ async function handle(req, res) {
 						createdAt: now,
 					});
 				}
-				const findings = (await loadJson(FINDINGS_DB)) || { items: {} };
+				const findings = (await loadJson(store.findings)) || { items: {} };
 				const item = findings.items?.[code];
 				if (item && Array.isArray(item.instances) && item.instances.length > 0) {
 					item.instances = [];
@@ -1594,7 +1656,7 @@ async function handle(req, res) {
 						updatedAt: now,
 						lastDeletedAt: now,
 					};
-					await saveJson(FINDINGS_DB, findings);
+					await saveJson(store.findings, findings);
 					findingsRemoved = true;
 				}
 			} else {
@@ -1628,7 +1690,7 @@ async function handle(req, res) {
 					});
 				}
 
-				const findings = (await loadJson(FINDINGS_DB)) || { items: {} };
+				const findings = (await loadJson(store.findings)) || { items: {} };
 				const { findings: nextFindings, removed } = removeFindingInstance(
 					findings,
 					code,
@@ -1642,15 +1704,15 @@ async function handle(req, res) {
 						updatedAt: now,
 						lastDeletedAt: now,
 					};
-					await saveJson(FINDINGS_DB, nextFindings);
+					await saveJson(store.findings, nextFindings);
 				}
 			}
 
 			const annotations = { annotations: annotationsList, updatedAt: now };
 			const trainingFeedback = { feedback: feedbackList, updatedAt: now };
-			await saveJson(ANNOTATIONS_JSON, annotations);
-			await saveJson(TRAINING_FEEDBACK_JSON, trainingFeedback);
-			await snapshotActiveIfAny();
+			await saveJson(store.annotations, annotations);
+			await saveJson(store.trainingFeedback, trainingFeedback);
+			await saveActiveSessionMeta();
 			sendJson(res, 200, {
 				ok: true,
 				kind,
@@ -1685,10 +1747,11 @@ async function handle(req, res) {
 			if (!id) {
 				const created = await createAnalysis(body.name || 'Lung Cutaway Neutral (current)');
 				id = created.id;
-				// Unbound live state is being adopted by this new analysis.
-				await setLiveOwnerId(id);
+				// Defaults-mode work is being adopted: import the site tree once, by
+				// explicit request. Nothing is moved out of any other analysis.
+				await importStoreIntoAnalysis(id, SITE_STORE);
 			}
-			const meta = await snapshotAnalysis(id, {
+			const meta = await saveAnalysisSession(id, {
 				cutawayPath: session.cutawayPath,
 				legendPath: session.legendPath,
 				usingDefaults: session.usingDefaults,
@@ -1713,11 +1776,11 @@ async function handle(req, res) {
 
 		if (method === 'POST' && pathname === '/api/analyses/seed-current') {
 			const meta = await seedCurrentAnalysis();
-			const restored = await restoreAndReconcile(meta.id);
+			const opened = await openAndReconcile(meta.id);
 			await writeSession({
-				...restored,
-				screen: restored.screen || 'refine',
-				phase: restored.phase || 'refine',
+				...opened,
+				screen: opened.screen || 'refine',
+				phase: opened.phase || 'refine',
 			});
 			sendJson(res, 200, { ok: true, analysis: await summarizeAnalysis(meta), session: await readSession() });
 			return;
@@ -1725,16 +1788,11 @@ async function handle(req, res) {
 
 		if (method === 'POST' && pathname.startsWith('/api/analyses/') && pathname.endsWith('/open')) {
 			const id = decodeURIComponent(pathname.slice('/api/analyses/'.length, -'/open'.length));
-			const prev = await readSession();
-			if (prev.analysisId && prev.analysisId !== id) {
-				await flushLiveBeforeSwitch();
-			}
-			// An analysis whose images were never uploaded has nothing to restore;
-			// reopening it resumes the wizard on an empty live workspace instead of
-			// failing (and instead of inheriting the previous analysis's outputs).
+			// Opening is a pointer move: the previous analysis keeps its own files and
+			// any job still running against them, so there is nothing to flush here.
+			// An analysis whose images were never uploaded resumes the wizard at upload
+			// rather than failing (and without inheriting another analysis's outputs).
 			if (await analysisNeedsImages(id)) {
-				await setLiveOwnerId(id);
-				await clearLiveWorkspace();
 				const fresh = analysisPaths(id);
 				await writeSession({
 					cutawayPath: fresh.cutaway,
@@ -1755,12 +1813,11 @@ async function handle(req, res) {
 				});
 				return;
 			}
-			// restoreAnalysis claims the live lease before it copies anything in.
-			const restored = await restoreAndReconcile(id);
+			const opened = await openAndReconcile(id);
 			await writeSession({
-				...restored,
-				screen: restored.screen || (restored.phase === 'classify' ? 'classify' : 'refine'),
-				phase: restored.phase || 'refine',
+				...opened,
+				screen: opened.screen || (opened.phase === 'classify' ? 'classify' : 'refine'),
+				phase: opened.phase || 'refine',
 			});
 			const meta = await getAnalysisMeta(id);
 			sendJson(res, 200, {
@@ -1831,15 +1888,8 @@ async function handle(req, res) {
 		if (method === 'POST' && pathname.startsWith('/api/analyses/') && pathname.endsWith('/save')) {
 			const id = decodeURIComponent(pathname.slice('/api/analyses/'.length, -'/save'.length));
 			const session = await readSession();
-			const owner = await readLiveOwnerId();
-			if (owner && owner !== id) {
-				sendJson(res, 409, {
-					error: `Live workspace belongs to ${owner}; open ${id} before saving it`,
-				});
-				return;
-			}
 			const body = JSON.parse((await readBody(req, 64 * 1024)).toString('utf8') || '{}');
-			const meta = await snapshotAnalysis(id, {
+			const meta = await saveAnalysisSession(id, {
 				cutawayPath: session.cutawayPath,
 				legendPath: session.legendPath,
 				usingDefaults: session.usingDefaults,
@@ -1863,7 +1913,7 @@ async function handle(req, res) {
 		if (method === 'POST' && pathname === '/api/session/home') {
 			const session = await readSession();
 			if (session.analysisId) {
-				await snapshotAnalysis(session.analysisId, {
+				await saveAnalysisSession(session.analysisId, {
 					cutawayPath: session.cutawayPath,
 					legendPath: session.legendPath,
 					usingDefaults: session.usingDefaults,
@@ -1975,7 +2025,7 @@ async function handle(req, res) {
 				refineScreen,
 				updatedAt: new Date().toISOString(),
 			});
-			await snapshotActiveIfAny();
+			await saveActiveSessionMeta();
 			sendJson(res, 200, {
 				ok: true,
 				maxUnlockedTier: meta.maxUnlockedTier ?? maxUnlockedTier,
@@ -2019,7 +2069,7 @@ async function handle(req, res) {
 						await updateAnalysisMeta(session.analysisId, { styleGuideProfileId: id });
 					}
 				}
-				await snapshotActiveIfAny();
+				await saveActiveSessionMeta();
 				sendJson(res, 200, {
 					ok: true,
 					styleGuideProfileId: id,
@@ -2048,7 +2098,7 @@ async function handle(req, res) {
 						styleGuideProfileId: created.id,
 					});
 				}
-				await snapshotActiveIfAny();
+				await saveActiveSessionMeta();
 				sendJson(res, 201, {
 					ok: true,
 					styleGuideProfileId: created.id,
@@ -2083,14 +2133,12 @@ async function handle(req, res) {
 
 		if (method === 'POST' && pathname === '/api/analyses/new') {
 			const body = JSON.parse((await readBody(req, 64 * 1024)).toString('utf8') || '{}');
-			// Save the outgoing analysis while it still owns the live workspace,
-			// then transfer the lease before wiping — any late snapshot for the old
-			// id is refused instead of writing empty stubs over its saved data.
-			await flushLiveBeforeSwitch();
+			// Record where the outgoing analysis left off, then point the session at a
+			// brand-new empty folder. Nothing is wiped: the outgoing analysis keeps its
+			// own files, so a job still running against it is unaffected.
+			await saveActiveSessionMeta();
 			const requestedName = typeof body.name === 'string' ? body.name.trim() : '';
 			const meta = await createAnalysis(requestedName || 'New analysis');
-			await setLiveOwnerId(meta.id);
-			await clearLiveWorkspace();
 			const fresh = analysisPaths(meta.id);
 			await writeSession({
 				// Point at this analysis's own (not yet uploaded) images.
@@ -2116,12 +2164,11 @@ async function handle(req, res) {
 			}
 			const body = await readBody(req);
 			const { files, fields } = parseMultipart(body, req.headers['content-type'] || '');
-			// Uploading into a different analysis is a session switch: save and
-			// release the current one before this id takes the live workspace.
-			if ((await readLiveOwnerId()) !== id) {
-				await flushLiveBeforeSwitch();
-				await setLiveOwnerId(id);
-				await clearLiveWorkspace();
+			// Images land inside this analysis's own folder, so uploading while another
+			// analysis is mid-job neither waits on it nor disturbs its files.
+			const session0 = await readSession();
+			if (session0.analysisId && session0.analysisId !== id) {
+				await saveActiveSessionMeta();
 			}
 			const written = await writeAnalysisImages(id, {
 				cutaway: files.cutaway?.data,
@@ -2174,8 +2221,11 @@ function normalizeRlTierScope(value) {
 /**
  * Write RL feedback prompt markdown + JSON (with delta cursor) for Cursor export.
  *
+ * Writes only inside the store for `analysisId` (the shared workspace copy is used
+ * only in defaults mode), so an export never touches another analysis's RL state.
+ *
  * @param {{tierToTest: number | 'all', promptMarkdown: string, summary: unknown, cursor: unknown, analysisId: string | null}} opts
- * @returns {Promise<{md: string | null, json: string | null, workspaceMd: string, workspaceJson: string}>}
+ * @returns {Promise<{md: string, json: string}>} Absolute paths written.
  */
 async function writeRlFeedbackArtifacts(opts) {
 	const { tierToTest, promptMarkdown, summary, cursor, analysisId } = opts;
@@ -2191,19 +2241,15 @@ async function writeRlFeedbackArtifacts(opts) {
 		promptMarkdown?.trim() ||
 		`# RL feedback for ${scopeLabel}\n\n(empty — no new owner review)\n`;
 
-	await fsp.mkdir(WORKSPACE, { recursive: true });
-	await fsp.writeFile(RL_FEEDBACK_MD, mdBody, 'utf8');
-	await fsp.writeFile(RL_FEEDBACK_JSON, JSON.stringify(payload, null, 2), 'utf8');
-
-	let md = null;
-	let json = null;
+	// An analysis's own folder is the only home for its prompt. The workspace copy
+	// exists solely for defaults mode (no analysis bound), so exporting a prompt for
+	// one analysis can never overwrite another's RL state.
+	const store = storeFor(analysisId);
+	await fsp.mkdir(path.dirname(store.rlFeedbackMd), { recursive: true });
+	await fsp.mkdir(path.dirname(store.rlFeedback), { recursive: true });
+	await fsp.writeFile(store.rlFeedbackMd, mdBody, 'utf8');
+	await fsp.writeFile(store.rlFeedback, JSON.stringify(payload, null, 2), 'utf8');
 	if (analysisId) {
-		const paths = analysisPaths(analysisId);
-		await fsp.mkdir(paths.root, { recursive: true });
-		md = paths.rlFeedbackMd;
-		json = paths.rlFeedback;
-		await fsp.writeFile(md, mdBody, 'utf8');
-		await fsp.writeFile(json, JSON.stringify(payload, null, 2), 'utf8');
 		await appendRlFeedbackHistory(analysisId, {
 			tierToTest,
 			promptMarkdown: mdBody,
@@ -2213,12 +2259,7 @@ async function writeRlFeedbackArtifacts(opts) {
 		});
 	}
 
-	return {
-		md,
-		json,
-		workspaceMd: RL_FEEDBACK_MD,
-		workspaceJson: RL_FEEDBACK_JSON,
-	};
+	return { md: store.rlFeedbackMd, json: store.rlFeedback };
 }
 
 await ensureWorkspace();

@@ -8,6 +8,7 @@
 import type {
 	Annotation,
 	LegendItemRow,
+	RlAnalysisContext,
 	RlFeedbackCursor,
 	RlFeedbackSummary,
 	TracePoint,
@@ -23,6 +24,8 @@ export type BuildRlOptions = {
 	cursor?: RlFeedbackCursor | null;
 	/** When true, include full in-scope history (ignore since/cursor). */
 	forceFull?: boolean;
+	/** Analysis the review belongs to (durable paths for the receiving agent). */
+	analysis?: RlAnalysisContext | null;
 };
 
 /** Single tier or all searchable tiers (1–3). */
@@ -635,6 +638,67 @@ export const RL_PROMPT_INTERNAL_REFS = [
 ] as const;
 
 /**
+ * Order of the analysis-scoped artifacts named in the prompt header.
+ * Everything is relative to `ANALYSIS_DIR`, so a paste stays resolvable after
+ * the owner opens a different analysis.
+ */
+const ANALYSIS_PATH_KEYS: Array<[keyof RlAnalysisContext['paths'], string]> = [
+	['cutaway', 'cutaway'],
+	['legend', 'legend'],
+	['matchReport', 'match report'],
+	['findings', 'findings'],
+	['annotations', 'annotations'],
+	['trainingFeedback', 'review feedback'],
+	['layers', 'outline layers'],
+	['legendItems', 'legend crops'],
+	['legendContext', 'legend context'],
+];
+
+/**
+ * Trim an analysis-scoped path down to its name inside `ANALYSIS_DIR`.
+ * @param dirRel - Repo-relative analysis folder
+ * @param rel - Repo-relative artifact path
+ */
+function withinAnalysisDir(dirRel: string, rel: string): string {
+	const prefix = `${dirRel}/`;
+	return rel.startsWith(prefix) ? rel.slice(prefix.length) : rel;
+}
+
+/**
+ * Machine header lines naming the analysis this review belongs to.
+ *
+ * Each analysis is an isolated store, so `ANALYSIS_DIR` is the only address an
+ * agent should read and write, and `IO_ROOT` is how it points the pipeline there.
+ * Work scoped this way survives the operator opening another analysis mid-run.
+ *
+ * @param analysis - Active analysis context from lab state
+ */
+export function analysisHeaderLines(analysis: RlAnalysisContext | null | undefined): string[] {
+	if (!analysis) {
+		return [
+			`ANALYSIS: (unsaved session)`,
+			`ANALYSIS_DIR: —`,
+			`IO_ROOT: — save this session as an analysis before running the pipeline`,
+		];
+	}
+	const named = ANALYSIS_PATH_KEYS.filter(([key]) => Boolean(analysis.paths?.[key]))
+		.map(([key, label]) => `${label}=${withinAnalysisDir(analysis.dirRel, analysis.paths[key])}`)
+		.join(' · ');
+	return [
+		`ANALYSIS: ${analysis.id} · ${analysis.name}`,
+		`ANALYSIS_DIR: ${analysis.dirRel}`,
+		`ANALYSIS_FILES: ${named}`,
+		`SOURCE_IMAGES: ${
+			analysis.usingDefaults
+				? 'repo defaults (cutaway-neutral.png + Lung Cutaway Legend Template.png)'
+				: 'analysis upload'
+		}`,
+		`STYLE_PROFILE: ${analysis.styleGuideProfileId || 'unset'}`,
+		`IO_ROOT: ${analysis.ioRootRel} — pass it to every pipeline step (${analysis.generateCommand}); never write public/figures/lung-health/** for this review`,
+	];
+}
+
+/**
  * Collect delta review for one tier or all searchable tiers and render a prompt.
  * Freehand expert loops include full outline coordinates plus a short summary.
  *
@@ -680,19 +744,21 @@ export function buildRlFeedbackSummary(
 
 	const modeInfo = classifyRlMode(tierScope, buckets, items);
 
+	const analysis = opts.analysis ?? null;
 	const lines: string[] = [
 		`MODE: ${modeInfo.mode}`,
 		`MODE_LABEL: ${modeInfo.label}`,
 		`MISS_ATTRIBUTION: ${modeInfo.missAttribution}`,
+		...analysisHeaderLines(analysis),
 		`REF: ${RL_PROMPT_INTERNAL_REFS.join(' · ')}`,
 		``,
-		allTiers
-			? `# RL delta · all tiers` + (isDelta ? '' : ' · full history')
-			: `# RL delta · Tier ${tiers[0]}` + (isDelta ? '' : ' · full history'),
+		(allTiers ? `# RL delta · all tiers` : `# RL delta · Tier ${tiers[0]}`) +
+			(isDelta ? '' : ' · full history') +
+			(analysis ? ` · ${analysis.name}` : ''),
 		isDelta
 			? `New review only` + (since ? ` since ${since}` : ' (this session)') + `.`
 			: `Full in-scope history.`,
-		`Execute MODE using REF (do not restate stack rules). End with the mandatory RL pass summary.`,
+		`Execute MODE using REF (do not restate stack rules). Read/write this analysis under ANALYSIS_DIR. End with the mandatory RL pass summary.`,
 		``,
 	];
 
@@ -761,6 +827,7 @@ export function buildRlFeedbackSummary(
 		mode: modeInfo.mode,
 		modeLabel: modeInfo.label,
 		missAttribution: modeInfo.missAttribution,
+		analysis,
 		generatedAt: new Date().toISOString(),
 		isDelta,
 		since: since || null,

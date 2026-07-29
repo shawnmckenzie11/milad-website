@@ -28,8 +28,17 @@ export function FeedbackPromptModal({
 
 	if (!open || !summary) return null;
 
-	const { counts, tierToTest, promptMarkdown, isDelta, since, mode, modeLabel, missAttribution } =
-		summary;
+	const {
+		counts,
+		tierToTest,
+		promptMarkdown,
+		isDelta,
+		since,
+		mode,
+		modeLabel,
+		missAttribution,
+		analysis,
+	} = summary;
 	const scopeLabel = tierToTest === 'all' ? 'all searchable tiers (1–3)' : `Tier ${tierToTest}`;
 
 	/**
@@ -56,9 +65,10 @@ export function FeedbackPromptModal({
 			<div className="modal-card">
 				<h2 id="rl-prompt-title">Generate Feedback Prompt</h2>
 				<p className="muted">
-					Builds a lean Cursor paste for {scopeLabel}: MODE header, REF paths to rules/agents,
-					and this review delta only (process boilerplate stays in project files). Rematch
-					runs in chat — this dialog does not invoke OpenCV.
+					Builds a lean Cursor paste for {scopeLabel}: MODE header, the active analysis and
+					its own file locations, REF paths to rules/agents, and this review delta only
+					(process boilerplate stays in project files). Rematch runs in chat — this dialog
+					does not invoke OpenCV.
 					{isDelta
 						? ' Showing only new review since the last export.'
 						: ' Showing full history for the export scope.'}
@@ -72,7 +82,20 @@ export function FeedbackPromptModal({
 							<strong>Miss path:</strong> <code>{missAttribution}</code>
 						</>
 					)}
+					{analysis && (
+						<>
+							<br />
+							<strong>Analysis:</strong> {analysis.name}{' '}
+							<code>{analysis.dirRel}</code>
+						</>
+					)}
 				</p>
+				{analysis && (
+					<p className="muted" role="status">
+						The prompt scopes every step to this analysis's own folder, so the agent's work is
+						unaffected by opening another analysis here.
+					</p>
+				)}
 				<label className="muted" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
 					<input
 						type="checkbox"

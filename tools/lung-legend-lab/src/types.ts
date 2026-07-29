@@ -227,6 +227,41 @@ export type RlFeedbackCursor = {
 	feedbackIds: string[];
 };
 
+/**
+ * Durable, analysis-scoped addresses for one saved analysis.
+ *
+ * Each analysis owns its own databases under `workspace/analyses/{id}/`, and the
+ * pipeline is pointed at them with `--io-root` / `--analysis`. Prompts quote this
+ * so a paste stays resolvable — and writes stay isolated — after the owner opens
+ * something else in the UI.
+ */
+export type RlAnalysisContext = {
+	id: string;
+	name: string;
+	/** Repo-relative `tools/lung-legend-lab/workspace/analyses/{id}`. */
+	dirRel: string;
+	/** True when this analysis was seeded from the checked-in cutaway + legend. */
+	usingDefaults: boolean;
+	styleGuideProfileId: string | null;
+	/** Value to pass as `--io-root` to target this analysis from the CLI. */
+	ioRootRel: string;
+	/** Ready-to-run regenerate command scoped to this analysis. */
+	generateCommand: string;
+	paths: {
+		cutaway: string;
+		legend: string;
+		matchReport: string;
+		findings: string;
+		annotations: string;
+		trainingFeedback: string;
+		layers: string;
+		legendItems: string;
+		legendContext: string;
+		styleGuide: string;
+		rlFeedbackHistory: string;
+	};
+};
+
 /** RL feedback package shown in Generate Feedback Prompt (delta by default). */
 export type RlFeedbackSummary = {
 	/** Active tier, or `'all'` when the export covers searchable tiers 1–3. */
@@ -240,6 +275,8 @@ export type RlFeedbackSummary = {
 	modeLabel: string;
 	/** Prefer CV param revision vs style-guide update when freehand/misses present. */
 	missAttribution: 'cv-calibration' | 'style-guide' | 'ambiguous' | 'none';
+	/** Analysis the review belongs to; null for an unsaved session. */
+	analysis: RlAnalysisContext | null;
 	generatedAt: string;
 	isDelta: boolean;
 	since: string | null;
@@ -404,6 +441,8 @@ export type StyleGuideProfileBrief = {
 
 export type LabState = {
 	ok: boolean;
+	/** Active analysis's own folder + live-lease status; null when unsaved. */
+	analysis: RlAnalysisContext | null;
 	session: {
 		cutawayPath: string;
 		legendPath: string;
@@ -451,5 +490,6 @@ export type LabState = {
 	trainingFeedback: { feedback: TrainingFeedback[] };
 	/** Already-exported review ids for delta feedback prompts. */
 	rlCursor: RlFeedbackCursor | null;
-	paths: Record<string, string>;
+	/** Shared single-tenant pipeline scratch — valid only for the live-lease owner. */
+	livePaths: Record<string, string>;
 };

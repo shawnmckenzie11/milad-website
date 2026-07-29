@@ -206,7 +206,7 @@ export default function App() {
 
 		// Resolve the landing screen before the first commit, so a cold start never
 		// paints the wizard and then swaps to home. `goHome` keeps the analysis
-		// bound (and its live lease) — it only moves the screen.
+		// bound — it only moves the screen.
 		if (!bootResolved.current) {
 			bootResolved.current = true;
 			if (bootShouldLandOnHome(nextState, nextItems.items.length)) {
@@ -600,7 +600,9 @@ export default function App() {
 
 	/**
 	 * Build a delta (or full) RL feedback prompt for the active Tier to Test.
-	 * Rematch is not run here — paste into Cursor for algorithm work.
+	 * Rematch is not run here — paste into Cursor for algorithm work. The active
+	 * analysis travels with the prompt so the agent addresses that analysis's own
+	 * folder rather than the published site tree.
 	 */
 	function openFeedbackPrompt(forceFull = forceFullPrompt) {
 		const summary = buildRlFeedbackSummary(
@@ -612,6 +614,7 @@ export default function App() {
 				forceFull,
 				cursor: rlCursor,
 				since: rlCursor?.consumedAt || sessionStartedAt,
+				analysis: state?.analysis ?? null,
 			},
 		);
 		setPendingRlSummary(summary);
@@ -1242,8 +1245,10 @@ export default function App() {
 			)}
 			<p className="muted" style={{ margin: '0.35rem 0 0' }}>
 				Builds a <strong>MODE-tagged</strong> delta Cursor prompt for{' '}
-				<strong>Tier {tierToTest} only</strong> (calibration vs freehand geometry vs mixed). Rematch
-				is done in chat — not in this lab.
+				<strong>Tier {tierToTest} only</strong> (calibration vs freehand geometry vs mixed),
+				addressed to{' '}
+				<strong>{state.analysis?.name || state.session.analysisName || 'this analysis'}</strong>{' '}
+				and its own folder. Rematch is done in chat — not in this lab.
 			</p>
 		</div>
 	);

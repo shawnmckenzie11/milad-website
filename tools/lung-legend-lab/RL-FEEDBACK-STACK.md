@@ -65,11 +65,31 @@ Reconcile runs **per locus**: only hits within 120px of the outline (or overlapp
 Exports include only:
 
 - `MODE` / `MODE_LABEL` / `MISS_ATTRIBUTION`
+- `ANALYSIS` / `ANALYSIS_DIR` / `ANALYSIS_FILES` / `SOURCE_IMAGES` / `STYLE_PROFILE` / `IO_ROOT`
 - `REF:` paths to this stack (rule, agent, skill, this doc)
 - Instance-specific miss-attribution bullets (when freehand heuristics fire)
 - Review delta (confirms, FPs, freehand vertices, notes)
 
 They do **not** repeat Agent process / rematch-scale essays — agents must open REF.
+
+## Analysis scoping in the prompt
+
+Each analysis owns `workspace/analyses/{id}/` (cutaway, legend, extract,
+classification, match report, findings, annotations, review feedback, `layers/`,
+`legend-items/`, `templates/`, `previews/`, `debug/`,
+`style-guide/legend-context.json`, RL prompt + history). Those are the databases —
+there is no shared scratch tree and no lease. `public/figures/lung-health/**` is the
+**published** site tree, written only by a bare `npm run lung:generate`.
+
+Prompts therefore name the analysis, its **own** paths, and `IO_ROOT` — the value the
+agent passes as `--analysis` / `--io-root` so every pipeline step reads and writes that
+analysis. `analysisHeaderLines()` in `src/lib/rlFeedback.ts` builds those lines from
+the `analysis` block that `buildState()` returns.
+
+Exporting a prompt writes `rl-feedback.json` / `rl-feedback-prompt.md` /
+`rl-feedback-history.json` into the analysis folder only (the loose `workspace/*`
+copies are used solely in defaults mode, when no analysis is bound), so an export can
+never overwrite another analysis's RL state.
 
 ## Tier difficulty
 

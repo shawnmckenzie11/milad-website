@@ -1,11 +1,11 @@
 /**
  * Re-clean persisted freehand-classify outlines with atlas Chaikin/Laplacian
- * smoothing (legend-icon edge character). Updates live workspace feedback and
- * optionally an analysis snapshot.
+ * smoothing (legend-icon edge character).
  *
- * Run from repo root:
- *   node --experimental-strip-types tools/lung-legend-lab/scripts/reclean-freehands.mts
- *   node --experimental-strip-types tools/lung-legend-lab/scripts/reclean-freehands.mts analysis-28993c9f
+ * Takes an explicit target so it can never rewrite whichever analysis happens to
+ * be open in the lab. Run from repo root:
+ *   node --experimental-strip-types …/reclean-freehands.mts analysis-test1-baseline
+ *   node --experimental-strip-types …/reclean-freehands.mts --defaults
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -122,47 +122,39 @@ function processFile(feedbackPath: string, classificationPath: string | null) {
 }
 
 /**
- * CLI entry: optional analysis id argument.
+ * CLI entry: requires an analysis id, or `--defaults` for the unbound store.
+ *
+ * Refuses to guess a target: rewriting outlines is destructive, and an implicit
+ * "whatever is live" default is what used to corrupt a bystander analysis.
  */
 function main() {
-	const analysisId = process.argv[2] || null;
-	const liveFeedback = path.join(labRoot, 'workspace/lab-training-feedback.json');
-	const liveClass = path.resolve(
-		labRoot,
-		'../../public/figures/lung-health/legend-classification.json',
-	);
-	processFile(liveFeedback, liveClass);
-
-	if (analysisId) {
-		const ap = path.join(
-			labRoot,
-			'workspace/analyses',
-			analysisId,
-			'lab-training-feedback.json',
+	const target = process.argv[2] || '';
+	if (!target) {
+		console.error(
+			'usage: reclean-freehands.mts <analysis-id> | --defaults\n' +
+				'  <analysis-id>  rewrite tools/lung-legend-lab/workspace/analyses/<id>/\n' +
+				'  --defaults     rewrite the unbound workspace + site classification',
 		);
-		const ac = path.join(
-			labRoot,
-			'workspace/analyses',
-			analysisId,
-			'legend-classification.json',
-		);
-		processFile(ap, ac);
-	} else {
-		// Also refresh the active analysis that still has B1 freehand when present.
-		const defaultAnalysis = path.join(
-			labRoot,
-			'workspace/analyses/analysis-28993c9f/lab-training-feedback.json',
-		);
-		if (fs.existsSync(defaultAnalysis)) {
-			processFile(
-				defaultAnalysis,
-				path.join(
-					labRoot,
-					'workspace/analyses/analysis-28993c9f/legend-classification.json',
-				),
-			);
-		}
+		process.exitCode = 2;
+		return;
 	}
+	if (target === '--defaults') {
+		processFile(
+			path.join(labRoot, 'workspace/lab-training-feedback.json'),
+			path.resolve(labRoot, '../../public/figures/lung-health/legend-classification.json'),
+		);
+		return;
+	}
+	const dir = path.join(labRoot, 'workspace/analyses', target);
+	if (!fs.existsSync(dir)) {
+		console.error(`No analysis folder: ${dir}`);
+		process.exitCode = 1;
+		return;
+	}
+	processFile(
+		path.join(dir, 'lab-training-feedback.json'),
+		path.join(dir, 'legend-classification.json'),
+	);
 }
 
 main();

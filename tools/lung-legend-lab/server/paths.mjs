@@ -19,21 +19,28 @@ export const WORKSPACE = path.join(LAB_ROOT, 'workspace');
 export const SESSION_PATH = path.join(WORKSPACE, 'session.json');
 
 /**
- * Lease file naming the single analysis that currently owns the shared live
- * pipeline paths (`public/figures/lung-health/**` + `workspace/*`).
+ * Legacy single-tenant lease file.
  *
- * The Python pipeline writes fixed shared paths, so exactly one analysis may be
- * "live" at a time. Every snapshot back into an analysis folder is gated on this
- * lease, which is what stops a new/other analysis from writing its results (or
- * an empty stub) into a previously saved analysis.
+ * Analyses now own separate databases under `workspace/analyses/{id}/`, and the
+ * pipeline takes an explicit `--io-root`, so nothing claims or waits on a lease.
+ * The path survives only so `ensureWorkspace()` can migrate a pre-lease-removal
+ * workspace and delete the file.
  */
-export const LIVE_OWNER_PATH = path.join(WORKSPACE, 'live-owner.json');
+export const LEGACY_LIVE_OWNER_PATH = path.join(WORKSPACE, 'live-owner.json');
 
 /**
  * Versioned style-guide profiles (JSON + Markdown) selected per analysis.
  * Not under workspace/ so they ship with the repo.
  */
 export const STYLE_GUIDE_PROFILES_DIR = path.join(LAB_ROOT, 'style-guide-profiles');
+
+/**
+ * Checked-in site figure tree.
+ *
+ * This is the *published* store, not scratch space for lab sessions: only an
+ * explicit `npm run lung:generate` (no `--io-root`) writes it, and the lab reads
+ * it when the maintainer works on defaults with no analysis bound.
+ */
 export const FIGURES = path.join(ROOT, 'public/figures/lung-health');
 export const DEBUG_DIR = path.join(FIGURES, 'debug');
 export const LAYERS_DIR = path.join(FIGURES, 'layers');
@@ -59,6 +66,38 @@ export const FREEHAND_ICONS_DIR = path.join(WORKSPACE, 'freehand-icons');
 /** Latest exported RL feedback prompt + delta cursor. */
 export const RL_FEEDBACK_JSON = path.join(WORKSPACE, 'rl-feedback.json');
 export const RL_FEEDBACK_MD = path.join(WORKSPACE, 'rl-feedback-prompt.md');
+
+/** Legend glyph templates + pathway previews written by the matcher. */
+export const TEMPLATES_DIR = path.join(FIGURES, 'templates');
+export const PREVIEWS_DIR = path.join(FIGURES, 'previews');
+
+/**
+ * Site-tree store, shaped like {@link analysisPaths} so handlers can treat
+ * "no analysis bound" (defaults mode) as just another store.
+ *
+ * Keys must stay in sync with `analysisPaths()` in `analyses.mjs` and with
+ * `analysis_layout()` in `scripts/lung_io_paths.py`.
+ */
+export const SITE_STORE = Object.freeze({
+	analysisId: null,
+	root: FIGURES,
+	cutaway: DEFAULT_CUTAWAY,
+	legend: DEFAULT_LEGEND,
+	extract: EXTRACT_JSON,
+	classification: CLASSIFICATION_JSON,
+	findings: FINDINGS_DB,
+	matchReport: MATCH_REPORT,
+	annotations: ANNOTATIONS_JSON,
+	trainingFeedback: TRAINING_FEEDBACK_JSON,
+	rlFeedback: RL_FEEDBACK_JSON,
+	rlFeedbackMd: RL_FEEDBACK_MD,
+	layers: LAYERS_DIR,
+	legendItems: LEGEND_ITEMS_DIR,
+	freehandIcons: FREEHAND_ICONS_DIR,
+	templates: TEMPLATES_DIR,
+	previews: PREVIEWS_DIR,
+	debug: DEBUG_DIR,
+});
 
 export const RUN_LUNG_PYTHON = path.join(ROOT, 'scripts/run-lung-python.mjs');
 export const OBSERVABILITY_PY = path.join(ROOT, 'scripts/lung_legend_observability.py');

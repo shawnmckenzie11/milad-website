@@ -31,19 +31,30 @@ Uses `.venv-lung` via `scripts/run-lung-python.mjs`.
 legend, extract, classification, findings, match report, annotations, review
 feedback, layer/glyph/freehand PNGs, style-guide snapshot and RL history.
 
-The Python pipeline writes fixed shared paths (`public/figures/lung-health/**`,
-`workspace/*.json`), so those are a **single-tenant scratch area**:
+Those folders *are* the databases — there is no shared scratch area and no lease:
 
-- `workspace/live-owner.json` names the one analysis holding the live lease.
-- Every write from the UI snapshots into that analysis immediately; a snapshot
-  for any other id is refused (this is what stops a new analysis, or a pipeline
-  job that lands after you switched, from overwriting a saved analysis).
-- Creating a new analysis saves the outgoing one, transfers the lease, then
-  clears live state — a new analysis never inherits another's outputs.
+- Every UI write and every pipeline job resolves its paths from the analysis it was
+  started for. Jobs bind that id at request time and pass it to Python as
+  `--io-root`, so a job keeps writing its own analysis even if you open a different
+  one while it runs.
+- Opening or creating an analysis is a pointer move. Nothing is copied into or
+  cleared out of a shared tree, so switching in the UI cannot interrupt, block, or
+  overwrite work in progress on another analysis.
 - Layers / legend glyphs / freehand icons are served from the open analysis's own
-  folder, so shared checked-in artwork cannot bleed into another session's views.
+  folder, so one analysis's artwork cannot bleed into another's views.
+- `public/figures/lung-health/**` is the **published** site tree, not scratch. Only
+  a bare `npm run lung:generate` writes it; add `--analysis <id>` (or `--io-root
+  <dir>`) to target an analysis instead.
 - `style-guide-profiles/` is intentionally shared: those are versioned profiles,
   not session state, and each analysis snapshots the one it is bound to.
+
+Work an analysis from the CLI without opening the lab:
+
+```bash
+npm run lung:generate -- --analysis analysis-test1-baseline
+node scripts/run-lung-python.mjs scripts/lung_legend_observability.py --extract-only \
+  --io-root tools/lung-legend-lab/workspace/analyses/analysis-test1-baseline
+```
 
 ## Test fixtures
 
@@ -68,10 +79,9 @@ npm run lung:lab:recover-test1
 
 This (re)creates `analysis-test1-baseline` — "Test 1 · Baseline" in the Analyses
 list — with the findings DB, match report, expert annotations, outline layers and
-legend crops, then releases the live lease if it was held by a missing analysis.
-Idempotent; never touches other analyses. Freehand geometry ground truth is *not*
-recoverable this way (it only ever lived in `workspace/`), so Tier-2 A1/B1 may
-score lower on a fresh rematch than the restored snapshot shows.
+legend crops. Idempotent; never touches other analyses. Freehand geometry ground
+truth is *not* recoverable this way (it only ever lived in `workspace/`), so Tier-2
+A1/B1 may score lower on a fresh rematch than the restored snapshot shows.
 
 ## Notes
 

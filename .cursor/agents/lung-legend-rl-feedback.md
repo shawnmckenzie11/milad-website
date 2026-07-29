@@ -28,6 +28,9 @@ Extract and **obey**:
 
 - `MODE:` — process selector (`tier1-calibration`, `tier1-geometry-gt`, `tier1-mixed`, same for tier2, `multi-tier:…`, empty/notes)
 - `MISS_ATTRIBUTION:` — `cv-calibration` | `style-guide` | `ambiguous` | `none`
+- `ANALYSIS:` / `ANALYSIS_DIR:` / `ANALYSIS_FILES:` — which saved analysis this review belongs to and where **its own** cutaway, legend, match report, findings, annotations, review feedback, outline layers, legend crops, and legend context live. Read and write there.
+- `SOURCE_IMAGES:` — repo defaults (Test 1 = `cutaway-neutral.png` + `Lung Cutaway Legend Template.png`) vs an analysis upload
+- `IO_ROOT:` — pass it to every pipeline step (`npm run lung:generate -- --analysis <id>`, or `--io-root <dir>` for the Python scripts) so reads and writes stay inside this analysis. `public/figures/lung-health/**` is the published site tree: do not read it as this analysis's state and do not run the pipeline unscoped. The operator may open another analysis while you work — with `IO_ROOT` set, that cannot affect your run.
 - `REF:` — open those paths for rematch scales, Agent process, and tier difficulty (not restated in the paste)
 - Body buckets: confirms, FPs, reclassifications, freehand outlines (full vertices), notes
 

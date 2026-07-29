@@ -18,6 +18,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from lung_io_paths import add_io_root_argument, analysis_layout
+
 ROOT = Path(__file__).resolve().parents[1]
 DEBUG_DIR = ROOT / "public/figures/lung-health/debug"
 FINDINGS_DB = DEBUG_DIR / "legend-findings-db.json"
@@ -29,6 +31,29 @@ CANVAS_PATH = (
     / ".cursor/projects/Users-shawnscomputer-Documents-milad-website"
     / "canvases/lung-legend-findings.canvas.tsx"
 )
+
+#: Set by --io-root; when present the run only touches that analysis's files.
+IO_ROOT: Path | None = None
+
+
+def apply_io_root(io_root: Path) -> None:
+    """
+    Point the findings DB at one analysis's own classification / report / DB.
+
+    Each analysis keeps a separate findings database, so an upsert triggered by
+    a job for analysis A must never merge analysis B's match report or overwrite
+    B's DB — which is what a single fixed path made unavoidable.
+
+    :param io_root: Analysis folder (``workspace/analyses/{id}``).
+    """
+    global IO_ROOT, DEBUG_DIR, FINDINGS_DB, CLASSIFICATION_JSON, EXTRACT_JSON, MATCH_REPORT
+    layout = analysis_layout(io_root)
+    IO_ROOT = layout["root"]
+    DEBUG_DIR = layout["debug"]
+    FINDINGS_DB = layout["findings"]
+    CLASSIFICATION_JSON = layout["classification"]
+    EXTRACT_JSON = layout["extract"]
+    MATCH_REPORT = layout["match_report"]
 
 # Owner-facing phase note for the dashboard header.
 META_PHASE = (
@@ -204,7 +229,11 @@ def upsert_findings_db(
     prior_runs = list((prior or {}).get("runs") or [])
 
     classifications = classification.get("classifications") or {}
-    if not classifications:
+    if not classifications and "classifications" not in classification:
+        # No classification document at all → the checked-in legend's fixture is
+        # the intended source. A document that *declares* an empty map is a new
+        # analysis with nothing classified yet: seeding it with the other
+        # legend's A1–B9 rows is how Test 1 codes leaked into a Test 2 session.
         # Import late to avoid circular import when observability imports us.
         from lung_legend_observability import KNOWN_CLASSIFICATION  # type: ignore
 
@@ -730,7 +759,10 @@ def main() -> int:
         action="store_true",
         help="Skip rewriting the Cursor Canvas snapshot",
     )
+    add_io_root_argument(parser)
     args = parser.parse_args()
+    if args.io_root is not None:
+        apply_io_root(args.io_root)
     db = upsert_findings_db(write_canvas=not args.no_canvas)
     t1 = db["stats"]["tier1"]
     print(

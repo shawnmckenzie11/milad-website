@@ -1,8 +1,8 @@
 # Legend lab test image pairs
 
 Reference cutaway + legend pairs for the lung legend lab. Each numbered pair is a
-self-contained test case: load it as a new analysis and the per-analysis lease
-(`workspace/live-owner.json`) keeps its pipeline outputs isolated from the others.
+self-contained test case: load it as a new analysis and its pipeline outputs stay in
+that analysis's own folder (`workspace/analyses/{id}/`), isolated from the others.
 
 | Pair | Cutaway | Legend | Cutaway canvas |
 | --- | --- | --- | --- |
@@ -36,6 +36,12 @@ rematch regression; see `public/figures/lung-health/debug/template-match-report.
 Second pair with a shorter cutaway and a narrower legend. Kept to prove
 per-analysis isolation: running Test 2 must not overwrite Test 1's findings,
 layers, or match report.
+
+Its legend is also the **second supported legend layout**: a plain card with one
+icon per row, a single line of label text, no `A1`/`B1` badges and no rules. That
+label line is the item name, and `scripts/lung_legend_observability.py` numbers
+the rows itself (`A1…A20` here, restarting at `B1` after a divider rule). Tier,
+sub-tier and pathway stay unset — the legend does not state them.
 
 ## Note on file extensions
 

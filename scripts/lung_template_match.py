@@ -28,6 +28,8 @@ from typing import Iterable
 import cv2
 import numpy as np
 
+from lung_io_paths import add_io_root_argument, analysis_layout
+
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_PNG = ROOT / "public/figures/lung-health/cutaway-neutral.png"
 LEGEND_PNG = ROOT / "public/figures/lung-health/Lung Cutaway Legend Template.png"
@@ -42,6 +44,33 @@ MATCH_REPORT = DEBUG_DIR / "template-match-report.json"
 LAB_TRAINING_FEEDBACK = (
     ROOT / "tools/lung-legend-lab/workspace/lab-training-feedback.json"
 )
+
+#: Set by --io-root; when present the run never touches the site tree.
+IO_ROOT: Path | None = None
+
+
+def apply_io_root(io_root: Path) -> None:
+    """
+    Redirect every derived read/write into one analysis-scoped IO root.
+
+    A lab run belongs to a single analysis, so it must not read another
+    analysis's classification / freehand GT, nor publish layer PNGs, previews or
+    the runtime TS module into the shared site tree. The published assets stay
+    reserved for `npm run lung:generate` with no `--io-root`.
+
+    :param io_root: Analysis folder (``workspace/analyses/{id}``).
+    """
+    global IO_ROOT, CLASSIFICATION_JSON, TEMPLATE_DIR, LAYER_DIR, PREVIEW_DIR
+    global DEBUG_DIR, MATCH_REPORT, LAB_TRAINING_FEEDBACK
+    layout = analysis_layout(io_root)
+    IO_ROOT = layout["root"]
+    CLASSIFICATION_JSON = layout["classification"]
+    TEMPLATE_DIR = layout["templates"]
+    LAYER_DIR = layout["layers"]
+    PREVIEW_DIR = layout["previews"]
+    DEBUG_DIR = layout["debug"]
+    MATCH_REPORT = layout["match_report"]
+    LAB_TRAINING_FEEDBACK = layout["training_feedback"]
 
 CANVAS_W = 1024
 CANVAS_H = 953
@@ -1743,9 +1772,11 @@ def run_generate(
 
     Optional source/legend paths override the checked-in defaults so the
     maintainer lab can try alternate diagram uploads without rewriting assets.
+    With `--io-root` the analysis's own cutaway/legend are the defaults.
     """
-    source = source_png or SOURCE_PNG
-    legend = legend_png or LEGEND_PNG
+    scoped = analysis_layout(IO_ROOT) if IO_ROOT is not None else None
+    source = source_png or (scoped["cutaway"] if scoped else SOURCE_PNG)
+    legend = legend_png or (scoped["legend"] if scoped else LEGEND_PNG)
     if not source.is_file():
         print(f"✗ Missing source PNG: {source}", file=sys.stderr)
         return 1
@@ -1949,7 +1980,11 @@ def run_generate(
 
     write_debug_composites(hay_bgr, outlines, matches_by_slug)
     write_previews(hay_bgr, outlines, matches_by_slug)
-    write_generated_ts(bboxes, w, h, report)
+    if IO_ROOT is None:
+        # The runtime TS module describes the published cutaway only; an analysis
+        # run must never rewrite it from a test image.
+        write_generated_ts(bboxes, w, h, report)
+    MATCH_REPORT.parent.mkdir(parents=True, exist_ok=True)
     MATCH_REPORT.write_text(json.dumps(report, indent=2), encoding="utf-8")
 
     print(f"✓ Debug composites → {DEBUG_DIR}")
@@ -1957,9 +1992,12 @@ def run_generate(
 
     # Upsert durable findings DB + maintainer canvas (preserve firstFoundAt / cumulatives).
     try:
+        import lung_findings_db
         from lung_findings_db import upsert_findings_db
 
-        upsert_findings_db(match_report=report, write_canvas=True)
+        if IO_ROOT is not None:
+            lung_findings_db.apply_io_root(IO_ROOT)
+        upsert_findings_db(match_report=report, write_canvas=IO_ROOT is None)
     except Exception as exc:  # noqa: BLE001 — generate should not fail solely on DB/canvas I/O
         print(f"· Findings DB refresh skipped: {exc}", file=sys.stderr)
 
@@ -2082,7 +2120,10 @@ def main() -> int:
         default=None,
         help="Override legend PNG path (default: Lung Cutaway Legend Template.png)",
     )
+    add_io_root_argument(parser)
     args = parser.parse_args()
+    if args.io_root is not None:
+        apply_io_root(args.io_root)
     if args.validate and not args.generate:
         return run_validate()
     return run_generate(source_png=args.source, legend_png=args.legend)

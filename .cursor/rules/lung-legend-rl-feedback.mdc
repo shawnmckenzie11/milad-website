@@ -37,10 +37,38 @@ Read these lines first (they are authoritative on the paste):
 MODE: …
 MODE_LABEL: …
 MISS_ATTRIBUTION: cv-calibration | style-guide | ambiguous | none
+ANALYSIS: <id> · <name>
+ANALYSIS_DIR: tools/lung-legend-lab/workspace/analyses/<id>
+ANALYSIS_FILES: cutaway=… · legend=… · match report=… · findings=… · annotations=… · review feedback=… · outline layers=… · legend crops=… · legend context=…
+SOURCE_IMAGES: repo defaults (…) | analysis upload
+STYLE_PROFILE: …
+IO_ROOT: tools/lung-legend-lab/workspace/analyses/<id> — pass to every pipeline step
 REF: … (rule · agent · skill · RL-FEEDBACK-STACK)
 ```
 
 Process details (`CORE_DETECTOR`, rematch scales 10%…200%, Agent process essays) live in REF — do not require them in the paste.
+
+### Analysis scoping
+
+Every analysis owns its **own** databases and images under `ANALYSIS_DIR`
+(`workspace/analyses/<id>/`). `ANALYSIS_FILES` paths are relative to it. There is no
+shared scratch tree to claim and no lease to wait for, so the operator can open a
+different analysis in the lab while you work — your run is unaffected.
+
+Point the pipeline at the analysis, never at the site tree:
+
+```bash
+npm run lung:generate -- --analysis <id>          # match + layers + findings
+node scripts/run-lung-python.mjs scripts/lung_legend_observability.py \
+  --extract-only --io-root <ANALYSIS_DIR>          # legend extract
+node scripts/run-lung-python.mjs scripts/lung_findings_db.py --io-root <ANALYSIS_DIR>
+```
+
+`public/figures/lung-health/**` is the **published site tree**, not scratch: only a
+bare `npm run lung:generate` (no `--analysis`) may write it, and only when the task is
+to update the shipped figure. Never edit `session.json` to get your work done, never
+quote site-tree paths back as this analysis's state, and never touch another
+analysis's folder.
 
 ### MODE → process
 
