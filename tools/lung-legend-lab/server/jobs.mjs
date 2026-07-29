@@ -80,6 +80,25 @@ function pushLog(job, line) {
 }
 
 /**
+ * Best-effort human-readable reason for a failed pipeline step.
+ *
+ * The Python steps report actionable diagnostics on stderr as `✗ …` lines and
+ * then exit non-zero. Reporting only `exit 1` in the UI hides that message
+ * behind the collapsed job log, so prefer the last failure line when present.
+ *
+ * @param {string[]} stderrLines - Captured stderr lines, oldest first
+ * @param {number} code - Process exit code
+ * @returns {string}
+ */
+function describeFailure(stderrLines, code) {
+	const marked = stderrLines.filter((line) => line.startsWith('✗'));
+	const candidates = marked.length > 0 ? marked : stderrLines;
+	const reason = candidates[candidates.length - 1];
+	if (!reason) return `exit ${code}`;
+	return `${reason.replace(/^✗\s*/, '')} (exit ${code})`;
+}
+
+/**
  * Spawn a child process, streaming stdout/stderr into the job log.
  * @param {Job} job
  * @param {string} command
@@ -91,6 +110,8 @@ export function runProcessJob(job, command, args, cwd) {
 	return new Promise((resolve) => {
 		job.status = 'running';
 		pushLog(job, `$ ${command} ${args.join(' ')}`);
+		/** Stderr only, so the failure reason is not diluted by progress output. */
+		const stderrLines = [];
 
 		const child = spawn(command, args, {
 			cwd,
@@ -102,7 +123,11 @@ export function runProcessJob(job, command, args, cwd) {
 			for (const line of String(buf).split('\n')) pushLog(job, line);
 		});
 		child.stderr.on('data', (buf) => {
-			for (const line of String(buf).split('\n')) pushLog(job, line);
+			for (const line of String(buf).split('\n')) {
+				const cleaned = sanitizeLogLine(line);
+				if (cleaned) stderrLines.push(cleaned);
+				pushLog(job, line);
+			}
 		});
 
 		child.on('error', (err) => {
@@ -121,7 +146,7 @@ export function runProcessJob(job, command, args, cwd) {
 				pushLog(job, '✓ job finished');
 			} else {
 				job.status = 'failed';
-				job.error = `exit ${code}`;
+				job.error = describeFailure(stderrLines, job.exitCode);
 				pushLog(job, `✗ job failed (exit ${code})`);
 			}
 			resolve(job);

@@ -21,11 +21,11 @@ export const lungHealthLayerBBoxes = {
 		"y": 297,
 		"width": 119,
 		"height": 601,
-		"pixelCount": 1963,
+		"pixelCount": 1586,
 		"components": 2,
 		"tier": 1,
-		"cx": 597.7,
-		"cy": 538.1,
+		"cx": 597.9,
+		"cy": 537.1,
 		"method": "opencv-template-match",
 		"bestScore": 0.8234,
 		"matches": [
@@ -50,11 +50,11 @@ export const lungHealthLayerBBoxes = {
 		"y": 849,
 		"width": 162,
 		"height": 77,
-		"pixelCount": 2774,
+		"pixelCount": 3308,
 		"components": 2,
 		"tier": 1,
-		"cx": 549.4,
-		"cy": 887.7,
+		"cx": 549.5,
+		"cy": 887.4,
 		"method": "opencv-template-match",
 		"bestScore": 0.9247,
 		"matches": [
@@ -62,14 +62,14 @@ export const lungHealthLayerBBoxes = {
 				"cx": 607.5,
 				"cy": 871.0,
 				"score": 0.925,
-				"scale": 1.03,
+				"scale": 1.02,
 				"mode": "green"
 			},
 			{
 				"cx": 492.5,
 				"cy": 904.0,
 				"score": 0.908,
-				"scale": 1.03,
+				"scale": 1.02,
 				"mode": "green"
 			}
 		]
@@ -136,19 +136,19 @@ export const lungHealthLayerBBoxes = {
 		"x": 746,
 		"y": 106,
 		"width": 144,
-		"height": 90,
-		"pixelCount": 375,
-		"components": 5,
+		"height": 33,
+		"pixelCount": 294,
+		"components": 4,
 		"tier": 2,
-		"cx": 826.1,
-		"cy": 132.5,
+		"cx": 817.5,
+		"cy": 121.8,
 		"method": "opencv-template-match",
-		"bestScore": 0.9259,
+		"bestScore": 0.931,
 		"matches": [
 			{
 				"cx": 757.0,
 				"cy": 124.5,
-				"score": 0.926,
+				"score": 0.931,
 				"scale": 1.0,
 				"mode": "gray",
 				"part": "dots"
@@ -156,7 +156,7 @@ export const lungHealthLayerBBoxes = {
 			{
 				"cx": 861.0,
 				"cy": 114.0,
-				"score": 0.89,
+				"score": 0.894,
 				"scale": 0.85,
 				"mode": "gray",
 				"part": "antibody"
@@ -164,7 +164,7 @@ export const lungHealthLayerBBoxes = {
 			{
 				"cx": 883.5,
 				"cy": 129.0,
-				"score": 0.842,
+				"score": 0.843,
 				"scale": 0.75,
 				"mode": "gray",
 				"part": "antibody"
@@ -172,16 +172,8 @@ export const lungHealthLayerBBoxes = {
 			{
 				"cx": 821.0,
 				"cy": 133.5,
-				"score": 0.752,
-				"scale": 0.7,
-				"mode": "gray",
-				"part": "antibody"
-			},
-			{
-				"cx": 874.0,
-				"cy": 189.5,
-				"score": 0.742,
-				"scale": 0.7,
+				"score": 0.782,
+				"scale": 0.6,
 				"mode": "gray",
 				"part": "antibody"
 			}
@@ -217,53 +209,53 @@ export const lungHealthLayerBBoxes = {
 		]
 	},
 	"trachea-conducting-airway": {
-		"x": 507,
-		"y": 49,
-		"width": 16,
-		"height": 23,
-		"pixelCount": 286,
+		"x": 340,
+		"y": 20,
+		"width": 72,
+		"height": 102,
+		"pixelCount": 5530,
 		"components": 1,
 		"tier": 2,
-		"cx": 515.1,
-		"cy": 59.4,
+		"cx": 376.8,
+		"cy": 67.3,
 		"method": "opencv-template-match",
-		"bestScore": 0.4528,
+		"bestScore": 0.4657,
 		"matches": [
 			{
-				"cx": 515.0,
-				"cy": 60.5,
-				"score": 0.453,
-				"scale": 0.4,
+				"cx": 376.0,
+				"cy": 71.0,
+				"score": 0.466,
+				"scale": 1.75,
 				"mode": "gray"
 			}
 		]
 	},
 	"airway-epithelium": {
-		"x": 433,
-		"y": 246,
-		"width": 290,
-		"height": 508,
-		"pixelCount": 584,
+		"x": 622,
+		"y": 166,
+		"width": 176,
+		"height": 103,
+		"pixelCount": 17246,
 		"components": 2,
 		"tier": 2,
-		"cx": 577.5,
-		"cy": 499.8,
+		"cx": 709.4,
+		"cy": 217.0,
 		"method": "opencv-template-match",
-		"bestScore": 0.4859,
+		"bestScore": 0.3812,
 		"matches": [
 			{
-				"cx": 442.0,
-				"cy": 745.5,
-				"score": 0.479,
-				"scale": 0.35,
-				"mode": "gray"
+				"cx": 675.5,
+				"cy": 216.5,
+				"score": 0.381,
+				"scale": 2.1,
+				"mode": "color"
 			},
 			{
-				"cx": 714.0,
-				"cy": 254.5,
-				"score": 0.486,
-				"scale": 0.35,
-				"mode": "gray"
+				"cx": 744.5,
+				"cy": 218.5,
+				"score": 0.355,
+				"scale": 2.1,
+				"mode": "color"
 			}
 		]
 	},
@@ -304,44 +296,23 @@ export const lungHealthLayerBBoxes = {
 		]
 	},
 	"alveolar-fields": {
-		"x": 227,
-		"y": 589,
-		"width": 668,
-		"height": 225,
-		"pixelCount": 824,
-		"components": 4,
+		"x": 138,
+		"y": 803,
+		"width": 30,
+		"height": 33,
+		"pixelCount": 509,
+		"components": 1,
 		"tier": 3,
-		"cx": 594.5,
-		"cy": 709.3,
+		"cx": 153.2,
+		"cy": 822.9,
 		"method": "opencv-template-match",
-		"bestScore": 0.4937,
+		"bestScore": 0.4267,
 		"matches": [
 			{
-				"cx": 857.0,
-				"cy": 633.0,
-				"score": 0.494,
-				"scale": 0.35,
-				"mode": "gray"
-			},
-			{
-				"cx": 269.0,
-				"cy": 804.0,
-				"score": 0.479,
-				"scale": 0.35,
-				"mode": "gray"
-			},
-			{
-				"cx": 236.0,
-				"cy": 599.0,
-				"score": 0.481,
-				"scale": 0.35,
-				"mode": "gray"
-			},
-			{
-				"cx": 884.0,
-				"cy": 766.0,
-				"score": 0.46,
-				"scale": 0.43,
+				"cx": 153.0,
+				"cy": 819.5,
+				"score": 0.427,
+				"scale": 0.59,
 				"mode": "gray"
 			}
 		]
@@ -357,7 +328,7 @@ export const lungHealthLayerBBoxes = {
 		"skipped": true,
 		"method": "template-match-skip"
 	},
-	"copd-inflammatory-structures": {
+	"airway-lumen": {
 		"x": 0,
 		"y": 0,
 		"width": 0,
@@ -368,7 +339,7 @@ export const lungHealthLayerBBoxes = {
 		"skipped": true,
 		"method": "template-match-skip"
 	},
-	"airway-lumen": {
+	"copd-inflammatory-structures": {
 		"x": 0,
 		"y": 0,
 		"width": 0,

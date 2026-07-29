@@ -137,6 +137,21 @@ def _name_map(extract: dict[str, Any] | None) -> dict[str, str]:
     return out
 
 
+def _extract_field_map(
+    extract: dict[str, Any] | None, field: str
+) -> dict[str, str]:
+    """Map legend code → a string field from legend-extract.json items."""
+    out: dict[str, str] = {}
+    if not extract:
+        return out
+    for item in extract.get("items") or []:
+        code = item.get("code")
+        value = item.get(field)
+        if code and value not in (None, ""):
+            out[str(code)] = str(value)
+    return out
+
+
 def _report_by_code(report: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
     """Index template-match report layers by legendCode."""
     by_code: dict[str, dict[str, Any]] = {}
@@ -182,6 +197,8 @@ def upsert_findings_db(
     now = utc_now_iso()
     run_id = run_id or now
     names = _name_map(extract)
+    supports_map = _extract_field_map(extract, "supports")
+    location_map = _extract_field_map(extract, "location")
     report_by_code = _report_by_code(match_report)
     prior_items = (prior or {}).get("items") or {}
     prior_runs = list((prior or {}).get("runs") or [])
@@ -192,6 +209,11 @@ def upsert_findings_db(
         from lung_legend_observability import KNOWN_CLASSIFICATION  # type: ignore
 
         classifications = KNOWN_CLASSIFICATION
+
+    try:
+        from lung_legend_observability import KNOWN_CLASSIFICATION as _KNOWN_SLUGS  # type: ignore
+    except ImportError:  # pragma: no cover
+        _KNOWN_SLUGS = {}
 
     guidelines = classification.get("guidelines") or ""
     sub_tier_help = classification.get("subTierHelp") or {}
@@ -209,13 +231,21 @@ def upsert_findings_db(
     codes = sorted(classifications.keys(), key=lambda c: (c[0], int(c[1:])))
     for code in codes:
         cls = classifications[code]
-        slug = cls.get("slug") or ""
-        tier = int(cls.get("tier", 0))
-        searchable = bool(cls.get("searchable"))
-        icon = cls.get("iconInterpretation") or ICON_BY_CODE.get(code, "1-discrete")
-        prior_item = prior_items.get(code) or {}
-
         layer = report_by_code.get(code)
+        prior_item = prior_items.get(code) or {}
+        # Prefer non-empty classification slug; else match-report key; else prior / known.
+        slug = (
+            (cls.get("slug") or "").strip()
+            or (layer or {}).get("slug")
+            or (prior_item.get("slug") or "").strip()
+            or (_KNOWN_SLUGS.get(code) or {}).get("slug")
+            or ""
+        )
+        raw_tier = cls.get("tier", 0)
+        tier = int(raw_tier) if raw_tier is not None and raw_tier != "" else 0
+        searchable = bool(cls.get("searchable")) if "searchable" in cls else tier > 0
+        icon = cls.get("iconInterpretation") or ICON_BY_CODE.get(code, "1-discrete")
+
         matches = list((layer or {}).get("matches") or []) if layer else []
         scores = [float(m["score"]) for m in matches if m.get("score") is not None]
         best = max(scores) if scores else None
@@ -265,6 +295,12 @@ def upsert_findings_db(
             "iconInterpretation": icon,
             "searchable": searchable,
             "group": cls.get("group"),
+            "supports": supports_map.get(code)
+            or prior_item.get("supports")
+            or "",
+            "location": location_map.get(code)
+            or prior_item.get("location")
+            or "",
             "status": status,
             "firstFoundAt": first_found,
             "lastFoundAt": last_found,
@@ -343,7 +379,10 @@ def upsert_findings_db(
     print(f"✓ Findings DB → {FINDINGS_DB.relative_to(ROOT)}")
 
     if write_canvas:
-        write_findings_canvas(db)
+        try:
+            write_findings_canvas(db)
+        except OSError as err:
+            print(f"⚠ Findings canvas skipped ({err})")
 
     return db
 

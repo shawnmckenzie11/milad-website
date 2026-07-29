@@ -1,0 +1,17 @@
+---
+description: Preserve Milad Lab biomedical illustration atlas style, ontology, and stable layer IDs
+globs: public/figures/lung-health/**,tools/lung-legend-lab/**,src/data/lungHealth*.ts,src/components/**/LungHealth*.tsx,.cursor/skills/lung-legend-template-match/**
+alwaysApply: false
+---
+
+# Lung biomedical illustration consistency
+
+When editing lung cutaway artwork, legend lab analyses, layer assets, or interactive lung-health UI:
+
+1. **Active profile** — Prefer the analysis-bound style guide at `tools/lung-legend-lab/style-guide-profiles/` (default `milad-lab-biomedical-illustration`). Read the JSON for structured ontology / naming; Markdown is the narrative source.
+2. **Visual language** — Flat restrained palette (`#ffffff` / `#f4f6f7` grounds; slate outlines `#3d5160`, `#4a6274`, `#8a97a1`); uniform line weights; no photorealism, painterly, anime, comic, or mascot styles.
+3. **Layer IDs** — Use **kebab-case** stable slugs (`trachea-conducting-airway`, `neutrophils`, …). Legend codes `A1`–`B9` are UI keys only. Do not rename published slugs; extend with new IDs. Emit `{slug}.png` + `{slug}-outline.png`.
+4. **Ontology** — Prefer profile canonical labels for tissues, cells, pathways, and disease overlays when classifying or naming freehand regions.
+5. **Site compatibility** — Keep cutaway canvas size (1024×953 for the current neutral) and `lungHealthLayers.generated.ts` keys aligned with layer slugs. Extend the atlas; do not fork incompatible naming.
+6. **Detection** — Follow `.cursor/skills/lung-legend-template-match/SKILL.md` (OpenCV template match). Do not invent flood-fill / chroma pipelines. For `multiple-adjacent-as-one` (A1/B1), keep one union crop; do not split into `2-discrete` part detectors.
+7. **Image-gen prompts** — Not required for the current pipeline; do not invent generative prompt packs unless a figure-generation workflow is explicitly adopted.

@@ -1,0 +1,13 @@
+{
+  "defaultProfileId": "milad-lab-biomedical-illustration",
+  "profiles": [
+    {
+      "id": "milad-lab-biomedical-illustration",
+      "title": "Milad Lab Biomedical Illustration",
+      "version": "1.0.0",
+      "summary": "Museum / journal-figure atlas language for reusable, highlightable lung and airway illustrations.",
+      "jsonFile": "milad-lab-biomedical-illustration.json",
+      "markdownFile": "milad-lab-biomedical-illustration.md"
+    }
+  ]
+}

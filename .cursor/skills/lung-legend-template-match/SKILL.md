@@ -53,6 +53,7 @@ Standalone Vite + React app + local Node API (not public `/projects`):
 - **Refine:** full-bleed cutaway, **view by layer** chips, Run match, findings/progress, Confirm/FP/Reassign
 - Persisted analyses: `tools/lung-legend-lab/workspace/analyses/{id}/` (images + extract/classification/match/findings/layers snapshots)
 - Current cutaway is seeded as `lung-cutaway-neutral`
+- **Style guide profiles:** after upload (and on the current cutaway), pick a profile from `tools/lung-legend-lab/style-guide-profiles/` (default `milad-lab-biomedical-illustration`). Bound on analysis `meta.styleGuideProfileId`. Agent consistency rule: `.cursor/rules/lung-biomedical-illustration.mdc`.
 
 ### Legend classification
 
@@ -79,8 +80,13 @@ Refresh with `npm run lung:findings` after generate (or let generate rewrite it)
 |-----|---------------|-----|
 | Lumen inset | x 640–970, y 60–380 | Cells / mediators / virus |
 | Virus zone | x 610–720, y 70–155 | B9 only (excludes B6 dots ~757,113) |
+| Mediator zone | x 720–920, y 90–160 | B6 only (excludes FP ~874,190) |
+| Signaling lumen | x 820–930, y 280–350 | B7 lumen confirm ~878,311 |
 | Junction inset | x 340–700, y 660–935 | B3/B4/B5/B7 |
-| Main tree | x 180–860, y 40–620 | A1/A2 |
+| Mid trachea / A1 band | x 310–450, y 20–200 | A1 stem glyph recovery (~376,71) |
+| Lumen band corridor | x 520–800, y 100–320 | A1/B1 adjacent lining bands; freehand-instance rematch |
+| Epithelium band / B1 | x 530–690, y 110–280 | B1 lining; also searched via freehand-instance templates |
+| Main tree | x 180–860, y 40–620 | A2 |
 
 ## Tier thresholds (guidance)
 
@@ -96,7 +102,13 @@ Refresh with `npm run lung:findings` after generate (or let generate rewrite it)
 - **Masked** `matchTemplate` under-scores true hits here — match on color/gray (optional channel boost); use **alpha only for silhouette stamping**.
 - Tight crop B3 (`neutrophils`); legend white padding destroys NCC.
 - Reject match windows larger than the layer’s `max_component_side` before NMS.
+- Reject undersized windows with `min_component_side` on **max(w,h)** (tiny B1 glyph stamps near large freehand centroids).
 - Outline QA: opaque outline pixels must exist within ~18px of each accepted match center.
+- After geometry-gt rematch: **reconcile** freehand vs hits (centroid + sizeRatio) — never keep both; compatible A1-class recoveries supersede freehand. Lab runs reconcile after match **and** on analysis restore (`server/freehandMatchReconcile.mjs`).
+- Reconcile is **per locus**: only hits within `FREEHAND_MATCH_CONTEST_DIST` (or overlapping the outline bbox) are judged against an outline. A1 legitimately owns both the mid-stem glyph and a lumen band — never reject a distant instance against a different instance's GT.
+- Superseded outlines are **retired, not deleted** (`kind: freehand-superseded`, vertices kept). They stay the matcher's band template source, so the next `lung:generate` reproduces the hit that superseded them.
+- Expert GT outranks stale `exclude_centers`: a prior within `exclude_radius` of an outline's bbox center is dropped for that code (a leftover ~(610,178) suppressor silently blocked B1 from ever self-matching).
+- Freehand overlays use the same yellow/`OUTLINE_STROKE_PX` language as `{slug}-outline.png` (`tools/lung-legend-lab/src/lib/outlineStyle.ts`).
 
 ## Verify artifacts (read these yourself)
 
@@ -104,9 +116,31 @@ Refresh with `npm run lung:findings` after generate (or let generate rewrite it)
 - `public/figures/lung-health/debug/verify-b9-crop.png` — outline on spiked virus
 - `public/figures/lung-health/debug/verify-cigarette.png` — B3/B4/B7
 - `public/figures/lung-health/debug/verify-b5-crop.png` — dendritic star
+- `public/figures/lung-health/debug/verify-a1-b1-band-crop.png` — A1 mid-stem + A1/B1 lumen bands (Tier-2 freehand-instance recovery)
 - `public/figures/lung-health/debug/template-match-report.json`
 - `public/figures/lung-health/debug/legend-findings-db.json` — durable classification + match findings DB
 
 ## Agent
 
-Project specialist: `.cursor/agents/lung-cutaway-layers.md`.
+- Layer / generate specialist: `.cursor/agents/lung-cutaway-layers.md`
+- **RL feedback paste specialist:** `.cursor/agents/lung-legend-rl-feedback.md`
+- Process rule (MODE clarity + tier difficulty): `.cursor/rules/lung-legend-rl-feedback.mdc`
+- Maintainer summary: `tools/lung-legend-lab/RL-FEEDBACK-STACK.md`
+
+## RL feedback prompts (Generate Feedback Prompt → Cursor)
+
+Each copied prompt starts with an unambiguous header the agent **must** obey (full process in the rule/agent above):
+
+| Header | Meaning |
+|--------|---------|
+| `MODE: tier1-calibration` / `tier2-calibration` | Confirms + FPs (+ reclass). Protect TP centers; suppress FP centers via threshold / ROI / NMS / exclude. No new detector. |
+| `MODE: tier1-geometry-gt` / `tier2-geometry-gt` | Freehand outlines are silhouette GT (misses / bad geometry). Rematch to recover them via scales / ROI / threshold / NMS / stamps. |
+| `MODE: tierN-mixed` | Calibration first, then geometry-gt for freehand codes. |
+| `MISS_ATTRIBUTION: cv-calibration \| style-guide \| ambiguous` | Heuristic when freehand present — expert need not decide. Prefer style-guide / legend-context when notes mention colour/linestyle/iconInterpretation or many codes miss on new artwork; otherwise CV-first. |
+| `REMATCH_SCALES_REQUIRED` | After CV revision, search **other locations** at **10%, 25%, 50%, 75%, 100%, 125%, 150%, 200%** of glyph size (`CANONICAL_SCALE_ANCHORS` in `lung_template_match.py`). |
+
+**Tier difficulty:** Tier 2 (and above) is orders of magnitude harder than Tier 1 — especially freehand. Do not treat Tier 2 as “Tier 1 with a lower threshold.”
+
+**After every paste:** reply with the mandatory **RL pass summary** (<500 words) covering Immediate / CV / Style scopes — see `.cursor/rules/lung-legend-rl-feedback.mdc`. Prompts are lean (MODE + delta + REF); do not expect restated process boilerplate in the paste.
+
+Still: same OpenCV template-match pipeline only. Do not invent flood-fill / chroma detectors.

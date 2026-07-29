@@ -1,0 +1,130 @@
+{
+  "id": "milad-lab-biomedical-illustration",
+  "title": "Milad Lab Biomedical Illustration",
+  "version": "1.0.0",
+  "summary": "Museum / journal-figure atlas language for reusable, highlightable lung and airway illustrations on the Milad Lab site.",
+  "markdownFile": "milad-lab-biomedical-illustration.md",
+  "appliesTo": ["lung-cutaway", "airway-atlas"],
+  "visualLanguage": {
+    "aesthetic": [
+      "Museum exhibit / journal figure",
+      "Scientific clarity over flourish",
+      "Biologically conservative and evidence-oriented"
+    ],
+    "palette": {
+      "backgrounds": ["#ffffff", "#f4f6f7"],
+      "outlines": ["#3d5160", "#4a6274", "#8a97a1"],
+      "notes": "Flat colours, restrained palette, minimal shading; no photorealism."
+    },
+    "typography": "Simple geometric sans for any labels carried in the artwork.",
+    "lineWeights": "Clean, uniform weights across anatomy and callouts.",
+    "composition": "Landscape unless a figure brief says otherwise.",
+    "forbiddenStyles": [
+      "photorealism",
+      "painterly",
+      "anime",
+      "Ghibli",
+      "comic",
+      "cartoon",
+      "infographic mascot"
+    ]
+  },
+  "illustrationFramework": [
+    "Base anatomy",
+    "Cellular components",
+    "Immune components",
+    "Signalling elements",
+    "Disease / process overlays",
+    "Labels",
+    "Highlight regions"
+  ],
+  "imagePathways": [
+    { "id": "base", "label": "base (all pathways)" },
+    { "id": "cannabis", "label": "cannabis" },
+    { "id": "cigarette-smoke", "label": "cigarette smoke" },
+    { "id": "vaping", "label": "vaping" },
+    { "id": "general-air", "label": "general air" },
+    { "id": "viruses", "label": "viruses" }
+  ],
+  "ontology": {
+    "tissues": [
+      { "id": "trachea-conducting-airway", "label": "Trachea / conducting airway", "legendCode": "A1" },
+      { "id": "bronchial-branches", "label": "Bronchial branches", "legendCode": "A2" },
+      { "id": "alveolar-fields", "label": "Alveolar fields", "legendCode": "A3" },
+      { "id": "airway-lumen", "label": "Airway lumen", "legendCode": "A4" },
+      { "id": "airway-epithelium", "label": "Airway epithelium", "legendCode": "B1" }
+    ],
+    "cells": [
+      { "id": "neutrophils", "label": "Neutrophils", "legendCode": "B3" },
+      { "id": "alveolar-macrophages", "label": "Alveolar macrophages", "legendCode": "B4" },
+      { "id": "dendritic-cells", "label": "Dendritic cells", "legendCode": "B5" }
+    ],
+    "pathways": [
+      { "id": "antiviral-immune-mediators", "label": "Antiviral immune mediators", "legendCode": "B6" },
+      { "id": "inflammatory-signaling", "label": "Inflammatory signaling", "legendCode": "B7" },
+      { "id": "infection-antiviral-pathway", "label": "Infection / antiviral pathway", "legendCode": "B9" }
+    ],
+    "diseaseProcesses": [
+      { "id": "copd-inflammatory-structures", "label": "COPD inflammatory structures", "legendCode": "B8" },
+      { "id": "airway-immune-compartment", "label": "Airway immune compartment", "legendCode": "B2" }
+    ]
+  },
+  "layerNaming": {
+    "convention": "kebab-case stable slugs; legend codes A1–A4 (base) and B1–B9 (highlight) are UI keys, not filesystem IDs",
+    "groupRules": {
+      "base": "A* anatomy / lumen structures",
+      "highlight": "B* cells, mediators, pathways, disease overlays"
+    },
+    "stableIds": [
+      { "id": "trachea-conducting-airway", "legendCode": "A1", "group": "base", "frameworkAlias": "anatomy_trachea", "pathways": ["base"] },
+      { "id": "bronchial-branches", "legendCode": "A2", "group": "base", "frameworkAlias": "anatomy_bronchi", "pathways": ["base"] },
+      { "id": "alveolar-fields", "legendCode": "A3", "group": "base", "frameworkAlias": "anatomy_alveoli", "pathways": ["base"] },
+      { "id": "airway-lumen", "legendCode": "A4", "group": "base", "frameworkAlias": "anatomy_lumen", "pathways": ["base"] },
+      { "id": "airway-epithelium", "legendCode": "B1", "group": "highlight", "frameworkAlias": "airway_epithelium", "pathways": ["cannabis", "base"] },
+      { "id": "airway-immune-compartment", "legendCode": "B2", "group": "highlight", "frameworkAlias": "immune_airway", "pathways": ["vaping"] },
+      { "id": "neutrophils", "legendCode": "B3", "group": "highlight", "frameworkAlias": "neutrophils", "pathways": ["cigarette-smoke"] },
+      { "id": "alveolar-macrophages", "legendCode": "B4", "group": "highlight", "frameworkAlias": "alveolar_macrophages", "pathways": ["cigarette-smoke"] },
+      { "id": "dendritic-cells", "legendCode": "B5", "group": "highlight", "frameworkAlias": "dendritic_cells", "pathways": ["vaping"] },
+      { "id": "antiviral-immune-mediators", "legendCode": "B6", "group": "highlight", "frameworkAlias": "antiviral_mediators", "pathways": ["cannabis"] },
+      { "id": "inflammatory-signaling", "legendCode": "B7", "group": "highlight", "frameworkAlias": "inflammatory_signaling", "pathways": ["cigarette-smoke"] },
+      { "id": "copd-inflammatory-structures", "legendCode": "B8", "group": "highlight", "frameworkAlias": "copd_structures", "pathways": ["general-air"] },
+      { "id": "infection-antiviral-pathway", "legendCode": "B9", "group": "highlight", "frameworkAlias": "infection_pathway", "pathways": ["viruses"] }
+    ],
+    "assetPattern": "public/figures/lung-health/layers/{slug}.png and {slug}-outline.png"
+  },
+  "siteCompatibility": {
+    "summary": "Interactive /projects cutaway depends on stable kebab slugs, outline PNGs, and the checked-in cutaway canvas size.",
+    "constraints": [
+      "Do not rename published slugs; extend with new kebab-case IDs instead.",
+      "Keep outline overlays as {slug}-outline.png beside {slug}.png.",
+      "Preserve cutaway-neutral.png pixel size (1024×953) unless regenerating all ROIs and site assets together.",
+      "Public site data keys in src/data/lungHealthLayers.generated.ts must match layer slugs.",
+      "Avoid baking exposure-specific props into reusable base artwork."
+    ]
+  },
+  "agentInstructions": [
+    "Preserve composition and visual language unless the brief explicitly changes them.",
+    "Add biology without rewriting unrelated structures.",
+    "Never swap scientific conventions for stylistic embellishment.",
+    "Prefer extending the atlas; do not reinvent palette, line weight, or layer taxonomy.",
+    "Keep layer slugs compatible with prior figures and the interactive site.",
+    "Follow .cursor/skills/lung-legend-template-match/SKILL.md for detection — do not invent flood-fill / chroma pipelines.",
+    "iconInterpretation=multiple-adjacent-as-one (A1 trachea wall, B1 epithelium band): one union legend crop searched as a single silhouette — do not split into 2-discrete part templates.",
+    "Tier-2 adjacent bands often diverge from the legend glyph; widen ROI to the anatomical band, use soft expected-center priors from expert freehand, and prefer require_match=False / pending over forced FPs.",
+    "After an A1/B1 freehand GT exists, rematch also uses that freehand crop as an extra matchTemplate instance so similar adjacent bands elsewhere can be found (legend-glyph alone is not enough)."
+  ],
+  "iconInterpretationPolicy": {
+    "1-discrete": "Single legend glyph; one template file `{slug}.png`.",
+    "2-discrete": "Two different glyphs in one legend row; crop each part (`{slug}--{part}.png`) and search independently.",
+    "multiple-adjacent-as-one": "Contiguous repeats or a wall/lining band treated as one structure (A1, B1). Keep a single union legend crop; also rematch with expert freehand-instance crops so similar bands at other loci are recovered. Do not invent part crops or flood-fill detectors."
+  },
+  "imageGenPromptTemplates": {
+    "status": "deferred",
+    "reason": "The legend lab and site pipeline consume authored PNGs + OpenCV template match; they do not run generative image edits. Add prompt packs only when a figure-generation workflow is adopted."
+  },
+  "uiBrief": {
+    "paletteSwatches": ["#ffffff", "#f4f6f7", "#3d5160", "#4a6274", "#8a97a1"],
+    "headline": "Flat atlas language · kebab layer IDs · evidence-first biology",
+    "namingExamples": ["A1 → trachea-conducting-airway", "B3 → neutrophils", "B9 → infection-antiviral-pathway"]
+  }
+}

@@ -1,0 +1,124 @@
+---
+description: >-
+  Parse lung legend lab RL feedback prompts with 100% MODE clarity (tier1/2
+  calibration vs geometry-gt vs mixed; miss attribution; multi-scale rematch).
+  Apply when the user pastes Generate Feedback Prompt markdown, mentions MODE:,
+  RL feedback, freehand GT, confirm/FP calibration, or Tier 1–2 rematch after
+  expert review in lung:lab.
+globs: tools/lung-legend-lab/**,scripts/lung_*.py,public/figures/lung-health/**,.cursor/skills/lung-legend-template-match/**
+alwaysApply: false
+---
+
+# Lung legend RL feedback stack
+
+When the user pastes a **Generate Feedback Prompt** (or anything starting with `MODE:`), treat that paste as an **executable work order**. Do not invent a different process.
+
+Pastes are **payload-only**: `MODE` / `MISS_ATTRIBUTION` / review deltas. Do **not** expect (or restate) full process boilerplate in the paste — load it from the files below.
+
+**Canonical prompt builder:** `tools/lung-legend-lab/src/lib/rlFeedback.ts`  
+**Detection skill:** `.cursor/skills/lung-legend-template-match/SKILL.md`  
+**Specialist agent:** `.cursor/agents/lung-legend-rl-feedback.md`  
+**Maintainer summary:** `tools/lung-legend-lab/RL-FEEDBACK-STACK.md`
+
+## Layered stack (do not collapse)
+
+| Layer | What it is | What you change |
+|-------|------------|-----------------|
+| **0. Core detector** | OpenCV multi-scale `matchTemplate` (TM_CCOEFF_NORMED) | Shared params only: threshold, ROI, scales, NMS, exclude_centers, silhouette stamp. **Never** flood-fill / chroma / new detector families. |
+| **1. Style guide** | Per-analysis / profile colourway, linestyle, pathways, iconInterpretation, agent instructions, `legend-context.json` | Style-specific misses → profile / legend-context — not a one-off detector. |
+| **2. Expert lab review** | Confirms, FPs, freehand outlines persisted on the analysis | Ground truth for *this* run; already stored before the prompt is pasted. |
+| **3. This paste (RL prompt)** | Delta MODE-tagged instructions for the agent | Execute MODE; rematch; report. Rematch is **not** automatic in the lab UI. |
+
+## Mandatory header parse
+
+Read these lines first (they are authoritative on the paste):
+
+```
+MODE: …
+MODE_LABEL: …
+MISS_ATTRIBUTION: cv-calibration | style-guide | ambiguous | none
+REF: … (rule · agent · skill · RL-FEEDBACK-STACK)
+```
+
+Process details (`CORE_DETECTOR`, rematch scales 10%…200%, Agent process essays) live in REF — do not require them in the paste.
+
+### MODE → process
+
+| MODE | Signal in body | Exact process |
+|------|----------------|---------------|
+| `tier1-calibration` / `tier2-calibration` | Confirms + FPs (+ reclass), no freehand | Protect every confirmed `(cx,cy)` as must-hit after rematch. Suppress every FP center (threshold / ROI / NMS / `exclude_centers`). No silhouette invention. |
+| `tier1-geometry-gt` / `tier2-geometry-gt` | Freehand vertex lists | Outlines are **silhouette ground truth**. Adjust scales / ROI / threshold / NMS / stamps so rematch recovers centroid/bbox; stamp from matched template — do **not** turn the polyline into a new detector. After rematch, **reconcile** (lab auto + agent): near centroid **and** similar size → **drop freehand, keep match** (success — do not understate). Far **or** wrong shape/scale → **reject hit, keep freehand**. **Never keep both** in DB/UI. |
+| `tierN-mixed` | Both | **Calibration first**, then geometry-gt for freehand codes. |
+| `tierN-empty` / notes-only | Little or no review | Do **not** revise matcher params unless notes clearly demand it. |
+| `multi-tier:…` | Several tiers | Apply each tier subsection with that tier’s difficulty expectations (below). |
+
+### MISS_ATTRIBUTION → preference
+
+| Value | Preference |
+|-------|------------|
+| `cv-calibration` | Threshold / ROI / scale / NMS / exclude first. Touch style-guide only if rematch proves glyph language differs. |
+| `style-guide` | Update analysis style-guide snapshot / `legend-context.json` / agent instructions **before** hacking a single slug. |
+| `ambiguous` | CV multi-scale rematch first; if outlines still fail without breaking confirms → style-guide and document why. |
+| `none` | No freehand miss path (calibration-only or empty). |
+
+You decide style vs CV from the header + rationale section — the expert often will not know.
+
+## Tier difficulty (orders of magnitude)
+
+Expect **much harder** search and freehand onboarding as tier rises. Do not apply Tier-1 confidence to Tier-2 work.
+
+| Tier | Nature | Match difficulty | Freehand difficulty |
+|------|--------|------------------|---------------------|
+| **1** | Exact (or near-exact) legend replicas in insets | Highest scores (~0.75–0.80+); tight ROIs; scales near 1× still need full anchor sweep after revision | Freehand usually = **missed replica** or **wrong peak**. Geometry should closely resemble the legend glyph. |
+| **2** | Partial similarity, mediators/clusters, adjacent multiples as individuals/rows (~70% neighbor similarity) | **Much harder:** lower scores, wider scale gaps, `2-discrete` / `multiple-adjacent-as-one`, trap FPs (e.g. B9 vs B6 cluster). Wrong scale by 2× is common. | Freehand often = **non-replica geometry**, split clusters, or style-divergent marks. Expect incomplete recovery; prefer ROI/scale/iconInterpretation fixes; tolerate `require_match=False` pending over forced FPs. |
+| **3** | Scale-divergent / hard structures | Harder still (wider scales, lower floors) | Freehand is sparse expert guidance, not pixel-perfect template identity. |
+| **0** | Not searchable | Skip | Do not invent matches. |
+
+**Rule of thumb:** Tier *N+1* freehand is not “Tier *N* with a lower threshold.” It is a different similarity regime. Escalate patience, scale coverage, and willingness to leave pending rather than shipping FPs.
+
+## Rematch checklist (always after CV edits)
+
+1. Ensure `LayerSpec.scales` for touched Tier 1–2 slugs include `CANONICAL_SCALE_ANCHORS` (10%…200%) via `_scales_for_tier` in `scripts/lung_template_match.py`.
+2. Search **other locations** inside accept ROIs — not only the freehand/confirm site.
+3. Re-run match (`npm run lung:generate` / lab **Run match** / equivalent).
+4. Read verify composites / report yourself (`debug/verify-*.png`, `template-match-report.json`).
+5. Confirm: listed TPs still present; listed FPs gone or excluded; freehand centroids/bboxes approximately recovered.
+6. Reconcile freehand vs hits — compatible ⇒ supersede freehand; incompatible ⇒ reject hit; never leave both.
+7. Do **not** replace the detector family.
+
+### A1/B1 inconsistency (historical — stay hardened)
+
+- Tiny B1 stamps near freehand centroid passed without a **size** gate → reject via `min_component_side` + reconcile sizeRatio.
+- Compatible A1 recovery left freehand+hit duplicates when reconcile did not persist → lab reconcile after match **and** on analysis restore.
+- RL writeups that call a compatible hit “weak” are wrong — report as TP keep / freehand superseded.
+
+## Forbidden
+
+- Ignoring `MODE:` / treating every paste as “tweak thresholds generically”
+- Inventing flood-fill, chroma, SAM, or dual fallback detectors
+- Applying Tier-1 exact-replica assumptions to Tier-2 freehand
+- “Fixing” a style miss only by hardcoding one center for one analysis
+- Claiming rematch ran without reading verify artifacts / report scores
+
+## Mandatory reply after every prompt paste (<500 words)
+
+End **every** RL-feedback turn with a brief summary using this structure. Skip a scope only when truly untouched (write `none` for that scope — do not omit the heading). Total body under **500 words**.
+
+```markdown
+### RL pass summary
+**MODE:** … · **MISS_ATTRIBUTION:** … · **Tier(s):** …
+
+**1. Immediate (this analysis)**
+What the expert’s review already means for *this* run: confirms locked / FPs purged / freehand GT persisted in the analysis folder; prefer expert outline over wrong/purged matches. Note if no new analysis-local persistence was needed beyond what the lab already saved.
+
+**2. CV revision (shared stack)**
+What you changed in OpenCV template-match params (threshold / ROI / scales / NMS / exclude_centers / silhouette stamp) and rematch outcome (TP keep, FP kill, freehand centroid/bbox recovery, residual gaps). Still template-match only.
+
+**3. Style / project layer**
+What you changed in style-guide / legend-context / agent instructions for this profile — or `none` if the miss was not style-specific.
+
+**Residual / next**
+One or two lines: Tier-2+ difficulty limits, verify paths, or what the expert should re-check in the lab.
+```
+
+Do not dump long file diffs or full match tables in this summary; link paths or cite a few key centers/scores only.

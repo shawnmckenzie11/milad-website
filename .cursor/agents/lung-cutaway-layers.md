@@ -7,6 +7,8 @@ description: Lung cutaway layer specialist for coordinate outlines, feature data
 
 **Detection skill (mandatory method):** [`lung-legend-template-match`](../skills/lung-legend-template-match/SKILL.md)
 
+**RL feedback pastes (MODE / freehand GT):** hand off to [`lung-legend-rl-feedback`](./lung-legend-rl-feedback.md) and follow [`.cursor/rules/lung-legend-rl-feedback.mdc`](../rules/lung-legend-rl-feedback.mdc). Tier difficulty rises sharply (Tier 2 ≫ Tier 1), especially for freehand.
+
 You are the lung cutaway layer specialist for the Milad Lab website (`milad-website`).
 
 ## Your domain

@@ -21,6 +21,9 @@ import {
 	MATCH_REPORT,
 	ANNOTATIONS_JSON,
 	TRAINING_FEEDBACK_JSON,
+	FREEHAND_ICONS_DIR,
+	RL_FEEDBACK_JSON,
+	RL_FEEDBACK_MD,
 	LAYERS_DIR,
 	DEBUG_DIR,
 	FIGURES,
@@ -42,7 +45,25 @@ import {
 	updateAnalysisMeta,
 	getAnalysisMeta,
 	seedCurrentAnalysis,
+	deleteAnalysis,
+	loadAnalysisStyleGuideBrief,
+	appendRlFeedbackHistory,
+	analysisPaths,
+	resolveActiveTierToTest,
+	readLiveOwnerId,
+	setLiveOwnerId,
+	clearLiveWorkspace,
 } from './analyses.mjs';
+import { reconcileFreehandWithMatches } from './freehandMatchReconcile.mjs';
+import {
+	DEFAULT_STYLE_GUIDE_PROFILE_ID,
+	createStyleGuideProfile,
+	getStyleGuideProfileBrief,
+	listStyleGuideProfileSummaries,
+	loadStyleGuideProfile,
+	resolveStyleGuideProfileId,
+	updateStyleGuideProfile,
+} from './styleGuides.mjs';
 
 const HOST = '127.0.0.1';
 const PORT = Number(process.env.LUNG_LAB_PORT || 8789);
@@ -60,8 +81,41 @@ const SUB_TIERS = [
 
 const ICON_INTERPS = ['1-discrete', '2-discrete', 'multiple-adjacent-as-one'];
 
+/** Stable layer slugs for the current checked-in legend (fill when wizard leaves slug empty). */
+const KNOWN_LAYER_SLUGS = {
+	A1: 'trachea-conducting-airway',
+	A2: 'bronchial-branches',
+	A3: 'alveolar-fields',
+	A4: 'airway-lumen',
+	B1: 'airway-epithelium',
+	B2: 'airway-immune-compartment',
+	B3: 'neutrophils',
+	B4: 'alveolar-macrophages',
+	B5: 'dendritic-cells',
+	B6: 'antiviral-immune-mediators',
+	B7: 'inflammatory-signaling',
+	B8: 'copd-inflammatory-structures',
+	B9: 'infection-antiviral-pathway',
+};
+
 /**
- * Ensure workspace, analyses store, and a default session exist.
+ * Ensure a classification row has a non-empty layer slug when one is known.
+ * @param {string} code
+ * @param {Record<string, unknown>} cls
+ * @returns {Record<string, unknown>}
+ */
+function withKnownSlug(code, cls) {
+	const slug = typeof cls.slug === 'string' ? cls.slug.trim() : '';
+	if (slug) return { ...cls, slug };
+	const known = KNOWN_LAYER_SLUGS[code];
+	return known ? { ...cls, slug: known } : cls;
+}
+
+/**
+ * Ensure workspace + analyses store exist.
+ * First launch (no session.json) seeds the checked-in cutaway analysis.
+ * An explicit empty home (`analysisId: null`) stays empty — do not re-seed,
+ * or deleting the last / "current" analysis can never stick.
  * @returns {Promise<void>}
  */
 async function ensureWorkspace() {
@@ -69,7 +123,7 @@ async function ensureWorkspace() {
 	await ensureAnalysesStore();
 	if (!fs.existsSync(SESSION_PATH)) {
 		const seeded = await seedCurrentAnalysis();
-		const restored = await restoreAnalysis(seeded.id);
+		const restored = await restoreAndReconcile(seeded.id);
 		await writeSession({
 			...restored,
 			screen: 'refine',
@@ -77,15 +131,36 @@ async function ensureWorkspace() {
 		});
 		return;
 	}
-	const raw = JSON.parse(await fsp.readFile(SESSION_PATH, 'utf8'));
-	if (!raw.analysisId) {
-		const seeded = await seedCurrentAnalysis();
-		const restored = await restoreAnalysis(seeded.id);
-		await writeSession({
-			...restored,
-			screen: raw.screen || 'refine',
-			phase: 'refine',
-		});
+	await adoptLegacySession();
+}
+
+/**
+ * Bring a pre-lease session up to date: hand the live lease to whatever analysis
+ * the session is bound to, and repoint image paths from the old shared
+ * `workspace/active-*.png` copies at the analysis's own files.
+ * @returns {Promise<void>}
+ */
+async function adoptLegacySession() {
+	const raw = await loadJson(SESSION_PATH);
+	const id = typeof raw?.analysisId === 'string' ? raw.analysisId : null;
+	if (!id) return;
+	if (!(await readLiveOwnerId())) await setLiveOwnerId(id);
+	const paths = analysisPaths(id);
+	if (
+		(await readLiveOwnerId()) === id &&
+		fs.existsSync(paths.cutaway) &&
+		fs.existsSync(paths.legend) &&
+		(raw.cutawayPath !== paths.cutaway || raw.legendPath !== paths.legend)
+	) {
+		await fsp.writeFile(
+			SESSION_PATH,
+			JSON.stringify(
+				{ ...raw, cutawayPath: paths.cutaway, legendPath: paths.legend },
+				null,
+				2,
+			),
+			'utf8',
+		);
 	}
 }
 
@@ -103,6 +178,14 @@ async function readSession() {
 		analysisId: raw.analysisId || null,
 		phase: raw.phase || 'refine',
 		screen: raw.screen || (raw.analysisId ? raw.phase || 'refine' : 'home'),
+		refineScreen:
+			raw.refineScreen === 'database' || raw.refineScreen === 'legend'
+				? raw.refineScreen
+				: 'image',
+		tierToTest:
+			typeof raw.tierToTest === 'number' && raw.tierToTest >= 1
+				? Math.min(3, raw.tierToTest)
+				: 1,
 		updatedAt: raw.updatedAt || new Date().toISOString(),
 	};
 }
@@ -114,12 +197,114 @@ async function readSession() {
 async function snapshotActiveIfAny() {
 	const session = await readSession();
 	if (!session.analysisId) return null;
+	const meta = await getAnalysisMeta(session.analysisId);
 	return snapshotAnalysis(session.analysisId, {
 		cutawayPath: session.cutawayPath,
 		legendPath: session.legendPath,
 		usingDefaults: session.usingDefaults,
 		phase: session.phase === 'classify' ? 'classify' : 'refine',
+		screen: session.screen,
+		refineScreen: session.refineScreen,
+		tierToTest: session.tierToTest,
+		styleGuideProfileId: meta?.styleGuideProfileId || null,
+		maxUnlockedTier: meta?.maxUnlockedTier,
 	});
+}
+
+/**
+ * Flush live state into the analysis that owns it, before handing the live
+ * workspace to another analysis. No-op when nothing owns the lease.
+ * @returns {Promise<string | null>} The analysis id that was flushed
+ */
+async function flushLiveBeforeSwitch() {
+	const session = await readSession();
+	const owner = await readLiveOwnerId();
+	const id = session.analysisId;
+	if (!id || (owner && owner !== id)) return null;
+	try {
+		await snapshotActiveIfAny();
+	} catch (err) {
+		console.warn(
+			'[lung-lab] flush before switch:',
+			err instanceof Error ? err.message : String(err),
+		);
+	}
+	return id;
+}
+
+/**
+ * Snapshot after an async pipeline job, but only if the analysis that started it
+ * still holds the live lease. A job that lands after the operator switched
+ * analyses must not write its outputs into the new analysis (or vice versa).
+ *
+ * @param {string | null} startedForId - Analysis id captured when the job began
+ * @param {import('./jobs.mjs').Job} job - Job whose log records the outcome
+ * @returns {Promise<void>}
+ */
+async function snapshotJobResult(startedForId, job) {
+	if (!startedForId) return;
+	const owner = await readLiveOwnerId();
+	const session = await readSession();
+	if (owner !== startedForId || session.analysisId !== startedForId) {
+		job.log.push(
+			`· Snapshot skipped: analysis changed since job start (${startedForId} → ${owner || 'none'})`,
+		);
+		return;
+	}
+	try {
+		await snapshotActiveIfAny();
+		job.log.push('· Analysis snapshot saved');
+	} catch (err) {
+		job.log.push(`· Snapshot warn: ${err instanceof Error ? err.message : String(err)}`);
+	}
+}
+
+/**
+ * Whether an analysis exists but has no uploaded images yet (still in the wizard).
+ * @param {string} id - Analysis id
+ * @returns {Promise<boolean>}
+ */
+async function analysisNeedsImages(id) {
+	if (!(await getAnalysisMeta(id))) return false;
+	const paths = analysisPaths(id);
+	return !fs.existsSync(paths.cutaway) || !fs.existsSync(paths.legend);
+}
+
+/**
+ * Restore an analysis into live paths, then heal stale freehand↔match duplicates.
+ * Reconcile runs even without a rematch so opening an old snapshot cannot leave
+ * both a freehand and a compatible/incompatible hit visible in the DB.
+ *
+ * @param {string} id - Analysis id
+ * @returns {Promise<object>} Restored session pointers from `restoreAnalysis`
+ */
+async function restoreAndReconcile(id) {
+	const restored = await restoreAnalysis(id);
+	try {
+		const reconciled = await reconcileFreehandWithMatches({ analysisId: id });
+		if (
+			reconciled.supersededFreehands.length > 0 ||
+			reconciled.rejectedMatches.length > 0
+		) {
+			await snapshotAnalysis(id, {
+				cutawayPath: restored.cutawayPath,
+				legendPath: restored.legendPath,
+				usingDefaults: restored.usingDefaults,
+				phase: restored.phase === 'classify' ? 'classify' : 'refine',
+				screen: restored.screen,
+				refineScreen: restored.refineScreen,
+				tierToTest: restored.tierToTest,
+				styleGuideProfileId: restored.styleGuideProfileId || null,
+				maxUnlockedTier: restored.maxUnlockedTier,
+			});
+		}
+	} catch (err) {
+		console.warn(
+			'[lung-lab] freehand reconcile on restore:',
+			err instanceof Error ? err.message : String(err),
+		);
+	}
+	return restored;
 }
 
 /**
@@ -156,6 +341,160 @@ async function loadJson(filePath) {
 async function saveJson(filePath, data) {
 	await fsp.mkdir(path.dirname(filePath), { recursive: true });
 	await fsp.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
+}
+
+/**
+ * Whether two hit centers match within purge tolerance (~1.5px).
+ * @param {number} ax
+ * @param {number} ay
+ * @param {number} bx
+ * @param {number} by
+ * @returns {boolean}
+ */
+function centersNear(ax, ay, bx, by) {
+	return Math.abs(ax - bx) < 1.5 && Math.abs(ay - by) < 1.5;
+}
+
+/**
+ * Append an FP event to training feedback if no matching archive entry exists.
+ * Historical FPs stay here for RL delta prompts; they are not active review items.
+ *
+ * @param {object[]} feedbackList - Mutable training feedback array
+ * @param {{ id?: string, code: string, cx: number, cy: number, note?: string, updatedAt?: string }} ann
+ * @param {string} createdAt - ISO timestamp for the archive row
+ * @returns {boolean} True when a new feedback row was pushed
+ */
+function ensureFpFeedbackEntry(feedbackList, ann, createdAt) {
+	const already = feedbackList.some(
+		(f) =>
+			f.kind === 'false-positive' &&
+			f.code === ann.code &&
+			f.from &&
+			centersNear(f.from.cx, f.from.cy, ann.cx, ann.cy),
+	);
+	if (already) return false;
+	feedbackList.push({
+		id: `ann-fp-archive-${ann.id || `${ann.code}:${ann.cx}:${ann.cy}`}-${Date.now()}`,
+		code: ann.code,
+		kind: 'false-positive',
+		from: { cx: ann.cx, cy: ann.cy },
+		to: null,
+		points: null,
+		note: ann.note || '',
+		createdAt,
+	});
+	return true;
+}
+
+/**
+ * Remove a match instance near (cx, cy) from the findings DB item, updating counts.
+ * @param {object | null} findings
+ * @param {string} code
+ * @param {number} cx
+ * @param {number} cy
+ * @returns {{ findings: object, removed: boolean }}
+ */
+function removeFindingInstance(findings, code, cx, cy) {
+	const next = findings && typeof findings === 'object' ? structuredClone(findings) : { items: {} };
+	if (!next.items || typeof next.items !== 'object') next.items = {};
+	const item = next.items[code];
+	if (!item || !Array.isArray(item.instances)) {
+		return { findings: next, removed: false };
+	}
+	const before = item.instances.length;
+	item.instances = item.instances.filter(
+		(inst) => !centersNear(inst?.cx ?? 0, inst?.cy ?? 0, cx, cy),
+	);
+	const removed = item.instances.length < before;
+	if (removed) {
+		item.instanceCount = item.instances.length;
+		const scores = item.instances
+			.map((inst) => inst?.score)
+			.filter((s) => typeof s === 'number');
+		item.bestScore = scores.length > 0 ? Math.max(...scores) : null;
+		if (item.instances.length === 0) {
+			item.status = item.status === 'found' ? 'missed' : item.status;
+		}
+	}
+	return { findings: next, removed };
+}
+
+/**
+ * Drop annotations and training-feedback rows that refer to a match center.
+ * Keeps any existing `deleted` markers; caller may append a fresh one.
+ *
+ * @param {object[]} annotationsList
+ * @param {object[]} feedbackList
+ * @param {string} code
+ * @param {number} cx
+ * @param {number} cy
+ * @returns {{ annotations: object[], feedback: object[], removedAnn: number, removedFb: number }}
+ */
+function scrubHitReviewData(annotationsList, feedbackList, code, cx, cy) {
+	let removedAnn = 0;
+	let removedFb = 0;
+	const annotations = annotationsList.filter((a) => {
+		if (a?.code !== code) return true;
+		if (!centersNear(a.cx ?? 0, a.cy ?? 0, cx, cy)) return true;
+		removedAnn += 1;
+		return false;
+	});
+	const feedback = feedbackList.filter((f) => {
+		if (f?.kind === 'deleted' || f?.kind === 'deleted-code') return true;
+		if (f?.kind === 'freehand-classify') return true;
+		if (f?.code !== code) return true;
+		const fx = f.from?.cx;
+		const fy = f.from?.cy;
+		if (fx == null || fy == null) return true;
+		if (!centersNear(fx, fy, cx, cy)) return true;
+		removedFb += 1;
+		return false;
+	});
+	return { annotations, feedback, removedAnn, removedFb };
+}
+
+/**
+ * Move false-positive annotations out of the active review store into the
+ * training-feedback archive, then persist both files when anything changed.
+ *
+ * Active annotations keep only confirmed / reassigned (and other non-FP labels).
+ * FP coords remain in `lab-training-feedback.json` for Generate Feedback Prompt.
+ *
+ * @returns {Promise<{ annotations: object, trainingFeedback: object, purgedCount: number }>}
+ */
+async function migrateFalsePositivesOutOfActiveStore() {
+	const existingAnn = (await loadJson(ANNOTATIONS_JSON)) || { annotations: [] };
+	const existingFb = (await loadJson(TRAINING_FEEDBACK_JSON)) || { feedback: [] };
+	const list = Array.isArray(existingAnn.annotations) ? [...existingAnn.annotations] : [];
+	const feedbackList = Array.isArray(existingFb.feedback) ? [...existingFb.feedback] : [];
+
+	const kept = [];
+	let purgedCount = 0;
+	const now = new Date().toISOString();
+	for (const ann of list) {
+		if (ann?.label !== 'false-positive') {
+			kept.push(ann);
+			continue;
+		}
+		purgedCount += 1;
+		ensureFpFeedbackEntry(feedbackList, ann, ann.updatedAt || now);
+	}
+
+	const annotations = {
+		annotations: kept,
+		updatedAt: purgedCount > 0 ? now : existingAnn.updatedAt || now,
+	};
+	const trainingFeedback = {
+		feedback: feedbackList,
+		updatedAt: purgedCount > 0 ? now : existingFb.updatedAt || now,
+	};
+
+	if (purgedCount > 0) {
+		await saveJson(ANNOTATIONS_JSON, annotations);
+		await saveJson(TRAINING_FEEDBACK_JSON, trainingFeedback);
+	}
+
+	return { annotations, trainingFeedback, purgedCount };
 }
 
 /**
@@ -242,7 +581,7 @@ function sendJson(res, status, payload) {
 		'Content-Type': 'application/json; charset=utf-8',
 		'Cache-Control': 'no-store',
 		'Access-Control-Allow-Origin': '*',
-		'Access-Control-Allow-Methods': 'GET,POST,PUT,OPTIONS',
+		'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
 		'Access-Control-Allow-Headers': 'Content-Type',
 	});
 	res.end(body);
@@ -306,20 +645,24 @@ function runLungPythonSync(scriptArgs) {
  */
 async function buildState() {
 	const session = await readSession();
-	const [extract, classification, findings, matchReport, annotations, trainingFeedback] =
-		await Promise.all([
-			loadJson(EXTRACT_JSON),
-			loadJson(CLASSIFICATION_JSON),
-			loadJson(FINDINGS_DB),
-			loadJson(MATCH_REPORT),
-			loadJson(ANNOTATIONS_JSON),
-			loadJson(TRAINING_FEEDBACK_JSON),
-		]);
+	// Purge already-classified FPs from active annotations into the RL archive.
+	const migrated = await migrateFalsePositivesOutOfActiveStore();
+	const [extract, classification, findings, matchReport, rlFeedback] = await Promise.all([
+		loadJson(EXTRACT_JSON),
+		loadJson(CLASSIFICATION_JSON),
+		loadJson(FINDINGS_DB),
+		loadJson(MATCH_REPORT),
+		loadJson(RL_FEEDBACK_JSON),
+	]);
+	const annotations = migrated.annotations;
+	const trainingFeedback = migrated.trainingFeedback;
 
+	// Outline list comes from the active analysis's own snapshot; the shared
+	// layers dir also holds checked-in site artwork from other analyses.
 	const outlineSlugs = [];
 	try {
-		const names = await fsp.readdir(LAYERS_DIR);
-		for (const name of names) {
+		const dir = session.analysisId ? analysisPaths(session.analysisId).layers : LAYERS_DIR;
+		for (const name of await fsp.readdir(dir)) {
 			if (name.endsWith('-outline.png')) {
 				outlineSlugs.push(name.replace(/-outline\.png$/, ''));
 			}
@@ -330,6 +673,35 @@ async function buildState() {
 
 	const analysisMeta = session.analysisId ? await getAnalysisMeta(session.analysisId) : null;
 	const analyses = await Promise.all((await listAnalyses()).map((m) => summarizeAnalysis(m)));
+	const styleGuideProfileId = await resolveStyleGuideProfileId(
+		analysisMeta?.styleGuideProfileId || DEFAULT_STYLE_GUIDE_PROFILE_ID,
+	);
+	const styleGuideProfiles = await listStyleGuideProfileSummaries();
+	const styleGuideProfile = session.analysisId
+		? (await loadAnalysisStyleGuideBrief(session.analysisId)) ||
+			(await getStyleGuideProfileBrief(styleGuideProfileId))
+		: await getStyleGuideProfileBrief(styleGuideProfileId);
+
+	const maxUnlockedTier =
+		typeof analysisMeta?.maxUnlockedTier === 'number' && analysisMeta.maxUnlockedTier >= 1
+			? analysisMeta.maxUnlockedTier
+			: 1;
+	const storedTier =
+		typeof session.tierToTest === 'number' && session.tierToTest >= 1
+			? session.tierToTest
+			: typeof analysisMeta?.tierToTest === 'number'
+				? analysisMeta.tierToTest
+				: 1;
+	const resolvedTier = resolveActiveTierToTest(storedTier, maxUnlockedTier, {
+		usingDefaults: analysisMeta?.usingDefaults,
+	});
+	const tierToTest = resolvedTier.tierToTest;
+	const refineScreen =
+		session.refineScreen === 'database' || session.refineScreen === 'legend'
+			? session.refineScreen
+			: analysisMeta?.refineScreen === 'database' || analysisMeta?.refineScreen === 'legend'
+				? analysisMeta.refineScreen
+				: 'image';
 
 	return {
 		ok: true,
@@ -341,8 +713,14 @@ async function buildState() {
 			cutawayExists: fs.existsSync(session.cutawayPath),
 			legendExists: fs.existsSync(session.legendPath),
 			analysisName: analysisMeta?.name || null,
+			styleGuideProfileId,
+			maxUnlockedTier: resolvedTier.maxUnlockedTier,
+			tierToTest,
+			refineScreen,
 		},
 		analyses,
+		styleGuideProfiles,
+		styleGuideProfile,
 		defaults: {
 			cutaway: toRepoRel(DEFAULT_CUTAWAY),
 			legend: toRepoRel(DEFAULT_LEGEND),
@@ -359,6 +737,7 @@ async function buildState() {
 		matchReport,
 		annotations: annotations || { annotations: [] },
 		trainingFeedback: trainingFeedback || { feedback: [] },
+		rlCursor: rlFeedback?.cursor || null,
 		paths: {
 			extract: toRepoRel(EXTRACT_JSON),
 			classification: toRepoRel(CLASSIFICATION_JSON),
@@ -368,6 +747,37 @@ async function buildState() {
 			trainingFeedback: toRepoRel(TRAINING_FEEDBACK_JSON),
 		},
 	};
+}
+
+/**
+ * Prefer the first non-empty string among candidates.
+ * @param {...(string | null | undefined)} values
+ * @returns {string | null}
+ */
+function firstNonEmpty(...values) {
+	for (const v of values) {
+		if (typeof v === 'string' && v.trim()) return v.trim();
+	}
+	return null;
+}
+
+/**
+ * Resolve a lab asset from the active analysis's own folder, falling back to the
+ * shared live dir. Serving per-analysis keeps another analysis's PNGs (which
+ * share filenames) out of this session's views.
+ *
+ * @param {'layers' | 'legendItems' | 'freehandIcons'} bucket - Analysis subfolder
+ * @param {string} fileName - Basename to serve
+ * @param {string} sharedDir - Live fallback directory
+ * @returns {Promise<string>} Absolute path to serve
+ */
+async function activeAssetPath(bucket, fileName, sharedDir) {
+	const session = await readSession();
+	if (session.analysisId) {
+		const candidate = path.join(analysisPaths(session.analysisId)[bucket], fileName);
+		if (fs.existsSync(candidate)) return candidate;
+	}
+	return path.join(sharedDir, fileName);
 }
 
 /**
@@ -404,8 +814,17 @@ function mergeLegendItems(extract, classification, findings) {
 				iconInterpretation: cls.iconInterpretation ?? find.iconInterpretation ?? '1-discrete',
 				searchable: cls.searchable ?? find.searchable ?? false,
 				group: cls.group ?? find.group ?? null,
-				slug: cls.slug ?? find.slug ?? null,
+				// Empty string from the classify wizard must not block match-report slugs.
+				slug: firstNonEmpty(cls.slug, find.slug),
 				note: cls.note ?? find.note ?? null,
+				assignedPathways: (() => {
+					const raw = cls.assignedPathways ?? find.assignedPathways;
+					if (Array.isArray(raw)) return raw.map(String).filter(Boolean);
+					const single = cls.assignedPathway ?? find.assignedPathway;
+					if (typeof single === 'string' && single.trim()) return [single.trim()];
+					return [];
+				})(),
+				assignedPathway: cls.assignedPathway ?? find.assignedPathway ?? null,
 				status: find.status ?? null,
 				instanceCount: find.instanceCount ?? 0,
 				bestScore: find.bestScore ?? null,
@@ -430,7 +849,7 @@ async function handle(req, res) {
 	if (method === 'OPTIONS') {
 		res.writeHead(204, {
 			'Access-Control-Allow-Origin': '*',
-			'Access-Control-Allow-Methods': 'GET,POST,PUT,OPTIONS',
+			'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
 			'Access-Control-Allow-Headers': 'Content-Type',
 		});
 		res.end();
@@ -493,12 +912,14 @@ async function handle(req, res) {
 		}
 
 		if (method === 'GET' && pathname === '/api/annotations') {
-			sendJson(res, 200, (await loadJson(ANNOTATIONS_JSON)) || { annotations: [] });
+			const migrated = await migrateFalsePositivesOutOfActiveStore();
+			sendJson(res, 200, migrated.annotations);
 			return;
 		}
 
 		if (method === 'GET' && pathname === '/api/training-feedback') {
-			sendJson(res, 200, (await loadJson(TRAINING_FEEDBACK_JSON)) || { feedback: [] });
+			const migrated = await migrateFalsePositivesOutOfActiveStore();
+			sendJson(res, 200, migrated.trainingFeedback);
 			return;
 		}
 
@@ -520,7 +941,8 @@ async function handle(req, res) {
 				sendJson(res, 400, { error: 'invalid slug' });
 				return;
 			}
-			await sendFile(res, path.join(LAYERS_DIR, `${slug}-outline.png`), 'image/png');
+			const name = `${slug}-outline.png`;
+			await sendFile(res, await activeAssetPath('layers', name, LAYERS_DIR), 'image/png');
 			return;
 		}
 
@@ -530,7 +952,27 @@ async function handle(req, res) {
 				sendJson(res, 400, { error: 'invalid code' });
 				return;
 			}
-			await sendFile(res, path.join(DEBUG_DIR, 'legend-items', `${code}-glyph.png`), 'image/png');
+			const name = `${code}-glyph.png`;
+			await sendFile(
+				res,
+				await activeAssetPath('legendItems', name, path.join(DEBUG_DIR, 'legend-items')),
+				'image/png',
+			);
+			return;
+		}
+
+		if (method === 'GET' && pathname.startsWith('/api/assets/freehand-icon/')) {
+			const id = decodeURIComponent(pathname.slice('/api/assets/freehand-icon/'.length));
+			if (!/^[\w.-]+$/.test(id)) {
+				sendJson(res, 400, { error: 'invalid freehand icon id' });
+				return;
+			}
+			const fileName = id.endsWith('.png') ? id : `${id}.png`;
+			await sendFile(
+				res,
+				await activeAssetPath('freehandIcons', fileName, FREEHAND_ICONS_DIR),
+				'image/png',
+			);
 			return;
 		}
 
@@ -557,10 +999,19 @@ async function handle(req, res) {
 		}
 
 		if (method === 'POST' && pathname === '/api/reset-defaults') {
+			// Unbinds the live workspace: save the current analysis, then release
+			// the lease so nothing further is attributed to it.
+			await flushLiveBeforeSwitch();
+			await setLiveOwnerId(null);
 			const session = await writeSession({
 				cutawayPath: DEFAULT_CUTAWAY,
 				legendPath: DEFAULT_LEGEND,
 				usingDefaults: true,
+				analysisId: null,
+				phase: 'classify',
+				screen: 'home',
+				refineScreen: 'image',
+				tierToTest: 1,
 				updatedAt: new Date().toISOString(),
 			});
 			sendJson(res, 200, { ok: true, session });
@@ -575,13 +1026,17 @@ async function handle(req, res) {
 			let legendPath = session.legendPath;
 			let usingDefaults = session.usingDefaults;
 
+			// Bound sessions write into the analysis folder, never a shared copy.
+			const target = session.analysisId ? analysisPaths(session.analysisId) : null;
 			if (files.cutaway) {
-				cutawayPath = path.join(WORKSPACE, 'active-cutaway.png');
+				cutawayPath = target ? target.cutaway : path.join(WORKSPACE, 'active-cutaway.png');
+				await fsp.mkdir(path.dirname(cutawayPath), { recursive: true });
 				await fsp.writeFile(cutawayPath, files.cutaway.data);
 				usingDefaults = false;
 			}
 			if (files.legend) {
-				legendPath = path.join(WORKSPACE, 'active-legend.png');
+				legendPath = target ? target.legend : path.join(WORKSPACE, 'active-legend.png');
+				await fsp.mkdir(path.dirname(legendPath), { recursive: true });
 				await fsp.writeFile(legendPath, files.legend.data);
 				usingDefaults = false;
 			}
@@ -614,6 +1069,7 @@ async function handle(req, res) {
 
 		if (method === 'POST' && pathname === '/api/extract') {
 			const session = await readSession();
+			const startedForId = session.analysisId;
 			const job = createJob('extract', { legend: toRepoRel(session.legendPath) });
 			void (async () => {
 				await runProcessJob(
@@ -623,12 +1079,7 @@ async function handle(req, res) {
 					ROOT,
 				);
 				if (job.status === 'succeeded') {
-					try {
-						await snapshotActiveIfAny();
-						job.log.push('· Analysis snapshot saved');
-					} catch (err) {
-						job.log.push(`· Snapshot warn: ${err instanceof Error ? err.message : String(err)}`);
-					}
+					await snapshotJobResult(startedForId, job);
 				}
 			})();
 			sendJson(res, 202, serializeJob(job));
@@ -637,11 +1088,47 @@ async function handle(req, res) {
 
 		if (method === 'POST' && pathname === '/api/match') {
 			const session = await readSession();
+			const startedForId = session.analysisId;
+			let body = {};
+			try {
+				const raw = (await readBody(req, 4 * 1024 * 1024)).toString('utf8');
+				body = raw ? JSON.parse(raw) : {};
+			} catch {
+				body = {};
+			}
+			const tierToTest = Number(body.tierToTest) || 1;
+			const rlSummary = body.rlSummary || null;
+
+			// Persist RL feedback for the next matcher iteration (algorithm mutation stubbed).
+			const rlWritten = await writeRlFeedbackArtifacts({
+				tierToTest,
+				promptMarkdown:
+					typeof rlSummary?.promptMarkdown === 'string'
+						? rlSummary.promptMarkdown
+						: typeof body.promptMarkdown === 'string'
+							? body.promptMarkdown
+							: '',
+				summary: rlSummary || body.summary || { tierToTest },
+				analysisId: session.analysisId,
+			});
+
 			const job = createJob('match', {
 				cutaway: toRepoRel(session.cutawayPath),
 				legend: toRepoRel(session.legendPath),
+				tierToTest,
+				rlFeedback: rlWritten,
 			});
 			void (async () => {
+				job.log.push(`· Tier to Test: ${tierToTest}`);
+				if (rlWritten.md) {
+					job.log.push(`· RL feedback prompt: ${toRepoRel(rlWritten.md)}`);
+				}
+				if (rlWritten.json) {
+					job.log.push(`· RL feedback JSON: ${toRepoRel(rlWritten.json)}`);
+				}
+				job.log.push(
+					'· Note: matcher algorithm mutation from RL feedback is stubbed; prompt persisted for next iteration.',
+				);
 				await runProcessJob(
 					job,
 					process.execPath,
@@ -662,35 +1149,75 @@ async function handle(req, res) {
 					await runProcessJob(
 						findingsJob,
 						process.execPath,
-						[RUN_LUNG_PYTHON, FINDINGS_DB_PY],
+						[RUN_LUNG_PYTHON, FINDINGS_DB_PY, '--no-canvas'],
 						ROOT,
 					);
 					job.meta.findingsJobId = findingsJob.id;
 					job.meta.findingsStatus = findingsJob.status;
 					for (const line of findingsJob.log) job.log.push(line);
 					try {
-						await snapshotActiveIfAny();
-						job.log.push('· Analysis snapshot saved');
+						const reconciled = await reconcileFreehandWithMatches({
+							analysisId: startedForId,
+						});
+						for (const line of reconciled.log) job.log.push(line);
+						if (reconciled.supersededFreehands.length || reconciled.rejectedMatches.length) {
+							job.log.push(
+								`· Freehand reconcile: ${reconciled.supersededFreehands.length} superseded, ` +
+									`${reconciled.rejectedMatches.length} match(es) rejected`,
+							);
+						}
 					} catch (err) {
-						job.log.push(`· Snapshot warn: ${err instanceof Error ? err.message : String(err)}`);
+						job.log.push(
+							`· Freehand reconcile warn: ${err instanceof Error ? err.message : String(err)}`,
+						);
 					}
+					await snapshotJobResult(startedForId, job);
 				}
 			})();
 			sendJson(res, 202, serializeJob(job));
 			return;
 		}
 
+		if (method === 'GET' && pathname === '/api/rl-feedback') {
+			const data = (await loadJson(RL_FEEDBACK_JSON)) || null;
+			sendJson(res, 200, {
+				ok: true,
+				feedback: data,
+				cursor: data?.cursor || null,
+			});
+			return;
+		}
+
+		if (method === 'POST' && pathname === '/api/rl-feedback') {
+			const session = await readSession();
+			const body = JSON.parse((await readBody(req, 8 * 1024 * 1024)).toString('utf8') || '{}');
+			const written = await writeRlFeedbackArtifacts({
+				tierToTest: normalizeRlTierScope(body.tierToTest),
+				promptMarkdown: String(body.promptMarkdown || ''),
+				summary: body.summary || body,
+				cursor: body.cursor || null,
+				analysisId: session.analysisId,
+			});
+			sendJson(res, 200, {
+				ok: true,
+				cursor: body.cursor || null,
+				paths: {
+					md: written.md ? toRepoRel(written.md) : null,
+					json: written.json ? toRepoRel(written.json) : null,
+					workspaceMd: written.workspaceMd ? toRepoRel(written.workspaceMd) : null,
+					workspaceJson: written.workspaceJson ? toRepoRel(written.workspaceJson) : null,
+				},
+			});
+			return;
+		}
+
 		if (method === 'POST' && pathname === '/api/findings/refresh') {
+			const startedForId = (await readSession()).analysisId;
 			const job = createJob('findings', {});
 			void (async () => {
-				await runProcessJob(job, process.execPath, [RUN_LUNG_PYTHON, FINDINGS_DB_PY], ROOT);
+				await runProcessJob(job, process.execPath, [RUN_LUNG_PYTHON, FINDINGS_DB_PY, '--no-canvas'], ROOT);
 				if (job.status === 'succeeded') {
-					try {
-						await snapshotActiveIfAny();
-						job.log.push('· Analysis snapshot saved');
-					} catch (err) {
-						job.log.push(`· Snapshot warn: ${err instanceof Error ? err.message : String(err)}`);
-					}
+					await snapshotJobResult(startedForId, job);
 				}
 			})();
 			sendJson(res, 202, serializeJob(job));
@@ -707,10 +1234,16 @@ async function handle(req, res) {
 				classifications: {},
 			};
 			if (body.classifications && typeof body.classifications === 'object') {
-				existing.classifications = {
+				const merged = {
 					...existing.classifications,
 					...body.classifications,
 				};
+				existing.classifications = Object.fromEntries(
+					Object.entries(merged).map(([code, cls]) => [
+						code,
+						withKnownSlug(code, cls && typeof cls === 'object' ? cls : {}),
+					]),
+				);
 			}
 			if (typeof body.guidelines === 'string') existing.guidelines = body.guidelines;
 			existing.updatedAt = new Date().toISOString();
@@ -718,7 +1251,14 @@ async function handle(req, res) {
 			await saveJson(CLASSIFICATION_JSON, existing);
 
 			// Keep findings DB classification fields in sync without a full match rerun.
-			runLungPythonSync([FINDINGS_DB_PY]);
+			const findingsSync = runLungPythonSync([FINDINGS_DB_PY, '--no-canvas']);
+			if (findingsSync.status !== 0) {
+				sendJson(res, 500, {
+					error: 'classification saved but findings sync failed',
+					detail: (findingsSync.stderr || findingsSync.stdout || '').slice(-2000),
+				});
+				return;
+			}
 			await snapshotActiveIfAny();
 			sendJson(res, 200, { ok: true, classification: existing });
 			return;
@@ -736,7 +1276,7 @@ async function handle(req, res) {
 				classifications: {},
 			};
 			const prev = existing.classifications?.[code] || {};
-			const next = {
+			const next = withKnownSlug(code, {
 				...prev,
 				...patch,
 				tier: patch.tier !== undefined ? Number(patch.tier) : prev.tier,
@@ -746,7 +1286,7 @@ async function handle(req, res) {
 						: patch.tier !== undefined
 							? Number(patch.tier) > 0
 							: prev.searchable,
-			};
+			});
 			if (next.iconInterpretation && !ICON_INTERPS.includes(next.iconInterpretation)) {
 				sendJson(res, 400, { error: 'invalid iconInterpretation' });
 				return;
@@ -759,7 +1299,14 @@ async function handle(req, res) {
 			existing.updatedAt = new Date().toISOString();
 			existing.updatedBy = 'lung-legend-lab';
 			await saveJson(CLASSIFICATION_JSON, existing);
-			runLungPythonSync([FINDINGS_DB_PY]);
+			const findingsSync = runLungPythonSync([FINDINGS_DB_PY, '--no-canvas']);
+			if (findingsSync.status !== 0) {
+				sendJson(res, 500, {
+					error: 'classification saved but findings sync failed',
+					detail: (findingsSync.stderr || findingsSync.stdout || '').slice(-2000),
+				});
+				return;
+			}
 			await snapshotActiveIfAny();
 			sendJson(res, 200, { ok: true, code, classification: next });
 			return;
@@ -777,9 +1324,41 @@ async function handle(req, res) {
 				score: body.score ?? null,
 				label: body.label, // confirmed | false-positive | reassigned
 				reassignedCode: body.reassignedCode || null,
+				locationStatus: body.locationStatus || null,
 				note: body.note || '',
 				updatedAt: new Date().toISOString(),
 			};
+
+			// False positives are archived to training feedback then removed from the
+			// active annotation store so they no longer appear as review items.
+			if (entry.label === 'false-positive') {
+				const fb = (await loadJson(TRAINING_FEEDBACK_JSON)) || { feedback: [] };
+				const feedbackList = Array.isArray(fb.feedback) ? [...fb.feedback] : [];
+				ensureFpFeedbackEntry(feedbackList, entry, entry.updatedAt);
+				const withoutFp = list.filter(
+					(a) =>
+						!(
+							a.id === entry.id ||
+							(a.code === entry.code && centersNear(a.cx, a.cy, entry.cx, entry.cy))
+						),
+				);
+				const next = { annotations: withoutFp, updatedAt: entry.updatedAt };
+				const trainingFeedback = {
+					feedback: feedbackList,
+					updatedAt: entry.updatedAt,
+				};
+				await saveJson(ANNOTATIONS_JSON, next);
+				await saveJson(TRAINING_FEEDBACK_JSON, trainingFeedback);
+				await snapshotActiveIfAny();
+				sendJson(res, 200, {
+					ok: true,
+					annotations: next,
+					trainingFeedback,
+					purged: true,
+				});
+				return;
+			}
+
 			const idx = list.findIndex((a) => a.id === entry.id);
 			if (idx >= 0) list[idx] = { ...list[idx], ...entry };
 			else list.push(entry);
@@ -789,7 +1368,6 @@ async function handle(req, res) {
 			// Mirror review labels into training feedback for tier-1 conclusion history.
 			const kindMap = {
 				confirmed: 'confirmed',
-				'false-positive': 'false-positive',
 				reassigned: 'reassigned',
 			};
 			const feedbackKind = kindMap[entry.label];
@@ -806,6 +1384,18 @@ async function handle(req, res) {
 					note: entry.note || '',
 					createdAt: entry.updatedAt,
 				});
+				if (entry.locationStatus) {
+					feedbackList.push({
+						id: `ann-loc-${entry.id}-${Date.now()}`,
+						code: entry.reassignedCode || entry.code,
+						kind: entry.locationStatus,
+						from: { cx: entry.cx, cy: entry.cy },
+						to: null,
+						points: null,
+						note: entry.note || '',
+						createdAt: entry.updatedAt,
+					});
+				}
 				await saveJson(TRAINING_FEEDBACK_JSON, {
 					feedback: feedbackList,
 					updatedAt: entry.updatedAt,
@@ -818,29 +1408,80 @@ async function handle(req, res) {
 		}
 
 		if (method === 'POST' && pathname === '/api/training-feedback') {
-			const body = JSON.parse((await readBody(req, 2 * 1024 * 1024)).toString('utf8'));
+			const body = JSON.parse((await readBody(req, 4 * 1024 * 1024)).toString('utf8'));
 			const existing = (await loadJson(TRAINING_FEEDBACK_JSON)) || { feedback: [] };
 			const list = Array.isArray(existing.feedback) ? [...existing.feedback] : [];
 			const allowed = new Set([
 				'relocate',
 				'resize',
 				'trace',
+				'freehand-classify',
 				'false-positive',
+				'deleted',
+				'deleted-code',
 				'confirmed',
 				'reassigned',
+				'correct-location',
+				'wrong-location',
+				'pending-miss',
 			]);
 			if (!body.code || !allowed.has(body.kind)) {
 				sendJson(res, 400, { error: 'code and valid kind required' });
 				return;
 			}
 			const createdAt = new Date().toISOString();
+			const assignedPathways = Array.isArray(body.assignedPathways)
+				? [...new Set(body.assignedPathways.map(String).filter(Boolean))]
+				: body.assignedPathway
+					? [String(body.assignedPathway)]
+					: [];
+			const entryId = body.id || `fb-${body.kind}-${body.code}-${Date.now()}`;
+			let iconRel = null;
+			if (
+				body.kind === 'freehand-classify' &&
+				typeof body.iconPngBase64 === 'string' &&
+				body.iconPngBase64.length > 32
+			) {
+				try {
+					await fsp.mkdir(FREEHAND_ICONS_DIR, { recursive: true });
+					const safeId = String(entryId).replace(/[^\w.-]+/g, '_');
+					const fileName = `${safeId}.png`;
+					const abs = path.join(FREEHAND_ICONS_DIR, fileName);
+					const b64 = body.iconPngBase64.replace(/^data:image\/png;base64,/, '');
+					await fsp.writeFile(abs, Buffer.from(b64, 'base64'));
+					iconRel = toRepoRel(abs);
+					const liveSession = await readSession();
+					if (liveSession?.analysisId) {
+						const ap = analysisPaths(liveSession.analysisId);
+						await fsp.mkdir(ap.freehandIcons, { recursive: true });
+						await fsp.copyFile(abs, path.join(ap.freehandIcons, fileName));
+					}
+				} catch {
+					iconRel = null;
+				}
+			}
 			const entry = {
-				id: body.id || `fb-${body.kind}-${body.code}-${Date.now()}`,
+				id: entryId,
 				code: String(body.code),
 				kind: body.kind,
 				from: body.from ?? null,
 				to: body.to ?? null,
 				points: Array.isArray(body.points) ? body.points : null,
+				name: body.name != null ? String(body.name) : null,
+				tier:
+					body.tier === null || body.tier === undefined || body.tier === ''
+						? null
+						: Number(body.tier),
+				difficultyNote: body.difficultyNote != null ? String(body.difficultyNote) : null,
+				score:
+					body.score === null || body.score === undefined || body.score === ''
+						? body.kind === 'freehand-classify'
+							? 1
+							: null
+						: Number(body.score),
+				assignedPathways,
+				assignedPathway: assignedPathways[0] || null,
+				iconRel,
 				note: body.note || '',
 				createdAt,
 			};
@@ -857,7 +1498,168 @@ async function handle(req, res) {
 				annotations: [],
 				updatedAt: new Date().toISOString(),
 			});
+			await snapshotActiveIfAny();
 			sendJson(res, 200, { ok: true });
+			return;
+		}
+
+		/**
+		 * Hard-delete a Database View row from active datasets:
+		 * - match (+ cx/cy): scrub annotations + related feedback, remove findings instance,
+		 *   persist a `deleted` marker so rematch / reload stays suppressed
+		 * - match + deleteCode: purge pending/code-level placeholder via `deleted-code`
+		 * - freehand: remove the freehand-classify feedback entry (+ icon file)
+		 */
+		if (method === 'POST' && pathname === '/api/database-row/delete') {
+			const body = JSON.parse((await readBody(req, 64 * 1024)).toString('utf8') || '{}');
+			const kind = body.kind === 'freehand' ? 'freehand' : 'match';
+			const code = body.code != null ? String(body.code) : '';
+			const deleteCode = Boolean(body.deleteCode);
+			const now = new Date().toISOString();
+
+			const existingAnn = (await loadJson(ANNOTATIONS_JSON)) || { annotations: [] };
+			const existingFb = (await loadJson(TRAINING_FEEDBACK_JSON)) || { feedback: [] };
+			let annotationsList = Array.isArray(existingAnn.annotations)
+				? [...existingAnn.annotations]
+				: [];
+			let feedbackList = Array.isArray(existingFb.feedback) ? [...existingFb.feedback] : [];
+			let findingsRemoved = false;
+			let freehandRemoved = false;
+
+			if (kind === 'freehand') {
+				const feedbackId = body.feedbackId != null ? String(body.feedbackId) : '';
+				if (!feedbackId) {
+					sendJson(res, 400, { error: 'feedbackId required for freehand delete' });
+					return;
+				}
+				const before = feedbackList.length;
+				const removed = feedbackList.filter((f) => f.id === feedbackId);
+				feedbackList = feedbackList.filter((f) => f.id !== feedbackId);
+				freehandRemoved = feedbackList.length < before;
+				for (const entry of removed) {
+					if (!entry?.iconRel) continue;
+					try {
+						const abs = path.isAbsolute(entry.iconRel)
+							? entry.iconRel
+							: path.join(ROOT, entry.iconRel);
+						await fsp.unlink(abs).catch(() => {});
+						const liveSession = await readSession();
+						if (liveSession?.analysisId) {
+							const ap = analysisPaths(liveSession.analysisId);
+							const copy = path.join(ap.freehandIcons, path.basename(abs));
+							await fsp.unlink(copy).catch(() => {});
+						}
+					} catch {
+						/* ignore icon cleanup errors */
+					}
+				}
+			} else if (deleteCode) {
+				if (!code) {
+					sendJson(res, 400, { error: 'code required for deleteCode' });
+					return;
+				}
+				annotationsList = annotationsList.filter((a) => a?.code !== code);
+				feedbackList = feedbackList.filter((f) => {
+					if (f?.kind === 'deleted-code' && f.code === code) return false;
+					if (f?.kind === 'freehand-classify') return true;
+					if (f?.kind === 'deleted') return true;
+					if (f?.code !== code) return true;
+					// Drop review feedback tied to this code (confirmed/FP mirrors, etc.).
+					return false;
+				});
+				const already = feedbackList.some(
+					(f) => f.kind === 'deleted-code' && f.code === code,
+				);
+				if (!already) {
+					feedbackList.push({
+						id: `deleted-code-${code}-${Date.now()}`,
+						code,
+						kind: 'deleted-code',
+						from: null,
+						to: null,
+						points: null,
+						note: body.note || 'Deleted pending row from Database View',
+						createdAt: now,
+					});
+				}
+				const findings = (await loadJson(FINDINGS_DB)) || { items: {} };
+				const item = findings.items?.[code];
+				if (item && Array.isArray(item.instances) && item.instances.length > 0) {
+					item.instances = [];
+					item.instanceCount = 0;
+					item.bestScore = null;
+					item.status = item.status === 'found' ? 'missed' : item.status;
+					findings.meta = {
+						...(findings.meta || {}),
+						updatedAt: now,
+						lastDeletedAt: now,
+					};
+					await saveJson(FINDINGS_DB, findings);
+					findingsRemoved = true;
+				}
+			} else {
+				if (!code || body.cx == null || body.cy == null) {
+					sendJson(res, 400, { error: 'code, cx, and cy required for match delete' });
+					return;
+				}
+				const cx = Number(body.cx);
+				const cy = Number(body.cy);
+				const scrubbed = scrubHitReviewData(annotationsList, feedbackList, code, cx, cy);
+				annotationsList = scrubbed.annotations;
+				feedbackList = scrubbed.feedback;
+
+				const alreadyDeleted = feedbackList.some(
+					(f) =>
+						f.kind === 'deleted' &&
+						f.code === code &&
+						f.from &&
+						centersNear(f.from.cx, f.from.cy, cx, cy),
+				);
+				if (!alreadyDeleted) {
+					feedbackList.push({
+						id: `deleted-${code}:${cx}:${cy}-${Date.now()}`,
+						code,
+						kind: 'deleted',
+						from: { cx, cy },
+						to: null,
+						points: null,
+						note: body.note || 'Deleted from Database View',
+						createdAt: now,
+					});
+				}
+
+				const findings = (await loadJson(FINDINGS_DB)) || { items: {} };
+				const { findings: nextFindings, removed } = removeFindingInstance(
+					findings,
+					code,
+					cx,
+					cy,
+				);
+				findingsRemoved = removed;
+				if (removed) {
+					nextFindings.meta = {
+						...(nextFindings.meta || {}),
+						updatedAt: now,
+						lastDeletedAt: now,
+					};
+					await saveJson(FINDINGS_DB, nextFindings);
+				}
+			}
+
+			const annotations = { annotations: annotationsList, updatedAt: now };
+			const trainingFeedback = { feedback: feedbackList, updatedAt: now };
+			await saveJson(ANNOTATIONS_JSON, annotations);
+			await saveJson(TRAINING_FEEDBACK_JSON, trainingFeedback);
+			await snapshotActiveIfAny();
+			sendJson(res, 200, {
+				ok: true,
+				kind,
+				code: code || null,
+				findingsRemoved,
+				freehandRemoved,
+				annotations,
+				trainingFeedback,
+			});
 			return;
 		}
 
@@ -883,12 +1685,17 @@ async function handle(req, res) {
 			if (!id) {
 				const created = await createAnalysis(body.name || 'Lung Cutaway Neutral (current)');
 				id = created.id;
+				// Unbound live state is being adopted by this new analysis.
+				await setLiveOwnerId(id);
 			}
 			const meta = await snapshotAnalysis(id, {
 				cutawayPath: session.cutawayPath,
 				legendPath: session.legendPath,
 				usingDefaults: session.usingDefaults,
 				phase: session.phase === 'classify' ? 'classify' : 'refine',
+				screen: session.screen,
+				refineScreen: session.refineScreen,
+				tierToTest: session.tierToTest,
 				name: body.name,
 			});
 			await writeSession({
@@ -896,6 +1703,8 @@ async function handle(req, res) {
 				analysisId: id,
 				phase: meta.phase,
 				screen: meta.phase,
+				tierToTest: meta.tierToTest ?? session.tierToTest,
+				refineScreen: meta.refineScreen ?? session.refineScreen,
 				updatedAt: new Date().toISOString(),
 			});
 			sendJson(res, 200, { ok: true, analysis: await summarizeAnalysis(meta) });
@@ -904,11 +1713,11 @@ async function handle(req, res) {
 
 		if (method === 'POST' && pathname === '/api/analyses/seed-current') {
 			const meta = await seedCurrentAnalysis();
-			const restored = await restoreAnalysis(meta.id);
+			const restored = await restoreAndReconcile(meta.id);
 			await writeSession({
 				...restored,
-				screen: 'refine',
-				phase: 'refine',
+				screen: restored.screen || 'refine',
+				phase: restored.phase || 'refine',
 			});
 			sendJson(res, 200, { ok: true, analysis: await summarizeAnalysis(meta), session: await readSession() });
 			return;
@@ -916,13 +1725,44 @@ async function handle(req, res) {
 
 		if (method === 'POST' && pathname.startsWith('/api/analyses/') && pathname.endsWith('/open')) {
 			const id = decodeURIComponent(pathname.slice('/api/analyses/'.length, -'/open'.length));
-			const restored = await restoreAnalysis(id);
-			const meta = await getAnalysisMeta(id);
+			const prev = await readSession();
+			if (prev.analysisId && prev.analysisId !== id) {
+				await flushLiveBeforeSwitch();
+			}
+			// An analysis whose images were never uploaded has nothing to restore;
+			// reopening it resumes the wizard on an empty live workspace instead of
+			// failing (and instead of inheriting the previous analysis's outputs).
+			if (await analysisNeedsImages(id)) {
+				await setLiveOwnerId(id);
+				await clearLiveWorkspace();
+				const fresh = analysisPaths(id);
+				await writeSession({
+					cutawayPath: fresh.cutaway,
+					legendPath: fresh.legend,
+					usingDefaults: false,
+					analysisId: id,
+					phase: 'classify',
+					screen: 'classify',
+					refineScreen: 'image',
+					tierToTest: 1,
+					updatedAt: new Date().toISOString(),
+				});
+				const pending = await getAnalysisMeta(id);
+				sendJson(res, 200, {
+					ok: true,
+					analysis: pending ? await summarizeAnalysis(pending) : null,
+					session: await readSession(),
+				});
+				return;
+			}
+			// restoreAnalysis claims the live lease before it copies anything in.
+			const restored = await restoreAndReconcile(id);
 			await writeSession({
 				...restored,
-				screen: meta?.phase === 'classify' ? 'classify' : 'refine',
-				phase: meta?.phase || 'refine',
+				screen: restored.screen || (restored.phase === 'classify' ? 'classify' : 'refine'),
+				phase: restored.phase || 'refine',
 			});
+			const meta = await getAnalysisMeta(id);
 			sendJson(res, 200, {
 				ok: true,
 				analysis: meta ? await summarizeAnalysis(meta) : null,
@@ -931,15 +1771,82 @@ async function handle(req, res) {
 			return;
 		}
 
+		if (method === 'PUT' && pathname.startsWith('/api/analyses/') && pathname.endsWith('/name')) {
+			const id = decodeURIComponent(pathname.slice('/api/analyses/'.length, -'/name'.length));
+			if (!id || id.includes('/') || id.includes('..')) {
+				sendJson(res, 400, { error: 'invalid analysis id' });
+				return;
+			}
+			const body = JSON.parse((await readBody(req, 16 * 1024)).toString('utf8') || '{}');
+			const name = typeof body.name === 'string' ? body.name.trim() : '';
+			if (!name) {
+				sendJson(res, 400, { error: 'name is required' });
+				return;
+			}
+			if (!(await getAnalysisMeta(id))) {
+				sendJson(res, 404, { error: `No analysis ${id}` });
+				return;
+			}
+			// Metadata-only write: no live-workspace flush or snapshot is needed, so
+			// renaming never touches the lease or the pipeline outputs.
+			const meta = await updateAnalysisMeta(id, { name });
+			const list = await Promise.all((await listAnalyses()).map((m) => summarizeAnalysis(m)));
+			sendJson(res, 200, { ok: true, id, name: meta.name, analyses: list });
+			return;
+		}
+
+		if (method === 'DELETE' && pathname.startsWith('/api/analyses/')) {
+			const id = decodeURIComponent(pathname.slice('/api/analyses/'.length));
+			if (!id || id.includes('/')) {
+				sendJson(res, 400, { error: 'invalid analysis id' });
+				return;
+			}
+			const session = await readSession();
+			await deleteAnalysis(id);
+			if (session.analysisId === id) {
+				// Images lived inside the deleted folder — fall back to the defaults.
+				await writeSession({
+					...session,
+					cutawayPath: DEFAULT_CUTAWAY,
+					legendPath: DEFAULT_LEGEND,
+					usingDefaults: true,
+					analysisId: null,
+					screen: 'home',
+					phase: 'classify',
+					refineScreen: 'image',
+					tierToTest: 1,
+					updatedAt: new Date().toISOString(),
+				});
+			}
+			const list = await Promise.all((await listAnalyses()).map((m) => summarizeAnalysis(m)));
+			sendJson(res, 200, {
+				ok: true,
+				id,
+				analyses: list,
+				session: await readSession(),
+			});
+			return;
+		}
+
 		if (method === 'POST' && pathname.startsWith('/api/analyses/') && pathname.endsWith('/save')) {
 			const id = decodeURIComponent(pathname.slice('/api/analyses/'.length, -'/save'.length));
 			const session = await readSession();
+			const owner = await readLiveOwnerId();
+			if (owner && owner !== id) {
+				sendJson(res, 409, {
+					error: `Live workspace belongs to ${owner}; open ${id} before saving it`,
+				});
+				return;
+			}
 			const body = JSON.parse((await readBody(req, 64 * 1024)).toString('utf8') || '{}');
 			const meta = await snapshotAnalysis(id, {
 				cutawayPath: session.cutawayPath,
 				legendPath: session.legendPath,
 				usingDefaults: session.usingDefaults,
 				phase: body.phase || session.phase || 'refine',
+				screen: session.screen,
+				refineScreen: session.refineScreen,
+				tierToTest: session.tierToTest,
 				name: body.name,
 			});
 			await writeSession({
@@ -961,10 +1868,14 @@ async function handle(req, res) {
 					legendPath: session.legendPath,
 					usingDefaults: session.usingDefaults,
 					phase: session.phase === 'classify' ? 'classify' : 'refine',
+					screen: 'home',
+					refineScreen: session.refineScreen,
+					tierToTest: session.tierToTest,
 				});
 			}
 			await writeSession({
 				...session,
+				analysisId: session.analysisId,
 				screen: 'home',
 				updatedAt: new Date().toISOString(),
 			});
@@ -977,7 +1888,7 @@ async function handle(req, res) {
 			const session = await readSession();
 			const phase = body.phase === 'classify' ? 'classify' : 'refine';
 			if (session.analysisId) {
-				await updateAnalysisMeta(session.analysisId, { phase });
+				await updateAnalysisMeta(session.analysisId, { phase, screen: phase });
 			}
 			await writeSession({
 				...session,
@@ -992,31 +1903,205 @@ async function handle(req, res) {
 			return;
 		}
 
+		if (method === 'PUT' && pathname === '/api/session/ui-state') {
+			const body = JSON.parse((await readBody(req, 16 * 1024)).toString('utf8') || '{}');
+			const session = await readSession();
+			const analysisMeta = session.analysisId ? await getAnalysisMeta(session.analysisId) : null;
+			const refineScreen =
+				body.refineScreen === 'database' || body.refineScreen === 'legend'
+					? body.refineScreen
+					: body.refineScreen === 'image'
+						? 'image'
+						: session.refineScreen;
+			const requestedTier =
+				typeof body.tierToTest === 'number' && body.tierToTest >= 1
+					? Math.min(3, Math.max(1, body.tierToTest))
+					: session.tierToTest;
+			const { tierToTest, maxUnlockedTier } = resolveActiveTierToTest(
+				requestedTier,
+				analysisMeta?.maxUnlockedTier ?? session.tierToTest ?? 1,
+				{ usingDefaults: analysisMeta?.usingDefaults },
+			);
+			const next = await writeSession({
+				...session,
+				refineScreen,
+				tierToTest,
+				updatedAt: new Date().toISOString(),
+			});
+			if (session.analysisId) {
+				await updateAnalysisMeta(session.analysisId, {
+					refineScreen,
+					tierToTest,
+					maxUnlockedTier,
+					screen: session.screen === 'home' ? 'home' : session.phase,
+				});
+			}
+			sendJson(res, 200, {
+				ok: true,
+				session: next,
+				refineScreen,
+				tierToTest,
+			});
+			return;
+		}
+
+		if (method === 'PUT' && pathname === '/api/session/tier-gate') {
+			const body = JSON.parse((await readBody(req, 16 * 1024)).toString('utf8') || '{}');
+			const session = await readSession();
+			if (!session.analysisId) {
+				sendJson(res, 400, { error: 'No active analysis' });
+				return;
+			}
+			const maxUnlockedTier = Math.min(3, Math.max(1, Number(body.maxUnlockedTier) || 1));
+			const refineScreen =
+				body.refineScreen === 'database' || body.refineScreen === 'legend'
+					? body.refineScreen
+					: body.refineScreen === 'image'
+						? 'image'
+						: session.refineScreen;
+			const requestedTier =
+				typeof body.tierToTest === 'number' && body.tierToTest >= 1
+					? Math.min(3, Math.max(1, body.tierToTest))
+					: maxUnlockedTier;
+			const { tierToTest } = resolveActiveTierToTest(requestedTier, maxUnlockedTier);
+			const meta = await updateAnalysisMeta(session.analysisId, {
+				maxUnlockedTier,
+				tierToTest,
+				refineScreen,
+			});
+			await writeSession({
+				...session,
+				tierToTest,
+				refineScreen,
+				updatedAt: new Date().toISOString(),
+			});
+			await snapshotActiveIfAny();
+			sendJson(res, 200, {
+				ok: true,
+				maxUnlockedTier: meta.maxUnlockedTier ?? maxUnlockedTier,
+				tierToTest,
+				refineScreen,
+			});
+			return;
+		}
+
+		if (method === 'GET' && pathname === '/api/style-guide-profiles') {
+			sendJson(res, 200, {
+				ok: true,
+				defaultProfileId: DEFAULT_STYLE_GUIDE_PROFILE_ID,
+				profiles: await listStyleGuideProfileSummaries(),
+			});
+			return;
+		}
+
+		if (method === 'GET' && pathname.startsWith('/api/style-guide-profiles/')) {
+			const id = decodeURIComponent(pathname.slice('/api/style-guide-profiles/'.length));
+			const profile = await loadStyleGuideProfile(id);
+			if (!profile) {
+				sendJson(res, 404, { error: `Unknown style guide profile: ${id}` });
+				return;
+			}
+			sendJson(res, 200, { ok: true, profile });
+			return;
+		}
+
+		if (method === 'PUT' && pathname.startsWith('/api/style-guide-profiles/')) {
+			const id = decodeURIComponent(pathname.slice('/api/style-guide-profiles/'.length));
+			const body = JSON.parse((await readBody(req, 2 * 1024 * 1024)).toString('utf8') || '{}');
+			try {
+				const brief = await updateStyleGuideProfile(id, body.profile || body, {
+					markdown: body.markdown,
+				});
+				const session = await readSession();
+				if (session.analysisId) {
+					const meta = await getAnalysisMeta(session.analysisId);
+					if (meta?.styleGuideProfileId === id || body.bindToSession) {
+						await updateAnalysisMeta(session.analysisId, { styleGuideProfileId: id });
+					}
+				}
+				await snapshotActiveIfAny();
+				sendJson(res, 200, {
+					ok: true,
+					styleGuideProfileId: id,
+					styleGuideProfile: brief,
+					profiles: await listStyleGuideProfileSummaries(),
+					state: await buildState(),
+				});
+			} catch (err) {
+				const status = err?.statusCode || 500;
+				sendJson(res, status, { error: err instanceof Error ? err.message : String(err) });
+			}
+			return;
+		}
+
+		if (method === 'POST' && pathname === '/api/style-guide-profiles') {
+			const body = JSON.parse((await readBody(req, 2 * 1024 * 1024)).toString('utf8') || '{}');
+			try {
+				const created = await createStyleGuideProfile({
+					id: body.id,
+					profile: body.profile || body,
+					markdown: body.markdown,
+				});
+				const session = await readSession();
+				if (session.analysisId && body.bindToSession !== false) {
+					await updateAnalysisMeta(session.analysisId, {
+						styleGuideProfileId: created.id,
+					});
+				}
+				await snapshotActiveIfAny();
+				sendJson(res, 201, {
+					ok: true,
+					styleGuideProfileId: created.id,
+					styleGuideProfile: created.brief,
+					profiles: await listStyleGuideProfileSummaries(),
+					state: await buildState(),
+				});
+			} catch (err) {
+				const status = err?.statusCode || 500;
+				sendJson(res, status, { error: err instanceof Error ? err.message : String(err) });
+			}
+			return;
+		}
+
+		if (method === 'PUT' && pathname === '/api/session/style-guide-profile') {
+			const body = JSON.parse((await readBody(req, 16 * 1024)).toString('utf8') || '{}');
+			const session = await readSession();
+			if (!session.analysisId) {
+				sendJson(res, 400, { error: 'No active analysis to bind a style guide profile' });
+				return;
+			}
+			const profileId = await resolveStyleGuideProfileId(body.profileId || body.id);
+			await updateAnalysisMeta(session.analysisId, { styleGuideProfileId: profileId });
+			sendJson(res, 200, {
+				ok: true,
+				styleGuideProfileId: profileId,
+				styleGuideProfile: await getStyleGuideProfileBrief(profileId),
+				state: await buildState(),
+			});
+			return;
+		}
+
 		if (method === 'POST' && pathname === '/api/analyses/new') {
 			const body = JSON.parse((await readBody(req, 64 * 1024)).toString('utf8') || '{}');
-			const meta = await createAnalysis(body.name || 'New analysis');
-			const workCutaway = path.join(WORKSPACE, 'active-cutaway.png');
-			const workLegend = path.join(WORKSPACE, 'active-legend.png');
-			// Clear live classification/findings so the wizard starts clean.
-			await saveJson(EXTRACT_JSON, { items: [], source: null });
-			await saveJson(CLASSIFICATION_JSON, {
-				source: null,
-				guidelines: '',
-				classifications: {},
-				updatedAt: new Date().toISOString(),
-				updatedBy: 'lung-legend-lab',
-			});
-			await saveJson(FINDINGS_DB, { items: {}, runs: [], meta: { phase: 'new analysis' } });
-			await saveJson(MATCH_REPORT, { layers: {}, method: 'opencv-template-match' });
-			await saveJson(ANNOTATIONS_JSON, { annotations: [] });
-			await saveJson(TRAINING_FEEDBACK_JSON, { feedback: [] });
+			// Save the outgoing analysis while it still owns the live workspace,
+			// then transfer the lease before wiping — any late snapshot for the old
+			// id is refused instead of writing empty stubs over its saved data.
+			await flushLiveBeforeSwitch();
+			const requestedName = typeof body.name === 'string' ? body.name.trim() : '';
+			const meta = await createAnalysis(requestedName || 'New analysis');
+			await setLiveOwnerId(meta.id);
+			await clearLiveWorkspace();
+			const fresh = analysisPaths(meta.id);
 			await writeSession({
-				cutawayPath: workCutaway,
-				legendPath: workLegend,
+				// Point at this analysis's own (not yet uploaded) images.
+				cutawayPath: fresh.cutaway,
+				legendPath: fresh.legend,
 				usingDefaults: false,
 				analysisId: meta.id,
 				phase: 'classify',
 				screen: 'classify',
+				refineScreen: 'image',
+				tierToTest: 1,
 				updatedAt: new Date().toISOString(),
 			});
 			sendJson(res, 201, { ok: true, analysis: meta, session: await readSession() });
@@ -1025,8 +2110,19 @@ async function handle(req, res) {
 
 		if (method === 'POST' && pathname.startsWith('/api/analyses/') && pathname.endsWith('/images')) {
 			const id = decodeURIComponent(pathname.slice('/api/analyses/'.length, -'/images'.length));
+			if (!id || id.includes('/') || id.includes('..')) {
+				sendJson(res, 400, { error: 'invalid analysis id' });
+				return;
+			}
 			const body = await readBody(req);
 			const { files, fields } = parseMultipart(body, req.headers['content-type'] || '');
+			// Uploading into a different analysis is a session switch: save and
+			// release the current one before this id takes the live workspace.
+			if ((await readLiveOwnerId()) !== id) {
+				await flushLiveBeforeSwitch();
+				await setLiveOwnerId(id);
+				await clearLiveWorkspace();
+			}
 			const written = await writeAnalysisImages(id, {
 				cutaway: files.cutaway?.data,
 				legend: files.legend?.data,
@@ -1062,6 +2158,67 @@ async function handle(req, res) {
  */
 function pushFindingsRefresh(job) {
 	job.log.push('· Refreshing findings DB…');
+}
+
+/**
+ * Normalize RL export scope from request body (`'all'` or a tier number).
+ * @param {unknown} value
+ * @returns {number | 'all'}
+ */
+function normalizeRlTierScope(value) {
+	if (value === 'all') return 'all';
+	const n = Number(value);
+	return Number.isFinite(n) && n >= 0 ? n : 1;
+}
+
+/**
+ * Write RL feedback prompt markdown + JSON (with delta cursor) for Cursor export.
+ *
+ * @param {{tierToTest: number | 'all', promptMarkdown: string, summary: unknown, cursor: unknown, analysisId: string | null}} opts
+ * @returns {Promise<{md: string | null, json: string | null, workspaceMd: string, workspaceJson: string}>}
+ */
+async function writeRlFeedbackArtifacts(opts) {
+	const { tierToTest, promptMarkdown, summary, cursor, analysisId } = opts;
+	const payload = {
+		tierToTest,
+		generatedAt: new Date().toISOString(),
+		summary,
+		cursor: cursor || null,
+		note: 'Delta RL feedback for Cursor; rematch is done outside this lab.',
+	};
+	const scopeLabel = tierToTest === 'all' ? 'all tiers' : `Tier ${tierToTest}`;
+	const mdBody =
+		promptMarkdown?.trim() ||
+		`# RL feedback for ${scopeLabel}\n\n(empty — no new owner review)\n`;
+
+	await fsp.mkdir(WORKSPACE, { recursive: true });
+	await fsp.writeFile(RL_FEEDBACK_MD, mdBody, 'utf8');
+	await fsp.writeFile(RL_FEEDBACK_JSON, JSON.stringify(payload, null, 2), 'utf8');
+
+	let md = null;
+	let json = null;
+	if (analysisId) {
+		const paths = analysisPaths(analysisId);
+		await fsp.mkdir(paths.root, { recursive: true });
+		md = paths.rlFeedbackMd;
+		json = paths.rlFeedback;
+		await fsp.writeFile(md, mdBody, 'utf8');
+		await fsp.writeFile(json, JSON.stringify(payload, null, 2), 'utf8');
+		await appendRlFeedbackHistory(analysisId, {
+			tierToTest,
+			promptMarkdown: mdBody,
+			summary,
+			cursor: cursor || null,
+			generatedAt: payload.generatedAt,
+		});
+	}
+
+	return {
+		md,
+		json,
+		workspaceMd: RL_FEEDBACK_MD,
+		workspaceJson: RL_FEEDBACK_JSON,
+	};
 }
 
 await ensureWorkspace();

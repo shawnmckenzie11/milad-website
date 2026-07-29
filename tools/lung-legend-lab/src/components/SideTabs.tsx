@@ -1,44 +1,25 @@
 import type { ReactNode } from 'react';
-import type { FindingsDb, JobState } from '../types';
-import { ProgressPanel } from './ProgressPanel';
 
 type Props = {
-	active: 'match' | 'pipeline';
-	onChange: (tab: 'match' | 'pipeline') => void;
-	matchPanel: ReactNode;
-	findings: FindingsDb | null;
-	job: JobState | null;
+	/** e.g. "Tier 1 Review" */
+	title: string;
+	/** Scrollable review body. */
+	children: ReactNode;
+	/** Sticky footer (Generate Feedback Prompt, Tier Complete). */
+	footer: ReactNode;
 };
 
 /**
- * Right-rail tabs: match actions (default) vs deferred pipeline diagnostics.
+ * Right-hand refine rail: titled review body with a pinned action footer.
  */
-export function SideTabs({ active, onChange, matchPanel, findings, job }: Props) {
+export function SideTabs({ title, children, footer }: Props) {
 	return (
-		<div className="side-tabs">
-			<div className="tab-bar" role="tablist">
-				<button
-					type="button"
-					role="tab"
-					aria-selected={active === 'match'}
-					className={active === 'match' ? 'tab active' : 'tab'}
-					onClick={() => onChange('match')}
-				>
-					Match
-				</button>
-				<button
-					type="button"
-					role="tab"
-					aria-selected={active === 'pipeline'}
-					className={active === 'pipeline' ? 'tab active' : 'tab'}
-					onClick={() => onChange('pipeline')}
-				>
-					Pipeline
-				</button>
-			</div>
-			<div className="tab-body">
-				{active === 'match' ? matchPanel : <ProgressPanel findings={findings} job={job} />}
-			</div>
+		<div className="side-tabs refine-side-layout">
+			<header className="refine-side-header">
+				<h2 className="refine-side-title">{title}</h2>
+			</header>
+			<div className="refine-side-scroll tab-body">{children}</div>
+			<footer className="refine-side-footer">{footer}</footer>
 		</div>
 	);
 }

@@ -1,6 +1,14 @@
-import { useMemo, useState } from 'react';
-import type { LegendItemRow } from '../types';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { LegendItemRow, StyleGuideProfileBrief, StyleGuideProfileSummary } from '../types';
 import { assetUrl } from '../api';
+import { StyleGuidePanel } from './StyleGuidePanel';
+
+/** Owner-facing Tier-1 observability prompt shown after extract. */
+export const TIER1_INSTRUCTION =
+	'Top tier (obvious to see; find with high confidence first): Exact legend replicas in the diagram. (A structure may match the legend exactly but still be absent from the figure — do not search those.)';
+
+/** Sub-tiers that apply when an item is marked Tier 1. */
+const TIER1_SUB_TIERS = ['exact-replica', 'exact-replica-absent'] as const;
 
 type Props = {
 	items: LegendItemRow[];
@@ -10,10 +18,26 @@ type Props = {
 	busy: boolean;
 	bust: number;
 	analysisName: string | null;
+	/** Persist a new analysis name immediately (blur / Enter). */
+	onRenameAnalysis: (name: string) => void;
 	cutawayExists: boolean;
 	legendExists: boolean;
+	styleGuideProfiles: StyleGuideProfileSummary[];
+	styleGuideProfile: StyleGuideProfileBrief | null;
+	styleGuideProfileId: string | null | undefined;
+	onSelectStyleGuide: (profileId: string) => void;
+	onSaveStyleGuide: (
+		profileId: string,
+		profile: Record<string, unknown>,
+		markdown: string,
+	) => void;
+	onSaveStyleGuideAsNew: (
+		profile: Record<string, unknown>,
+		opts: { id?: string; markdown: string },
+	) => void;
 	onUploadImages: (cutaway: File | null, legend: File | null, name?: string) => void;
-	onExtract: () => void;
+	/** Auto-run OCR extract when the legend image is ready. */
+	onExtract: () => void | Promise<unknown>;
 	onChange: (code: string, patch: Partial<LegendItemRow>) => void;
 	onSaveAll: () => void;
 	onFinish: () => void;
@@ -21,19 +45,23 @@ type Props = {
 };
 
 /**
- * New-analysis wizard: images first, then legend-item classification.
- * Kept off the refine dashboard so matching work has full real estate.
+ * New-analysis wizard: images + auto legend extract → Tier-1-only classification.
  */
 export function ClassifyWizard({
 	items,
-	subTiers,
 	iconInterpretations,
-	guidelines,
 	busy,
 	bust,
 	analysisName,
+	onRenameAnalysis,
 	cutawayExists,
 	legendExists,
+	styleGuideProfiles,
+	styleGuideProfile,
+	styleGuideProfileId,
+	onSelectStyleGuide,
+	onSaveStyleGuide,
+	onSaveStyleGuideAsNew,
 	onUploadImages,
 	onExtract,
 	onChange,
@@ -45,20 +73,86 @@ export function ClassifyWizard({
 		cutawayExists && legendExists && items.length > 0 ? 'classify' : 'images',
 	);
 	const [name, setName] = useState(analysisName || '');
-	const classified = useMemo(
-		() => items.filter((i) => i.tier !== null && i.subTier).length,
-		[items],
+	/** Saved name this field was last synced to (re-syncs on external renames). */
+	const [syncedName, setSyncedName] = useState(analysisName || '');
+	const extractRequestedFor = useRef<string | null>(null);
+	const onExtractRef = useRef(onExtract);
+	onExtractRef.current = onExtract;
+
+	if ((analysisName || '') !== syncedName) {
+		setSyncedName(analysisName || '');
+		setName(analysisName || '');
+	}
+
+	/**
+	 * Persist the typed name, or snap back to the saved one when left blank.
+	 */
+	function commitName() {
+		const trimmed = name.trim();
+		if (!trimmed) {
+			setName(analysisName || '');
+			return;
+		}
+		if (trimmed === (analysisName || '')) return;
+		onRenameAnalysis(trimmed);
+	}
+
+	const tier1Items = useMemo(() => items.filter((i) => i.tier === 1), [items]);
+	const tier1Ready = useMemo(
+		() =>
+			tier1Items.filter(
+				(i) =>
+					i.subTier &&
+					TIER1_SUB_TIERS.includes(i.subTier as (typeof TIER1_SUB_TIERS)[number]) &&
+					i.iconInterpretation,
+			).length,
+		[tier1Items],
 	);
+	const canEnterRefine = tier1Items.length > 0 && tier1Ready === tier1Items.length;
+	const canContinue = !busy && cutawayExists && legendExists && items.length > 0;
+	/**
+	 * Auto-extract runs once per legend. Deliberately not keyed on `bust`: extract
+	 * itself invalidates the asset token, so a bust-keyed guard re-fires the job
+	 * forever whenever a legend yields zero rows. Picking a new legend file resets
+	 * the guard explicitly instead.
+	 */
+	const extractKey = legendExists ? 'legend' : 'none';
+
+	/**
+	 * Auto-extract legend text whenever a legend image is present and rows are empty.
+	 */
+	useEffect(() => {
+		if (step !== 'images' || !legendExists || busy) return;
+		if (items.length > 0) return;
+		if (extractRequestedFor.current === extractKey) return;
+		extractRequestedFor.current = extractKey;
+		void onExtractRef.current();
+	}, [step, legendExists, busy, items.length, extractKey]);
 
 	return (
 		<div className="wizard">
 			<header className="topbar">
 				<div>
 					<h1>
-						New analysis · {step === 'images' ? '1. Images' : '2. Classification'}
+						{step === 'images' ? '1. Name + profile + images' : '2. Tier 1 classification'}
 						<span className="tag">Wizard</span>
 					</h1>
-					<div className="meta">{analysisName || 'Untitled'}</div>
+					<label className="wizard-name">
+						Analysis name
+						<input
+							value={name}
+							placeholder="e.g. Cohort figure v2"
+							onChange={(e) => setName(e.target.value)}
+							onBlur={commitName}
+							onKeyDown={(e) => {
+								// Blur commits; committing here too would double-send the rename.
+								if (e.key === 'Enter') {
+									e.preventDefault();
+									e.currentTarget.blur();
+								}
+							}}
+						/>
+					</label>
 				</div>
 				<button type="button" disabled={busy} onClick={onHome}>
 					← Analyses
@@ -70,18 +164,9 @@ export function ClassifyWizard({
 					<section className="panel-section">
 						<h2>Load cutaway + legend</h2>
 						<p className="muted">
-							Upload the two LAYER MAP inputs (or use files already on the session). Then
-							extract legend text before classifying.
+							Upload the LAYER MAP cutaway and legend. Legend text and icons are extracted
+							automatically; Continue opens when both images and extract are ready.
 						</p>
-						<label className="muted">
-							Analysis name{' '}
-							<input
-								value={name}
-								onChange={(e) => setName(e.target.value)}
-								placeholder="e.g. Cohort figure v2"
-								style={{ minWidth: 240 }}
-							/>
-						</label>
 						<div className="row" style={{ marginTop: '0.75rem' }}>
 							<label className="muted">
 								Cutaway{' '}
@@ -100,39 +185,78 @@ export function ClassifyWizard({
 									type="file"
 									accept="image/png,image/jpeg"
 									disabled={busy}
-									onChange={(e) =>
-										onUploadImages(null, e.target.files?.[0] ?? null, name || undefined)
-									}
+									onChange={(e) => {
+										extractRequestedFor.current = null;
+										onUploadImages(null, e.target.files?.[0] ?? null, name || undefined);
+									}}
 								/>
 							</label>
 						</div>
 						<p className="mono muted">
 							cutaway: {cutawayExists ? 'ready' : 'missing'} · legend:{' '}
 							{legendExists ? 'ready' : 'missing'}
+							{legendExists
+								? items.length > 0
+									? ` · extract: ${items.length} items`
+									: busy
+										? ' · extracting…'
+										: ' · extract pending'
+								: ''}
 						</p>
 						<div className="wizard-previews">
 							{cutawayExists && (
-								<img src={assetUrl('/api/assets/cutaway', bust)} alt="Cutaway preview" />
+								<a
+									className="wizard-thumb"
+									href={assetUrl('/api/assets/cutaway', bust)}
+									target="_blank"
+									rel="noreferrer"
+									title="Open cutaway at full size"
+								>
+									<img src={assetUrl('/api/assets/cutaway', bust)} alt="Cutaway thumbnail" />
+									<span className="muted">Cutaway</span>
+								</a>
 							)}
 							{legendExists && (
-								<img src={assetUrl('/api/assets/legend', bust)} alt="Legend preview" />
+								<a
+									className="wizard-thumb"
+									href={assetUrl('/api/assets/legend', bust)}
+									target="_blank"
+									rel="noreferrer"
+									title="Open legend at full size"
+								>
+									<img src={assetUrl('/api/assets/legend', bust)} alt="Legend thumbnail" />
+									<span className="muted">Legend</span>
+								</a>
 							)}
 						</div>
-						<div className="row" style={{ marginTop: '1rem' }}>
-							<button
-								type="button"
-								disabled={busy || !legendExists}
-								onClick={onExtract}
-							>
-								Extract legend text
-							</button>
+					</section>
+
+					<StyleGuidePanel
+						profiles={styleGuideProfiles}
+						active={styleGuideProfile}
+						selectedId={styleGuideProfileId}
+						busy={busy}
+						bust={bust}
+						legendItems={items}
+						onSelect={onSelectStyleGuide}
+						onSave={onSaveStyleGuide}
+						onSaveAsNew={onSaveStyleGuideAsNew}
+					/>
+
+					<section className="panel-section">
+						<div className="row" style={{ marginTop: '0.25rem' }}>
 							<button
 								type="button"
 								className="primary"
-								disabled={busy || !cutawayExists || !legendExists || items.length === 0}
+								disabled={!canContinue}
 								onClick={() => setStep('classify')}
+								title={
+									canContinue
+										? 'Continue to Tier 1 classification'
+										: 'Waiting for cutaway, legend, and automatic extract'
+								}
 							>
-								Continue to classification →
+								Continue to Tier 1 →
 							</button>
 						</div>
 					</section>
@@ -141,15 +265,23 @@ export function ClassifyWizard({
 				<div className="wizard-body wizard-classify">
 					<aside className="panel">
 						<div className="panel-section">
-							<h2>Tier criteria</h2>
-							<pre className="guidelines">{guidelines || 'Load extract to see guidelines.'}</pre>
+							<h2>Tier 1 only</h2>
+							<div className="tier1-instruction" role="note">
+								{TIER1_INSTRUCTION}
+							</div>
+							{styleGuideProfile && (
+								<p className="muted">
+									Style guide: <strong>{styleGuideProfile.title}</strong>
+								</p>
+							)}
 							<p className="muted">
-								Classified {classified}/{items.length}. Icon interpretation matters for
-								side-by-side glyphs (e.g. B6 → 2-discrete).
+								Mark exact-replica items as Tier 1, then set sub-tier and icon interpretation.
+								Other rows stay for later tiers. Ready {tier1Ready}/{tier1Items.length || 0}{' '}
+								Tier 1 item{tier1Items.length === 1 ? '' : 's'}.
 							</p>
 							<div className="row">
 								<button type="button" disabled={busy} onClick={() => setStep('images')}>
-									← Images
+									← Profile
 								</button>
 								<button type="button" disabled={busy} onClick={onSaveAll}>
 									Save classifications
@@ -157,82 +289,115 @@ export function ClassifyWizard({
 								<button
 									type="button"
 									className="primary"
-									disabled={busy || classified < items.length}
+									disabled={busy || !canEnterRefine}
 									onClick={onFinish}
+									title={
+										canEnterRefine
+											? 'Save Tier 1 and run template match'
+											: 'Mark at least one Tier 1 item with sub-tier + icon interpretation'
+									}
 								>
-									Enter refinement →
+									Run Tier 1 match →
 								</button>
 							</div>
 						</div>
 					</aside>
 					<div className="wizard-grid">
-						{items.map((it) => (
-							<article key={it.code} className="classify-card">
-								<header>
-									<strong>
-										{it.code} · {it.name}
-									</strong>
-									<div className="muted">
-										{it.location || '—'} · {it.supports || '—'}
-									</div>
-								</header>
-								{it.glyph_path && (
-									<img
-										src={assetUrl(`/api/assets/glyph/${it.code}`, bust)}
-										alt={`${it.code} glyph`}
-										className="glyph"
-									/>
-								)}
-								<label>
-									Tier
-									<select
-										value={it.tier ?? ''}
-										onChange={(e) =>
-											onChange(it.code, {
-												tier: e.target.value === '' ? null : Number(e.target.value),
-												searchable:
-													e.target.value === '' ? false : Number(e.target.value) > 0,
-											})
-										}
-									>
-										<option value="">—</option>
-										<option value="0">0 skip</option>
-										<option value="1">1 high</option>
-										<option value="2">2 medium</option>
-										<option value="3">3 hard</option>
-									</select>
-								</label>
-								<label>
-									Sub-tier
-									<select
-										value={it.subTier ?? ''}
-										onChange={(e) => onChange(it.code, { subTier: e.target.value || null })}
-									>
-										<option value="">—</option>
-										{subTiers.map((s) => (
-											<option key={s} value={s}>
-												{s}
-											</option>
-										))}
-									</select>
-								</label>
-								<label>
-									Icon interpretation
-									<select
-										value={it.iconInterpretation || '1-discrete'}
-										onChange={(e) =>
-											onChange(it.code, { iconInterpretation: e.target.value })
-										}
-									>
-										{iconInterpretations.map((s) => (
-											<option key={s} value={s}>
-												{s}
-											</option>
-										))}
-									</select>
-								</label>
-							</article>
-						))}
+						{items.map((it) => {
+							const isTier1 = it.tier === 1;
+							return (
+								<article
+									key={it.code}
+									className={`classify-card${isTier1 ? ' classify-card--tier1' : ''}`}
+								>
+									<header>
+										<strong>
+											{it.code} · {it.name}
+										</strong>
+										<div className="muted">
+											{it.location || '—'} · {it.supports || '—'}
+											{it.slug ? ` · ${it.slug}` : ''}
+										</div>
+									</header>
+									{it.glyph_path && (
+										<img
+											src={assetUrl(`/api/assets/glyph/${it.code}`, bust)}
+											alt={`${it.code} glyph`}
+											className="glyph"
+										/>
+									)}
+									<label>
+										Tier 1?
+										<select
+											value={isTier1 ? '1' : ''}
+											disabled={busy}
+											onChange={(e) => {
+												if (e.target.value === '1') {
+													onChange(it.code, {
+														tier: 1,
+														searchable: true,
+														subTier:
+															it.subTier &&
+															TIER1_SUB_TIERS.includes(
+																it.subTier as (typeof TIER1_SUB_TIERS)[number],
+															)
+																? it.subTier
+																: 'exact-replica',
+														iconInterpretation: it.iconInterpretation || '1-discrete',
+													});
+												} else {
+													onChange(it.code, {
+														tier: null,
+														searchable: false,
+														subTier: null,
+													});
+												}
+											}}
+										>
+											<option value="">Later (not Tier 1)</option>
+											<option value="1">Yes — Tier 1</option>
+										</select>
+									</label>
+									{isTier1 && (
+										<>
+											<label>
+												Sub-tier
+												<select
+													value={it.subTier ?? ''}
+													disabled={busy}
+													onChange={(e) =>
+														onChange(it.code, { subTier: e.target.value || null })
+													}
+												>
+													<option value="">—</option>
+													{TIER1_SUB_TIERS.map((s) => (
+														<option key={s} value={s}>
+															{s}
+														</option>
+													))}
+												</select>
+											</label>
+											<label>
+												Icon interpretation
+												<select
+													value={it.iconInterpretation || '1-discrete'}
+													disabled={busy}
+													onChange={(e) =>
+														onChange(it.code, { iconInterpretation: e.target.value })
+													}
+												>
+													{iconInterpretations.map((s) => (
+														<option key={s} value={s}>
+															{s}
+														</option>
+													))}
+												</select>
+											</label>
+										</>
+									)}
+								</article>
+							);
+						})}
 					</div>
 				</div>
 			)}
