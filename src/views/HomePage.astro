@@ -1,0 +1,146 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { emphasizeLatinTerms, resolveLocale, useTranslations } from '../i18n';
+
+const locale = resolveLocale(Astro.currentLocale);
+const t = useTranslations(locale);
+---
+
+<BaseLayout>
+	<section class="hero fade-in">
+		<img
+			class="hero__banner"
+			src="/images/milad-lab-banner.jpg"
+			alt={t.home.bannerAlt}
+			width="1024"
+			height="455"
+		/>
+	</section>
+
+	<section class="home-bio" aria-labelledby="home-bio-heading" data-scroll-fade>
+		<h2 id="home-bio-heading" class="sr-only">{t.home.aboutHeading}</h2>
+		<p set:html={emphasizeLatinTerms(t.home.bio)} />
+	</section>
+
+	<noscript>
+		<style>
+			.home-bio {
+				opacity: 1 !important;
+				transform: none !important;
+			}
+		</style>
+	</noscript>
+
+	<script is:inline>
+		/**
+		 * Reveals the homepage biography with a translate-up fade when it
+		 * intersects the viewport. Inline so it runs on the static page
+		 * without waiting for a bundled island. Reduced-motion visitors
+		 * see the paragraph immediately.
+		 */
+		(function initHomeBioFade() {
+			var bio = document.querySelector('[data-scroll-fade]');
+			if (!bio || bio.getAttribute('data-fade-ready') === 'true') return;
+			bio.setAttribute('data-fade-ready', 'true');
+
+			var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+			if (reduceMotion || typeof IntersectionObserver !== 'function') {
+				bio.setAttribute('data-visible', 'true');
+				return;
+			}
+
+			bio.classList.add('is-pending');
+
+			var observer = new IntersectionObserver(
+				function onIntersect(entries) {
+					for (var i = 0; i < entries.length; i += 1) {
+						if (!entries[i].isIntersecting) continue;
+						bio.setAttribute('data-visible', 'true');
+						bio.classList.remove('is-pending');
+						observer.disconnect();
+						return;
+					}
+				},
+				{ root: null, threshold: 0, rootMargin: '0px 0px -12% 0px' },
+			);
+
+			observer.observe(bio);
+		})();
+	</script>
+</BaseLayout>
+
+<style>
+	.hero {
+		min-height: calc(100svh - 6.5rem);
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		padding: var(--space-lg) 0 var(--space-xl);
+		max-width: min(100%, 52rem);
+	}
+
+	.hero__banner {
+		width: 100%;
+		height: auto;
+		margin: 0;
+	}
+
+	.home-bio {
+		max-width: 42rem;
+		margin-inline: auto;
+		padding: var(--space-xl) 0 var(--space-2xl);
+		text-align: center;
+	}
+
+	.home-bio.is-pending {
+		opacity: 0;
+		transform: translateY(2.75rem);
+	}
+
+	.home-bio[data-visible='true'] {
+		opacity: 1;
+		transform: translateY(0);
+		transition:
+			opacity 800ms var(--ease-out),
+			transform 800ms var(--ease-out);
+	}
+
+	.home-bio p {
+		margin: 0;
+		font-size: 1.08rem;
+		line-height: 1.7;
+	}
+
+	.home-bio i {
+		font-style: italic;
+	}
+
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
+	}
+
+	@media (max-width: 640px) {
+		.hero {
+			min-height: calc(100svh - 8.5rem);
+			padding-top: var(--space-md);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.home-bio,
+		.home-bio.is-pending,
+		.home-bio[data-visible='true'] {
+			opacity: 1;
+			transform: none;
+			transition: none;
+		}
+	}
+</style>

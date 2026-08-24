@@ -1,0 +1,212 @@
+---
+import {
+	localeStorageKey,
+	resolveLocale,
+	switchLocalePath,
+	useTranslations,
+	type Locale,
+} from '../i18n';
+
+const locale = resolveLocale(Astro.currentLocale);
+const t = useTranslations(locale);
+const pathname = Astro.url.pathname;
+const options: Array<{ code: Locale; href: string; label: string }> = [
+	{ code: 'en', href: switchLocalePath(pathname, 'en'), label: t.language.en },
+	{ code: 'fr', href: switchLocalePath(pathname, 'fr'), label: t.language.fr },
+];
+---
+
+<div class="lang-switcher" data-lang-switcher data-storage-key={localeStorageKey}>
+	<button
+		type="button"
+		class="lang-switcher__button"
+		aria-expanded="false"
+		aria-haspopup="true"
+		aria-controls="lang-switcher-menu"
+		data-lang-button
+	>
+		<span class="lang-switcher__label">{t.language.label}</span>
+		<span class="lang-switcher__current" aria-hidden="true">{t.language[locale]}</span>
+		<svg class="lang-switcher__chevron" viewBox="0 0 12 8" width="12" height="8" aria-hidden="true">
+			<path d="M1 1.5 L6 6.5 L11 1.5" fill="none" stroke="currentColor" stroke-width="1.5"></path>
+		</svg>
+	</button>
+	<div class="lang-switcher__menu" id="lang-switcher-menu" hidden data-lang-menu>
+		<ul class="lang-switcher__list" role="list">
+			{
+				options.map((option) => (
+					<li>
+						<a
+							class:list={['lang-switcher__option', { 'is-current': option.code === locale }]}
+							href={option.href}
+							hreflang={option.code}
+							lang={option.code}
+							aria-current={option.code === locale ? 'true' : undefined}
+							data-locale={option.code}
+						>
+							{option.label}
+						</a>
+					</li>
+				))
+			}
+		</ul>
+	</div>
+</div>
+
+<script>
+	/**
+	 * Wires an accessible language disclosure: toggle, outside click, Escape,
+	 * and localStorage persistence when a locale option is chosen.
+	 */
+	function initLanguageSwitcher(): void {
+		const root = document.querySelector<HTMLElement>('[data-lang-switcher]');
+		if (!root || root.dataset.ready === 'true') return;
+		root.dataset.ready = 'true';
+
+		const button = root.querySelector<HTMLButtonElement>('[data-lang-button]');
+		const menu = root.querySelector<HTMLElement>('[data-lang-menu]');
+		const storageKey = root.dataset.storageKey || 'milad-lab-locale';
+		if (!button || !menu) return;
+
+		/**
+		 * Opens or closes the language menu and syncs aria-expanded.
+		 * @param open - Whether the menu should be visible
+		 */
+		function setOpen(open: boolean): void {
+			button!.setAttribute('aria-expanded', open ? 'true' : 'false');
+			menu!.hidden = !open;
+		}
+
+		button.addEventListener('click', (event) => {
+			event.stopPropagation();
+			setOpen(button.getAttribute('aria-expanded') !== 'true');
+		});
+
+		document.addEventListener('click', (event) => {
+			if (!root.contains(event.target as Node)) {
+				setOpen(false);
+			}
+		});
+
+		root.addEventListener('keydown', (event) => {
+			if (event.key === 'Escape') {
+				setOpen(false);
+				button.focus();
+			}
+		});
+
+		for (const option of root.querySelectorAll<HTMLAnchorElement>('[data-locale]')) {
+			option.addEventListener('click', () => {
+				try {
+					localStorage.setItem(storageKey, option.dataset.locale || '');
+				} catch {
+					/* Ignore private-mode storage failures. */
+				}
+			});
+		}
+	}
+
+	initLanguageSwitcher();
+	document.addEventListener('astro:page-load', initLanguageSwitcher);
+</script>
+
+<style>
+	.lang-switcher {
+		position: relative;
+		flex-shrink: 0;
+	}
+
+	.lang-switcher__button {
+		appearance: none;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.45rem;
+		margin: 0;
+		padding: 0.35rem 0.65rem;
+		border: 1px solid var(--color-line);
+		border-radius: var(--radius);
+		background: #ffffff;
+		color: var(--color-ink);
+		font-family: var(--font-display);
+		font-size: 0.72rem;
+		font-weight: 700;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		cursor: pointer;
+		line-height: 1.2;
+	}
+
+	.lang-switcher__button:hover,
+	.lang-switcher__button[aria-expanded='true'] {
+		border-color: var(--color-accent);
+		color: var(--color-ink);
+	}
+
+	.lang-switcher__label {
+		color: var(--color-muted);
+	}
+
+	.lang-switcher__current {
+		color: var(--color-ink);
+	}
+
+	.lang-switcher__chevron {
+		display: block;
+		flex-shrink: 0;
+		color: var(--color-accent);
+	}
+
+	.lang-switcher__button[aria-expanded='true'] .lang-switcher__chevron {
+		transform: rotate(180deg);
+	}
+
+	.lang-switcher__menu {
+		position: absolute;
+		top: calc(100% + 0.35rem);
+		right: 0;
+		z-index: 30;
+		min-width: 11.5rem;
+		padding: 0.35rem;
+		border: 1px solid var(--color-line);
+		border-radius: var(--radius);
+		background: #ffffff;
+		box-shadow: var(--shadow-soft);
+	}
+
+	.lang-switcher__list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: grid;
+		gap: 0.15rem;
+	}
+
+	.lang-switcher__option {
+		display: block;
+		padding: 0.5rem 0.65rem;
+		color: var(--color-ink);
+		text-decoration: none;
+		font-family: var(--font-display);
+		font-size: 0.78rem;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+
+	.lang-switcher__option:hover,
+	.lang-switcher__option:focus-visible {
+		background: var(--color-accent-soft);
+		color: var(--color-ink);
+		outline: none;
+	}
+
+	.lang-switcher__option.is-current {
+		color: var(--color-accent);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.lang-switcher__chevron {
+			transform: none;
+		}
+	}
+</style>

@@ -1,0 +1,38 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PublicationTimeline from '../components/PublicationTimeline.astro';
+import { getPublications } from '../lib/research';
+import { localizePath, resolveLocale, useTranslations } from '../i18n';
+
+const locale = resolveLocale(Astro.currentLocale);
+const t = useTranslations(locale);
+const publications = getPublications();
+const description = t.publications.allMetaDescription
+	.replace('{name}', t.site.name)
+	.replace('{affiliation}', t.site.affiliation);
+---
+
+<BaseLayout title={t.publications.allMetaTitle} description={description} narrow>
+	<header class="page-header fade-in">
+		<p class="eyebrow">{t.publications.allEyebrow}</p>
+		<h1>{t.publications.allHeading}</h1>
+	</header>
+
+	<PublicationTimeline publications={publications} emptyMessage={t.publications.empty} />
+
+	<p class="back-link fade-in-delay">
+		<a href={localizePath(locale, '/publications')}>{t.publications.backToSelected}</a>
+	</p>
+</BaseLayout>
+
+<style>
+	.page-header {
+		margin-bottom: var(--space-xl);
+	}
+
+	.back-link {
+		margin-top: var(--space-xl);
+		padding-top: var(--space-lg);
+		border-top: 1px solid var(--color-line);
+	}
+</style>

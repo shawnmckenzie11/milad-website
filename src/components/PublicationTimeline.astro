@@ -1,6 +1,7 @@
 ---
 import type { Publication } from '../lib/research';
 import { groupPublicationsByYear } from '../lib/research';
+import { resolveLocale, useTranslations } from '../i18n';
 import PublicationList from './PublicationList.astro';
 
 interface Props {
@@ -10,7 +11,8 @@ interface Props {
 	emptyMessage?: string;
 }
 
-const { publications, emptyMessage = 'No publications listed yet.' } = Astro.props;
+const t = useTranslations(resolveLocale(Astro.currentLocale));
+const { publications, emptyMessage = t.publications.empty } = Astro.props;
 const byYear = groupPublicationsByYear(publications);
 ---
 

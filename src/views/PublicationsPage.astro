@@ -1,0 +1,49 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PublicationList from '../components/PublicationList.astro';
+import { getMainAuthorPublications } from '../lib/research';
+import { localizePath, resolveLocale, useTranslations } from '../i18n';
+
+const locale = resolveLocale(Astro.currentLocale);
+const t = useTranslations(locale);
+const publications = getMainAuthorPublications();
+const description = t.publications.metaDescription
+	.replace('{name}', t.site.name)
+	.replace('{affiliation}', t.site.affiliation);
+---
+
+<BaseLayout title={t.publications.metaTitle} description={description} narrow>
+	<header class="page-header fade-in">
+		<h1>{t.publications.heading}</h1>
+	</header>
+
+	{
+		publications.length > 0 ? (
+			<div class="fade-in-delay">
+				<PublicationList publications={publications} numbered />
+			</div>
+		) : (
+			<p class="pub-empty fade-in-delay">{t.publications.empty}</p>
+		)
+	}
+
+	<p class="full-list-link fade-in-delay">
+		<a href={localizePath(locale, '/publications/all')}>{t.publications.viewAll}</a>
+	</p>
+</BaseLayout>
+
+<style>
+	.page-header {
+		margin-bottom: var(--space-xl);
+	}
+
+	.pub-empty {
+		color: var(--color-muted);
+	}
+
+	.full-list-link {
+		margin-top: var(--space-xl);
+		padding-top: var(--space-lg);
+		border-top: 1px solid var(--color-line);
+	}
+</style>

@@ -1,28 +1,33 @@
 ---
 import { site } from '../lib/site';
+import { resolveLocale, useTranslations } from '../i18n';
 
 interface Props {
 	/** Destination mailbox for inquiries. */
 	toEmail?: string;
 }
 
+const locale = resolveLocale(Astro.currentLocale);
+const t = useTranslations(locale);
 const { toEmail = site.email } = Astro.props;
 
 const programs = [
-	{ value: 'coop', label: 'Co-op' },
-	{ value: 'undergrad', label: 'Undergraduate' },
-	{ value: 'masters', label: "Master's" },
-	{ value: 'phd', label: 'Doctoral' },
-	{ value: 'postdoc', label: 'Postdoctoral' },
-	{ value: 'staff', label: 'Staff' },
-	{ value: 'collaboration', label: 'Collaboration' },
+	{ value: 'coop', label: t.joinForm.programs.coop },
+	{ value: 'undergrad', label: t.joinForm.programs.undergrad },
+	{ value: 'masters', label: t.joinForm.programs.masters },
+	{ value: 'phd', label: t.joinForm.programs.phd },
+	{ value: 'postdoc', label: t.joinForm.programs.postdoc },
+	{ value: 'staff', label: t.joinForm.programs.staff },
+	{ value: 'collaboration', label: t.joinForm.programs.collaboration },
 ] as const;
 
 const eligibilityOptions = [
-	{ value: 'permanent-resident', label: 'Permanent Resident' },
-	{ value: 'canadian-citizen', label: 'Canadian Citizen' },
-	{ value: 'international', label: 'International' },
+	{ value: 'permanent-resident', label: t.joinForm.eligibilityOptions['permanent-resident'] },
+	{ value: 'canadian-citizen', label: t.joinForm.eligibilityOptions['canadian-citizen'] },
+	{ value: 'international', label: t.joinForm.eligibilityOptions.international },
 ] as const;
+
+const noscriptParts = t.joinForm.noscript.split('{email}');
 ---
 
 <form
@@ -30,12 +35,13 @@ const eligibilityOptions = [
 	id="join-form"
 	data-join-form
 	data-to-email={toEmail}
+	data-locale={locale}
 	novalidate
 >
-	<p class="join-form__required-note">Required fields are marked with an asterisk (*).</p>
+	<p class="join-form__required-note">{t.joinForm.requiredNote}</p>
 
 	<div class="join-field">
-		<label for="join-name">Name <span aria-hidden="true">*</span></label>
+		<label for="join-name">{t.joinForm.name} <span aria-hidden="true">*</span></label>
 		<input
 			id="join-name"
 			name="name"
@@ -49,7 +55,7 @@ const eligibilityOptions = [
 	</div>
 
 	<div class="join-field">
-		<label for="join-email">Email address <span aria-hidden="true">*</span></label>
+		<label for="join-email">{t.joinForm.email} <span aria-hidden="true">*</span></label>
 		<input
 			id="join-email"
 			name="email"
@@ -63,7 +69,7 @@ const eligibilityOptions = [
 	</div>
 
 	<div class="join-field">
-		<label for="join-program">Program of interest <span aria-hidden="true">*</span></label>
+		<label for="join-program">{t.joinForm.program} <span aria-hidden="true">*</span></label>
 		<select
 			id="join-program"
 			name="program"
@@ -71,16 +77,16 @@ const eligibilityOptions = [
 			aria-required="true"
 			aria-describedby="join-program-error"
 		>
-			<option value="">Select a program</option>
+			<option value="">{t.joinForm.programPlaceholder}</option>
 			{programs.map((program) => <option value={program.value}>{program.label}</option>)}
 		</select>
 		<p class="join-field__error" id="join-program-error" hidden></p>
 	</div>
 
 	<div class="join-field">
-		<label for="join-eligibility">Work eligibility</label>
+		<label for="join-eligibility">{t.joinForm.eligibility}</label>
 		<select id="join-eligibility" name="eligibility">
-			<option value="">Select if applicable</option>
+			<option value="">{t.joinForm.eligibilityPlaceholder}</option>
 			{
 				eligibilityOptions.map((option) => (
 					<option value={option.value}>{option.label}</option>
@@ -90,15 +96,15 @@ const eligibilityOptions = [
 	</div>
 
 	<div class="join-field">
-		<label for="join-comments">Comments</label>
+		<label for="join-comments">{t.joinForm.comments}</label>
 		<textarea id="join-comments" name="comments" rows="6" aria-describedby="join-comments-hint"></textarea>
 		<p class="join-field__hint" id="join-comments-hint">
-			Tell us a little about yourself, your interest in research, your goals long-term and how we can help you.
+			{t.joinForm.commentsHint}
 		</p>
 	</div>
 
 	<div class="join-field">
-		<label for="join-attachments">Attachments</label>
+		<label for="join-attachments">{t.joinForm.attachments}</label>
 		<input
 			id="join-attachments"
 			name="attachments"
@@ -108,26 +114,29 @@ const eligibilityOptions = [
 			aria-describedby="join-attachments-hint"
 		/>
 		<p class="join-field__hint" id="join-attachments-hint">
-			CV, publications, or related documents (PDF preferred). Selected files will be named in your message so you can attach them in your email client.
+			{t.joinForm.attachmentsHint}
 		</p>
 	</div>
 
 	<div class="join-form__actions">
-		<button class="btn btn-primary" type="submit">Send message</button>
+		<button class="btn btn-primary" type="submit">{t.joinForm.submit}</button>
 	</div>
 
 	<p class="join-form__status" data-join-status role="status" aria-live="polite"></p>
 
 	<noscript>
 		<p class="join-form__noscript">
-			JavaScript is required to prepare this form. Please email
+			{noscriptParts[0]}
 			<a href={`mailto:${toEmail}`}>{toEmail}</a>
-			with your name, program of interest, and CV.
+			{noscriptParts[1]}
 		</p>
 	</noscript>
 </form>
 
 <script>
+	import { messages } from '../i18n/messages';
+	import { resolveLocale } from '../i18n/utils';
+
 	/**
 	 * Returns whether a string looks like a usable email address.
 	 * @param value - Raw email field value
@@ -167,8 +176,13 @@ const eligibilityOptions = [
 	 * Builds a mailto URL from validated join-form fields.
 	 * @param form - Join inquiry form
 	 * @param toEmail - Destination mailbox
+	 * @param copy - Localized form strings
 	 */
-	function buildMailtoUrl(form: HTMLFormElement, toEmail: string): string {
+	function buildMailtoUrl(
+		form: HTMLFormElement,
+		toEmail: string,
+		copy: (typeof messages)['en']['joinForm'],
+	): string {
 		const name = String(new FormData(form).get('name') ?? '').trim();
 		const email = String(new FormData(form).get('email') ?? '').trim();
 		const program = form.querySelector<HTMLSelectElement>('#join-program');
@@ -179,31 +193,34 @@ const eligibilityOptions = [
 		const programLabel = program ? selectedOptionLabel(program) : '';
 		const eligibilityLabel = eligibility?.value
 			? selectedOptionLabel(eligibility)
-			: 'Not specified';
+			: copy.notSpecified;
 
 		const fileNames = files && files.length > 0
 			? Array.from(files).map((file) => file.name).join(', ')
 			: '';
 
 		const lines = [
-			`Name: ${name}`,
-			`Email: ${email}`,
-			`Program of interest: ${programLabel}`,
-			`Work eligibility: ${eligibilityLabel}`,
+			`${copy.mailtoName}: ${name}`,
+			`${copy.mailtoEmail}: ${email}`,
+			`${copy.mailtoProgram}: ${programLabel}`,
+			`${copy.mailtoEligibility}: ${eligibilityLabel}`,
 			'',
-			'Comments:',
-			comments || '(none)',
+			`${copy.mailtoComments}:`,
+			comments || copy.mailtoNone,
 		];
 
 		if (fileNames) {
 			lines.push(
 				'',
-				`Attachments to include: ${fileNames}`,
-				'Please attach these files in your email client before sending.',
+				`${copy.mailtoAttachments}: ${fileNames}`,
+				copy.mailtoAttachNote,
 			);
 		}
 
-		const subject = `Work With Us — ${programLabel || 'Inquiry'}`;
+		const subject = copy.mailtoSubject.replace(
+			'{program}',
+			programLabel || copy.mailtoSubjectFallback,
+		);
 		return `mailto:${toEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n'))}`;
 	}
 
@@ -216,6 +233,7 @@ const eligibilityOptions = [
 		form.dataset.ready = 'true';
 
 		const toEmail = form.dataset.toEmail || '';
+		const copy = messages[resolveLocale(form.dataset.locale)].joinForm;
 		const status = form.querySelector<HTMLElement>('[data-join-status]');
 		const nameInput = form.querySelector<HTMLInputElement>('#join-name');
 		const emailInput = form.querySelector<HTMLInputElement>('#join-email');
@@ -231,16 +249,16 @@ const eligibilityOptions = [
 			const email = emailInput.value.trim();
 			const program = programInput.value.trim();
 
-			setFieldError(nameInput, 'join-name-error', name ? '' : 'Please enter your name.');
+			setFieldError(nameInput, 'join-name-error', name ? '' : copy.errorName);
 			setFieldError(
 				emailInput,
 				'join-email-error',
-				email && isValidEmail(email) ? '' : 'Please enter a valid email address.',
+				email && isValidEmail(email) ? '' : copy.errorEmail,
 			);
 			setFieldError(
 				programInput,
 				'join-program-error',
-				program ? '' : 'Please select a program of interest.',
+				program ? '' : copy.errorProgram,
 			);
 
 			const firstInvalid = form.querySelector<HTMLElement>('[aria-invalid="true"]');
@@ -251,15 +269,14 @@ const eligibilityOptions = [
 
 			if (!toEmail) {
 				if (status) {
-					status.textContent = 'This form is missing a destination address. Please try again later.';
+					status.textContent = copy.missingDestination;
 				}
 				return;
 			}
 
-			window.location.href = buildMailtoUrl(form, toEmail);
+			window.location.href = buildMailtoUrl(form, toEmail, copy);
 			if (status) {
-				status.textContent =
-					'Your email client will open with this message. Attach any files before sending to complete your inquiry.';
+				status.textContent = copy.statusOpened;
 			}
 		});
 	}

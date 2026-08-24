@@ -1,10 +1,15 @@
 ---
+import LanguageSwitcher from './LanguageSwitcher.astro';
+import { localizePath, resolveLocale, stripLocalePrefix, useTranslations } from '../i18n';
 import { site } from '../lib/site';
 
-const pathname = Astro.url.pathname.replace(/\/$/, '') || '/';
+const locale = resolveLocale(Astro.currentLocale);
+const t = useTranslations(locale);
+const pathname = stripLocalePrefix(Astro.url.pathname);
 
 /**
- * Returns whether a nav href matches the current path (exact or section prefix).
+ * Returns whether a nav href matches the current unprefixed path (exact or section prefix).
+ * @param href - Unprefixed path such as `/` or `/publications`
  */
 function isActive(href: string): boolean {
 	if (href === '/') {
@@ -14,29 +19,29 @@ function isActive(href: string): boolean {
 }
 
 const links = [
-	{ href: '/', label: 'Home' },
-	{ href: '/publications', label: 'Publications' },
-	{ href: '/projects', label: 'Projects' },
-	{ href: '/join', label: 'Work With Us' },
+	{ href: '/', label: t.nav.home },
+	{ href: '/publications', label: t.nav.publications },
+	{ href: '/projects', label: t.nav.projects },
+	{ href: '/join', label: t.nav.join },
 ] as const;
 ---
 
 <header class="site-nav">
 	<div class="site-nav__inner">
-		<a class="site-nav__brand" href="/" aria-label="Milad Lab home">
+		<a class="site-nav__brand" href={localizePath(locale, '/')} aria-label={t.nav.brandAria}>
 			<img
 				class="site-nav__logo"
 				src={site.logo}
-				alt="Milad Lab"
+				alt={t.site.labName}
 				width="320"
 				height="91"
 			/>
 		</a>
-		<nav class="site-nav__links" aria-label="Primary">
+		<nav class="site-nav__links" aria-label={t.nav.primaryAria}>
 			{
 				links.map((link) => (
 					<a
-						href={link.href}
+						href={localizePath(locale, link.href)}
 						class:list={['site-nav__link', { 'is-active': isActive(link.href) }]}
 						aria-current={isActive(link.href) ? 'page' : undefined}
 					>
@@ -50,10 +55,13 @@ const links = [
 				target="_blank"
 				rel="noopener noreferrer"
 			>
-				{site.scraper.navLabel}
-				<span class="sr-only"> (opens in a new tab)</span>
+				{t.nav.scraper}
+				<span class="sr-only"> {t.nav.opensInNewTab}</span>
 			</a>
 		</nav>
+		<div class="site-nav__tools">
+			<LanguageSwitcher />
+		</div>
 	</div>
 </header>
 
@@ -70,11 +78,10 @@ const links = [
 		width: min(100% - 2.5rem, var(--max-width-wide));
 		margin: 0 auto;
 		padding: 0.75rem 0;
-		display: flex;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
 		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-		flex-wrap: wrap;
+		gap: 0.75rem 1rem;
 	}
 
 	.site-nav__brand {
@@ -82,6 +89,7 @@ const links = [
 		align-items: center;
 		text-decoration: none;
 		max-width: min(100%, 18rem);
+		grid-column: 1;
 	}
 
 	.site-nav__logo {
@@ -97,6 +105,14 @@ const links = [
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 0.35rem 1.1rem;
+		grid-column: 1 / -1;
+	}
+
+	.site-nav__tools {
+		grid-column: 2;
+		grid-row: 1;
+		justify-self: end;
+		align-self: center;
 	}
 
 	.site-nav__link {
@@ -150,13 +166,28 @@ const links = [
 		border: 0;
 	}
 
-	@media (min-width: 720px) {
+	@media (min-width: 880px) {
+		.site-nav__inner {
+			grid-template-columns: auto minmax(0, 1fr) auto;
+		}
+
 		.site-nav__brand {
 			max-width: 22rem;
+			grid-column: 1;
 		}
 
 		.site-nav__logo {
 			max-height: 3.6rem;
+		}
+
+		.site-nav__links {
+			grid-column: 2;
+			grid-row: 1;
+			justify-content: flex-end;
+		}
+
+		.site-nav__tools {
+			grid-column: 3;
 		}
 	}
 

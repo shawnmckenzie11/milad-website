@@ -1,37 +1,5 @@
 ---
-import BaseLayout from '../../layouts/BaseLayout.astro';
-import PublicationTimeline from '../../components/PublicationTimeline.astro';
-import { getPublications } from '../../lib/research';
-import { site } from '../../lib/site';
-
-const publications = getPublications();
+import PublicationsAllPage from '../../views/PublicationsAllPage.astro';
 ---
 
-<BaseLayout
-	title="All Publications"
-	description={`Complete publication list by ${site.name}, ${site.affiliation}.`}
-	narrow
->
-	<header class="page-header fade-in">
-		<p class="eyebrow">Publications</p>
-		<h1>All Publications</h1>
-	</header>
-
-	<PublicationTimeline publications={publications} />
-
-	<p class="back-link fade-in-delay">
-		<a href="/publications">Back to selected publications</a>
-	</p>
-</BaseLayout>
-
-<style>
-	.page-header {
-		margin-bottom: var(--space-xl);
-	}
-
-	.back-link {
-		margin-top: var(--space-xl);
-		padding-top: var(--space-lg);
-		border-top: 1px solid var(--color-line);
-	}
-</style>
+<PublicationsAllPage />

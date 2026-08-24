@@ -1,6 +1,7 @@
 ---
 import type { Publication } from '../lib/research';
 import { publicationHref } from '../lib/research';
+import { resolveLocale, translatePublicationType, useTranslations } from '../i18n';
 
 interface Props {
 	publications: Publication[];
@@ -11,9 +12,11 @@ interface Props {
 	numbered?: boolean;
 }
 
+const locale = resolveLocale(Astro.currentLocale);
+const t = useTranslations(locale);
 const {
 	publications,
-	emptyMessage = 'No publications listed yet.',
+	emptyMessage = t.publications.empty,
 	showYear = true,
 	numbered = false,
 } = Astro.props;
@@ -50,7 +53,7 @@ const ListTag = numbered ? 'ol' : 'ul';
 							<span aria-hidden="true"> · </span>
 							<span>{pub.venue}</span>
 							<span aria-hidden="true"> · </span>
-							<span class="pub-item__type">{pub.type}</span>
+							<span class="pub-item__type">{translatePublicationType(pub.type, locale)}</span>
 						</p>
 					</li>
 				);

@@ -1,0 +1,54 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import JoinForm from '../components/JoinForm.astro';
+import { emphasizeLatinTerms, resolveLocale, useTranslations } from '../i18n';
+import { site } from '../lib/site';
+
+const locale = resolveLocale(Astro.currentLocale);
+const t = useTranslations(locale);
+---
+
+<BaseLayout title={t.join.metaTitle} description={t.join.metaDescription} narrow>
+	<header class="page-header fade-in">
+		<p class="eyebrow">{t.join.eyebrow}</p>
+		<h1>{t.join.heading}</h1>
+	</header>
+
+	<article class="join-copy fade-in-delay">
+		<section aria-labelledby="join-team-heading">
+			<h2 id="join-team-heading">{t.join.teamHeading}</h2>
+			<p set:html={emphasizeLatinTerms(t.join.teamBody)} />
+		</section>
+
+		<section aria-labelledby="work-with-us-heading">
+			<h2 id="work-with-us-heading">{t.join.collabHeading}</h2>
+			<p set:html={emphasizeLatinTerms(t.join.collabBody)} />
+		</section>
+	</article>
+
+	<JoinForm toEmail={site.email} />
+</BaseLayout>
+
+<style>
+	.page-header {
+		margin-bottom: var(--space-lg);
+	}
+
+	.join-copy {
+		display: grid;
+		gap: var(--space-lg);
+		max-width: 38rem;
+	}
+
+	.join-copy h2 {
+		margin-bottom: var(--space-sm);
+	}
+
+	.join-copy p {
+		margin: 0;
+	}
+
+	.join-copy i {
+		font-style: italic;
+	}
+</style>

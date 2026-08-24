@@ -1,7 +1,6 @@
 ---
 import Nav from '../components/Nav.astro';
-import Footer from '../components/Footer.astro';
-import { site } from '../lib/site';
+import { localeStorageKey, resolveLocale, switchLocalePath, useTranslations } from '../i18n';
 import '../styles/global.css';
 
 interface Props {
@@ -10,17 +9,23 @@ interface Props {
 	narrow?: boolean;
 }
 
+const locale = resolveLocale(Astro.currentLocale);
+const t = useTranslations(locale);
+
 const {
 	title,
-	description = `${site.name} — ${site.affiliation}. ${site.researchFocus}.`,
+	description = `${t.site.name} — ${t.site.affiliation}. ${t.site.researchFocus}.`,
 	narrow = false,
 } = Astro.props;
 
-const pageTitle = title ? `${title} · Milad Lab` : `Milad Lab · ${site.affiliation}`;
+const pageTitle = title ? `${title} · ${t.site.labName}` : `${t.site.labName} · ${t.site.affiliation}`;
+const enPath = switchLocalePath(Astro.url.pathname, 'en');
+const frPath = switchLocalePath(Astro.url.pathname, 'fr');
+const siteOrigin = Astro.site ? Astro.site.origin : Astro.url.origin;
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={locale}>
 	<head>
 		<meta charset="utf-8" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -29,6 +34,9 @@ const pageTitle = title ? `${title} · Milad Lab` : `Milad Lab · ${site.affilia
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="generator" content={Astro.generator} />
 		<meta name="description" content={description} />
+		<link rel="alternate" hreflang="en" href={new URL(enPath, siteOrigin).href} />
+		<link rel="alternate" hreflang="fr" href={new URL(frPath, siteOrigin).href} />
+		<link rel="alternate" hreflang="x-default" href={new URL(enPath, siteOrigin).href} />
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 		<link
@@ -36,6 +44,23 @@ const pageTitle = title ? `${title} · Milad Lab` : `Milad Lab · ${site.affilia
 			rel="stylesheet"
 		/>
 		<title>{pageTitle}</title>
+		<script is:inline define:vars={{ localeStorageKey, locale }}>
+			(function persistLocaleChoice() {
+				try {
+					if (locale === 'fr') {
+						localStorage.setItem(localeStorageKey, 'fr');
+					}
+					var stored = localStorage.getItem(localeStorageKey);
+					if (stored !== 'fr') return;
+					var path = location.pathname;
+					if (path === '/fr' || path.indexOf('/fr/') === 0) return;
+					var next = path === '/' ? '/fr/' : '/fr' + path;
+					location.replace(next + location.search + location.hash);
+				} catch (error) {
+					/* Ignore private-mode storage failures. */
+				}
+			})();
+		</script>
 	</head>
 	<body>
 		<div class="site-shell">
@@ -43,7 +68,6 @@ const pageTitle = title ? `${title} · Milad Lab` : `Milad Lab · ${site.affilia
 			<main class:list={['site-main', { narrow }]}>
 				<slot />
 			</main>
-			<Footer />
 		</div>
 	</body>
 </html>
