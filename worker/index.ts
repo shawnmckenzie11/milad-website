@@ -179,6 +179,8 @@ function buildRawMime(fields: JoinFields, attachments: JoinAttachment[]): string
 		`To: ${site.joinInbox}`,
 		`Reply-To: ${fields.email}`,
 		`Subject: ${encodeHeaderValue(subject)}`,
+		`Date: ${new Date().toUTCString()}`,
+		`Message-ID: <${crypto.randomUUID()}@mckenzian.com>`,
 		'MIME-Version: 1.0',
 		`Content-Type: multipart/mixed; boundary="${boundary}"`,
 		'',
@@ -286,8 +288,9 @@ function jsonResponse(status: number, body: Record<string, unknown>): Response {
 }
 
 /**
- * Sends the inquiry through the Email binding, preferring the object API
- * and falling back to a raw MIME EmailMessage when the binding requires it.
+ * Sends the inquiry with a raw MIME EmailMessage (Email Routing send_email
+ * binding). The object-style send() can resolve without delivering on that
+ * binding, which is why the form previously showed success with no inbox mail.
  * @param env - Worker bindings
  * @param fields - Validated form fields
  * @param attachments - Files to include when the binding accepts them
@@ -297,32 +300,13 @@ async function sendJoinEmail(
 	fields: JoinFields,
 	attachments: JoinAttachment[],
 ): Promise<void> {
-	const subject = `Work With Us — ${fields.programLabel}`;
-	const text = buildPlainBody(fields);
-	const html = buildHtmlBody(fields);
-
-	try {
-		await env.EMAIL.send({
-			to: site.joinInbox,
-			from: { email: site.joinFromEmail, name: site.labName },
-			replyTo: fields.email,
-			subject,
-			text,
-			html,
-			attachments: attachments.map((attachment) => ({
-				filename: attachment.filename,
-				type: attachment.type,
-				content: attachment.content,
-				disposition: 'attachment',
-			})),
-		});
-		return;
-	} catch (error) {
-		console.warn('Email object send failed; trying MIME EmailMessage.', error);
-	}
-
 	const raw = buildRawMime(fields, attachments);
-	await env.EMAIL.send(new EmailMessage(site.joinFromEmail, site.joinInbox, raw));
+	const result = await env.EMAIL.send(
+		new EmailMessage(site.joinFromEmail, site.joinInbox, raw),
+	);
+	if (result && typeof result === 'object' && 'messageId' in result && !result.messageId) {
+		throw new Error('Email binding returned an empty message id.');
+	}
 }
 
 /**
