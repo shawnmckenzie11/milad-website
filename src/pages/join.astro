@@ -1,6 +1,7 @@
 ---
-import { getEntry, render } from 'astro:content';
+import { getEntry } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import JoinForm from '../components/JoinForm.astro';
 import { site } from '../lib/site';
 
 const joinPage = await getEntry('pages', 'join');
@@ -9,7 +10,6 @@ if (!joinPage) {
 	throw new Error('Missing content/pages/join.md — required for the /join route.');
 }
 
-const { Content } = await render(joinPage);
 const description = joinPage.data.description ?? `Prospective students and researchers — ${site.name}.`;
 ---
 
@@ -19,17 +19,29 @@ const description = joinPage.data.description ?? `Prospective students and resea
 		<h1>{joinPage.data.title}</h1>
 	</header>
 
-	<article class="prose fade-in-delay">
-		<Content />
+	<article class="join-copy fade-in-delay">
+		<section aria-labelledby="join-team-heading">
+			<h2 id="join-team-heading">Join our team</h2>
+			<p>
+				Our team is growing! We are currently recruiting motivated candidates at the following
+				levels: undergraduate summer interns, coop students, Masters students, and doctoral
+				students. Feel free to use the form below to contact our team and we will get back to you
+				as soon as possible.
+			</p>
+		</section>
+
+		<section aria-labelledby="work-with-us-heading">
+			<h2 id="work-with-us-heading">Work with us</h2>
+			<p>
+				Our research group is always looking for collaborators and partnerships. We have the
+				expertise and technical ability to study a variety of inhaled exposures (cigarette smoke,
+				wood fire smoke, cannabis smoke, e-cigarettes, cannabis vapour) at the <i>in vitro</i> and <i>in vivo</i> levels. If you'd like to explore how these smoke/vapour exposures affect your
+				tissue or disease of interest, please get in touch with us through the form below.
+			</p>
+		</section>
 	</article>
 
-	<aside class="tool-callout fade-in-delay">
-		<p>
-			<strong>For fellow cannabis researchers:</strong>
-			<a href={site.scraper.href} target="_blank" rel="noopener noreferrer">{site.scraper.label}</a>
-			is available as a shared literature workflow.
-		</p>
-	</aside>
+	<JoinForm toEmail={site.email} />
 </BaseLayout>
 
 <style>
@@ -37,14 +49,21 @@ const description = joinPage.data.description ?? `Prospective students and resea
 		margin-bottom: var(--space-lg);
 	}
 
-	.tool-callout {
-		margin-top: var(--space-xl);
-		padding-top: var(--space-lg);
-		border-top: 1px solid var(--color-line);
+	.join-copy {
+		display: grid;
+		gap: var(--space-lg);
+		max-width: 38rem;
 	}
 
-	.tool-callout p {
+	.join-copy h2 {
+		margin-bottom: var(--space-sm);
+	}
+
+	.join-copy p {
 		margin: 0;
-		max-width: 38rem;
+	}
+
+	.join-copy i {
+		font-style: italic;
 	}
 </style>

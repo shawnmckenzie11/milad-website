@@ -57,6 +57,72 @@ export function getFeaturedPublications(): Publication[] {
 }
 
 /**
+ * Main-author titles for the public Publications tab, in display order.
+ * Matched against synced records; do not invent metadata for missing titles.
+ */
+export const MAIN_AUTHOR_PUBLICATION_TITLES = [
+	'Revisiting the role of pulmonary surfactant in chronic inflammatory lung diseases and environmental exposure',
+	'Cannabis smoke suppresses antiviral immune responses to influenza A in mice',
+	'Open-source, three-dimensionally printed manifolds for exposure studies using human airway epithelial cells',
+	'Neutrophils and IL-1α Regulate Surfactant Homeostasis during Cigarette Smoking',
+	'Dried Cannabis Use, Tobacco Smoking, and COVID-19 Infection: Findings from a Longitudinal Observational Cohort Study',
+	'Recombinant human β-defensin 2 delivery improves smoking-induced lung neutrophilia and bacterial exacerbation',
+	'Smoking status impacts treatment efficacy in smoke-induced lung inflammation: A pre-clinical study',
+	'Lung Tissue Transcriptomics Reveal Associations Between Thymic Stromal Lymphopoietin Signaling, Mast Cells, and Airway Obstruction in Active Smokers',
+	'Increased plasma lipid levels exacerbate muscle pathology in the mdx mouse model of Duchenne muscular dystrophy',
+	'A mutation in PTPN6 associated to emphysema alters B-lymphocyte biology in humans and mice',
+] as const;
+
+/**
+ * Normalizes a publication title for fuzzy matching across dash and whitespace variants.
+ * @param title - Raw title from the curated list or synced record
+ */
+export function normalizePublicationTitle(title: string): string {
+	return title.replace(/\s+/g, ' ').replace(/[‐‑–—]/g, '-').trim().toLowerCase();
+}
+
+/**
+ * Returns curated main-author publications in the public listing order.
+ * Titles with no match in the synced dataset are omitted.
+ */
+export function getMainAuthorPublications(): Publication[] {
+	const byTitle = new Map(
+		getPublications().map((pub) => [normalizePublicationTitle(pub.title), pub]),
+	);
+
+	return MAIN_AUTHOR_PUBLICATION_TITLES.flatMap((title) => {
+		const match = byTitle.get(normalizePublicationTitle(title));
+		return match ? [match] : [];
+	});
+}
+
+/**
+ * Returns titles from the curated main-author list that are absent from the synced dataset.
+ */
+export function getMissingMainAuthorTitles(): string[] {
+	const present = new Set(
+		getPublications().map((pub) => normalizePublicationTitle(pub.title)),
+	);
+	return MAIN_AUTHOR_PUBLICATION_TITLES.filter(
+		(title) => !present.has(normalizePublicationTitle(title)),
+	);
+}
+
+/**
+ * Groups publications by year, newest year first, preserving within-year order.
+ * @param publications - Publication records to group
+ */
+export function groupPublicationsByYear(
+	publications: Publication[],
+): Array<{ year: number; publications: Publication[] }> {
+	const years = [...new Set(publications.map((pub) => pub.year))].sort((a, b) => b - a);
+	return years.map((year) => ({
+		year,
+		publications: publications.filter((pub) => pub.year === year),
+	}));
+}
+
+/**
  * Returns auto-derived project themes and sync metadata.
  */
 export function getProjectsBundle(): {

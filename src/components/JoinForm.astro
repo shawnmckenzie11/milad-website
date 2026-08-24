@@ -1,0 +1,351 @@
+---
+import { site } from '../lib/site';
+
+interface Props {
+	/** Destination mailbox for inquiries. */
+	toEmail?: string;
+}
+
+const { toEmail = site.email } = Astro.props;
+
+const programs = [
+	{ value: 'coop', label: 'Co-op' },
+	{ value: 'undergrad', label: 'Undergraduate' },
+	{ value: 'masters', label: "Master's" },
+	{ value: 'phd', label: 'Doctoral' },
+	{ value: 'postdoc', label: 'Postdoctoral' },
+	{ value: 'staff', label: 'Staff' },
+	{ value: 'collaboration', label: 'Collaboration' },
+] as const;
+
+const eligibilityOptions = [
+	{ value: 'permanent-resident', label: 'Permanent Resident' },
+	{ value: 'canadian-citizen', label: 'Canadian Citizen' },
+	{ value: 'international', label: 'International' },
+] as const;
+---
+
+<form
+	class="join-form"
+	id="join-form"
+	data-join-form
+	data-to-email={toEmail}
+	novalidate
+>
+	<p class="join-form__required-note">Required fields are marked with an asterisk (*).</p>
+
+	<div class="join-field">
+		<label for="join-name">Name <span aria-hidden="true">*</span></label>
+		<input
+			id="join-name"
+			name="name"
+			type="text"
+			autocomplete="name"
+			required
+			aria-required="true"
+			aria-describedby="join-name-error"
+		/>
+		<p class="join-field__error" id="join-name-error" hidden></p>
+	</div>
+
+	<div class="join-field">
+		<label for="join-email">Email address <span aria-hidden="true">*</span></label>
+		<input
+			id="join-email"
+			name="email"
+			type="email"
+			autocomplete="email"
+			required
+			aria-required="true"
+			aria-describedby="join-email-error"
+		/>
+		<p class="join-field__error" id="join-email-error" hidden></p>
+	</div>
+
+	<div class="join-field">
+		<label for="join-program">Program of interest <span aria-hidden="true">*</span></label>
+		<select
+			id="join-program"
+			name="program"
+			required
+			aria-required="true"
+			aria-describedby="join-program-error"
+		>
+			<option value="">Select a program</option>
+			{programs.map((program) => <option value={program.value}>{program.label}</option>)}
+		</select>
+		<p class="join-field__error" id="join-program-error" hidden></p>
+	</div>
+
+	<div class="join-field">
+		<label for="join-eligibility">Work eligibility</label>
+		<select id="join-eligibility" name="eligibility">
+			<option value="">Select if applicable</option>
+			{
+				eligibilityOptions.map((option) => (
+					<option value={option.value}>{option.label}</option>
+				))
+			}
+		</select>
+	</div>
+
+	<div class="join-field">
+		<label for="join-comments">Comments</label>
+		<textarea id="join-comments" name="comments" rows="6" aria-describedby="join-comments-hint"></textarea>
+		<p class="join-field__hint" id="join-comments-hint">
+			Tell us a little about yourself, your interest in research, your goals long-term and how we can help you.
+		</p>
+	</div>
+
+	<div class="join-field">
+		<label for="join-attachments">Attachments</label>
+		<input
+			id="join-attachments"
+			name="attachments"
+			type="file"
+			multiple
+			accept=".pdf,.doc,.docx,.txt,.rtf"
+			aria-describedby="join-attachments-hint"
+		/>
+		<p class="join-field__hint" id="join-attachments-hint">
+			CV, publications, or related documents (PDF preferred). Selected files will be named in your message so you can attach them in your email client.
+		</p>
+	</div>
+
+	<div class="join-form__actions">
+		<button class="btn btn-primary" type="submit">Send message</button>
+	</div>
+
+	<p class="join-form__status" data-join-status role="status" aria-live="polite"></p>
+
+	<noscript>
+		<p class="join-form__noscript">
+			JavaScript is required to prepare this form. Please email
+			<a href={`mailto:${toEmail}`}>{toEmail}</a>
+			with your name, program of interest, and CV.
+		</p>
+	</noscript>
+</form>
+
+<script>
+	/**
+	 * Returns whether a string looks like a usable email address.
+	 * @param value - Raw email field value
+	 */
+	function isValidEmail(value: string): boolean {
+		return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+	}
+
+	/**
+	 * Reads a program option's visible label from the select element.
+	 * @param select - Program-of-interest select
+	 */
+	function selectedOptionLabel(select: HTMLSelectElement): string {
+		return select.selectedOptions[0]?.textContent?.trim() || select.value;
+	}
+
+	/**
+	 * Sets or clears a field error and aria-invalid state.
+	 * @param input - Field control
+	 * @param errorId - Id of the associated error element
+	 * @param message - Error text, or empty to clear
+	 */
+	function setFieldError(
+		input: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement,
+		errorId: string,
+		message: string,
+	): void {
+		const errorEl = document.getElementById(errorId);
+		input.setAttribute('aria-invalid', message ? 'true' : 'false');
+		if (errorEl) {
+			errorEl.hidden = !message;
+			errorEl.textContent = message;
+		}
+	}
+
+	/**
+	 * Builds a mailto URL from validated join-form fields.
+	 * @param form - Join inquiry form
+	 * @param toEmail - Destination mailbox
+	 */
+	function buildMailtoUrl(form: HTMLFormElement, toEmail: string): string {
+		const name = String(new FormData(form).get('name') ?? '').trim();
+		const email = String(new FormData(form).get('email') ?? '').trim();
+		const program = form.querySelector<HTMLSelectElement>('#join-program');
+		const eligibility = form.querySelector<HTMLSelectElement>('#join-eligibility');
+		const comments = String(new FormData(form).get('comments') ?? '').trim();
+		const files = form.querySelector<HTMLInputElement>('#join-attachments')?.files;
+
+		const programLabel = program ? selectedOptionLabel(program) : '';
+		const eligibilityLabel = eligibility?.value
+			? selectedOptionLabel(eligibility)
+			: 'Not specified';
+
+		const fileNames = files && files.length > 0
+			? Array.from(files).map((file) => file.name).join(', ')
+			: '';
+
+		const lines = [
+			`Name: ${name}`,
+			`Email: ${email}`,
+			`Program of interest: ${programLabel}`,
+			`Work eligibility: ${eligibilityLabel}`,
+			'',
+			'Comments:',
+			comments || '(none)',
+		];
+
+		if (fileNames) {
+			lines.push(
+				'',
+				`Attachments to include: ${fileNames}`,
+				'Please attach these files in your email client before sending.',
+			);
+		}
+
+		const subject = `Work With Us — ${programLabel || 'Inquiry'}`;
+		return `mailto:${toEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n'))}`;
+	}
+
+	/**
+	 * Wires accessible validation and mailto submission for the join form.
+	 */
+	function initJoinForm(): void {
+		const form = document.querySelector<HTMLFormElement>('[data-join-form]');
+		if (!form || form.dataset.ready === 'true') return;
+		form.dataset.ready = 'true';
+
+		const toEmail = form.dataset.toEmail || '';
+		const status = form.querySelector<HTMLElement>('[data-join-status]');
+		const nameInput = form.querySelector<HTMLInputElement>('#join-name');
+		const emailInput = form.querySelector<HTMLInputElement>('#join-email');
+		const programInput = form.querySelector<HTMLSelectElement>('#join-program');
+
+		if (!nameInput || !emailInput || !programInput) return;
+
+		form.addEventListener('submit', (event) => {
+			event.preventDefault();
+			if (status) status.textContent = '';
+
+			const name = nameInput.value.trim();
+			const email = emailInput.value.trim();
+			const program = programInput.value.trim();
+
+			setFieldError(nameInput, 'join-name-error', name ? '' : 'Please enter your name.');
+			setFieldError(
+				emailInput,
+				'join-email-error',
+				email && isValidEmail(email) ? '' : 'Please enter a valid email address.',
+			);
+			setFieldError(
+				programInput,
+				'join-program-error',
+				program ? '' : 'Please select a program of interest.',
+			);
+
+			const firstInvalid = form.querySelector<HTMLElement>('[aria-invalid="true"]');
+			if (firstInvalid) {
+				firstInvalid.focus();
+				return;
+			}
+
+			if (!toEmail) {
+				if (status) {
+					status.textContent = 'This form is missing a destination address. Please try again later.';
+				}
+				return;
+			}
+
+			window.location.href = buildMailtoUrl(form, toEmail);
+			if (status) {
+				status.textContent =
+					'Your email client will open with this message. Attach any files before sending to complete your inquiry.';
+			}
+		});
+	}
+
+	initJoinForm();
+	document.addEventListener('astro:page-load', initJoinForm);
+</script>
+
+<style>
+	.join-form {
+		display: grid;
+		gap: var(--space-md);
+		margin-top: var(--space-lg);
+		max-width: 36rem;
+	}
+
+	.join-form__required-note,
+	.join-field__hint,
+	.join-form__status,
+	.join-form__noscript {
+		margin: 0;
+		font-size: 0.92rem;
+		color: var(--color-muted);
+	}
+
+	.join-field {
+		display: grid;
+		gap: 0.35rem;
+	}
+
+	.join-field label {
+		font-family: var(--font-display);
+		font-size: 0.82rem;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--color-ink);
+	}
+
+	.join-field input,
+	.join-field select,
+	.join-field textarea {
+		width: 100%;
+		padding: 0.65rem 0.75rem;
+		border: 1px solid var(--color-line);
+		border-radius: var(--radius);
+		background: #fff;
+		color: var(--color-ink);
+		font-family: var(--font-body);
+		font-size: 1rem;
+		line-height: 1.4;
+	}
+
+	.join-field textarea {
+		resize: vertical;
+		min-height: 8rem;
+	}
+
+	.join-field input:focus,
+	.join-field select:focus,
+	.join-field textarea:focus {
+		outline: 2px solid var(--color-accent);
+		outline-offset: 1px;
+	}
+
+	.join-field input[aria-invalid='true'],
+	.join-field select[aria-invalid='true'],
+	.join-field textarea[aria-invalid='true'] {
+		border-color: #8a3a3a;
+	}
+
+	.join-field__error {
+		margin: 0;
+		font-size: 0.88rem;
+		color: #8a3a3a;
+	}
+
+	.join-form__actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.65rem;
+	}
+
+	.join-form button {
+		appearance: none;
+		cursor: pointer;
+		border: 1px solid transparent;
+	}
+</style>

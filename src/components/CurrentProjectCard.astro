@@ -1,0 +1,50 @@
+---
+import type { CurrentProject } from '../data/currentProjects';
+
+interface Props {
+	/** Current research program to render. */
+	project: CurrentProject;
+}
+
+const { project } = Astro.props;
+---
+
+<article class="current-program" id={project.id}>
+	<h3 class="current-program__title">{project.title}</h3>
+	<p class="current-program__question">{project.question}</p>
+	<p class="current-program__summary">{project.summary}</p>
+</article>
+
+<style>
+	.current-program {
+		display: grid;
+		gap: 0.45rem;
+		padding: 1.15rem 0 1.25rem 0.9rem;
+		border-top: 1px solid var(--color-line);
+		border-left: 3px solid var(--color-accent);
+		height: 100%;
+	}
+
+	.current-program__title {
+		margin: 0;
+		font-size: clamp(1.1rem, 2vw, 1.3rem);
+		text-transform: none;
+		letter-spacing: 0.02em;
+	}
+
+	.current-program__question {
+		margin: 0;
+		font-family: var(--font-display);
+		font-size: 1.02rem;
+		line-height: 1.35;
+		color: var(--color-ink);
+		max-width: 36rem;
+	}
+
+	.current-program__summary {
+		margin: 0;
+		font-size: 0.95rem;
+		color: var(--color-ink-soft);
+		max-width: 36rem;
+	}
+</style>
