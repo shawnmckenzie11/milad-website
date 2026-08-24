@@ -1,3 +1,5 @@
+import { defaultLocale, type Locale } from '../i18n/config';
+import { getProjectText } from '../i18n/projects';
 import type { Project } from './research';
 
 /** Inline icon ids rendered by ProjectIcon for each research program. */
@@ -117,10 +119,15 @@ const PRESENTATION: Record<string, ProjectPresentation> = {
 const FALLBACK_ACCENT = '#00C064';
 
 /**
- * Returns presentation metadata for a synced project, with safe fallbacks.
+ * Returns presentation metadata for a synced project, with locale overlays.
+ * @param project - Synced project theme
+ * @param locale - Active site locale
  */
-export function getProjectPresentation(project: Project): ProjectPresentation {
-	return (
+export function getProjectPresentation(
+	project: Project,
+	locale: Locale = defaultLocale,
+): ProjectPresentation {
+	const base =
 		PRESENTATION[project.id] ?? {
 			shortLabel: project.title,
 			question: project.summary,
@@ -128,12 +135,31 @@ export function getProjectPresentation(project: Project): ProjectPresentation {
 			methods: [],
 			audience: '',
 			accent: FALLBACK_ACCENT,
-			icon: 'network',
+			icon: 'network' as const,
 			figure: '/figures/projects/collaborations.jpg',
 			figureAlt: `Research figure for ${project.title}.`,
 			figureCaption: project.title,
-		}
-	);
+		};
+	const overlay = getProjectText(project, locale);
+	return {
+		...base,
+		shortLabel: overlay.shortLabel ?? base.shortLabel,
+		question: overlay.question ?? base.question,
+		domains: overlay.domains ?? base.domains,
+		methods: overlay.methods ?? base.methods,
+		audience: overlay.audience ?? base.audience,
+		figureAlt: overlay.figureAlt ?? base.figureAlt,
+		figureCaption: overlay.figureCaption ?? base.figureCaption,
+	};
+}
+
+/**
+ * Returns the localized public title for a synced project theme.
+ * @param project - Synced project theme
+ * @param locale - Active site locale
+ */
+export function getProjectDisplayTitle(project: Project, locale: Locale = defaultLocale): string {
+	return getProjectText(project, locale).title;
 }
 
 /**

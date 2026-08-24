@@ -1,6 +1,12 @@
 ---
 import type { Project } from '../lib/research';
-import { getProjectPresentation, parseRelatedPublications } from '../lib/projectPresentation';
+import { getProjectDisplayTitle, getProjectPresentation, parseRelatedPublications } from '../lib/projectPresentation';
+import {
+	localizePath,
+	resolveLocale,
+	translateProjectStatus,
+	useTranslations,
+} from '../i18n';
 import ProjectIcon from './ProjectIcon.astro';
 
 interface Props {
@@ -12,7 +18,10 @@ interface Props {
 }
 
 const { project, variant = 'primary', figureSide = 'left' } = Astro.props;
-const presentation = getProjectPresentation(project);
+const locale = resolveLocale(Astro.currentLocale);
+const t = useTranslations(locale);
+const presentation = getProjectPresentation(project, locale);
+const displayTitle = getProjectDisplayTitle(project, locale);
 const related = parseRelatedPublications(project.body);
 const flagship = related[0];
 const moreCount = Math.max(related.length - 1, 0);
@@ -49,7 +58,7 @@ const isFigureLed = variant === 'primary';
 		<header class="program__header">
 			<p class="program__meta">
 				<span class:list={['status-dot', `status-dot--${project.status}`]} aria-hidden="true" />
-				<span class="program__status">{project.status}</span>
+				<span class="program__status">{translateProjectStatus(project.status, locale)}</span>
 				{
 					project.startYear ? (
 						<>
@@ -63,7 +72,7 @@ const isFigureLed = variant === 'primary';
 				<span class="program__icon" aria-hidden="true">
 					<ProjectIcon name={presentation.icon} size={22} />
 				</span>
-				<h2 class="program__title">{project.title}</h2>
+				<h2 class="program__title">{displayTitle}</h2>
 			</div>
 			<p class="program__question">{presentation.question}</p>
 		</header>
@@ -84,7 +93,7 @@ const isFigureLed = variant === 'primary';
 		{
 			presentation.methods.length > 0 ? (
 				<p class="program__methods">
-					<span class="program__methods-label">Approaches</span>
+					<span class="program__methods-label">{t.projects.approachesLabel}</span>
 					{presentation.methods.join(' · ')}
 				</p>
 			) : null
@@ -97,9 +106,11 @@ const isFigureLed = variant === 'primary';
 				flagship ? (
 					<>
 						<p class="program__evidence-heading">
-							<span>Evidence snapshot</span>
+							<span>{t.projects.evidenceHeading}</span>
 							{moreCount > 0 ? (
-								<span class="program__evidence-count">+{moreCount} related</span>
+								<span class="program__evidence-count">
+									{t.projects.relatedCount.replace('{count}', String(moreCount))}
+								</span>
 							) : null}
 						</p>
 						<ol class="program__papers">
@@ -114,8 +125,8 @@ const isFigureLed = variant === 'primary';
 				) : null
 			}
 			<p class="program__pubs-link">
-				<a href="/publications">Browse full publication list</a>
-				<a href="/join">Interested in this project? Join Us!</a>
+				<a href={localizePath(locale, '/publications')}>{t.projects.browsePublications}</a>
+				<a href={localizePath(locale, '/join')}>{t.projects.joinProject}</a>
 			</p>
 		</div>
 	</div>

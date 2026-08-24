@@ -6,6 +6,7 @@
 import type { Project } from '../lib/research';
 import { getProjectPresentation } from '../lib/projectPresentation';
 import { LUNG_HEALTH_SELECT_PROJECT_EVENT } from '../data/lungHealthVisual';
+import { resolveLocale, useTranslations } from '../i18n';
 import ProjectCard from './ProjectCard.astro';
 
 interface Props {
@@ -17,7 +18,9 @@ interface Props {
 	listLabel?: string;
 }
 
-const { projects, initialId, listLabel = 'Research programs' } = Astro.props;
+const locale = resolveLocale(Astro.currentLocale);
+const t = useTranslations(locale);
+const { projects, initialId, listLabel = t.projects.programsLabel } = Astro.props;
 const selectedId = initialId && projects.some((p) => p.id === initialId)
 	? initialId
 	: projects[0]?.id;
@@ -32,7 +35,7 @@ const selectedId = initialId && projects.some((p) => p.id === initialId)
 				aria-label={listLabel}
 			>
 				{projects.map((project) => {
-					const presentation = getProjectPresentation(project);
+					const presentation = getProjectPresentation(project, locale);
 					const isSelected = project.id === selectedId;
 					return (
 						<button
