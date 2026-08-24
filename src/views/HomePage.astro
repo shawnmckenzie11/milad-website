@@ -25,6 +25,7 @@ const t = useTranslations(locale);
 				height="290"
 			/>
 		</div>
+		<div class="hero__skyline" aria-hidden="true"></div>
 	</section>
 
 	<section class="home-bio" aria-labelledby="home-bio-heading" data-scroll-fade>
@@ -96,6 +97,7 @@ const t = useTranslations(locale);
 
 	.hero {
 		/* Pull out of .site-main so the skyline can span the viewport. */
+		--hero-skyline-gap: 3.5rem;
 		width: 100vw;
 		max-width: 100vw;
 		margin-inline: calc(50% - 50vw);
@@ -107,11 +109,6 @@ const t = useTranslations(locale);
 		align-items: center;
 		padding: var(--space-lg) 0 0;
 		background-color: #ffffff;
-		background-image: var(--hero-skyline);
-		/* Width-first so the Peace Tower is not cropped; white sky fills above. */
-		background-size: 100% auto;
-		background-position: center bottom;
-		background-repeat: no-repeat;
 	}
 
 	.hero__marks {
@@ -122,7 +119,21 @@ const t = useTranslations(locale);
 		justify-content: center;
 		gap: clamp(1.25rem, 4vw, 3rem);
 		width: min(100% - 2rem, var(--max-width-wide));
+		margin-bottom: var(--hero-skyline-gap);
 		background: transparent;
+		flex: 0 0 auto;
+	}
+
+	.hero__skyline {
+		flex: 1 1 auto;
+		align-self: stretch;
+		width: 100%;
+		min-height: 12rem;
+		background-image: var(--hero-skyline);
+		/* Width-first so the Peace Tower is not cropped; white sky fills above. */
+		background-size: 100% auto;
+		background-position: center bottom;
+		background-repeat: no-repeat;
 	}
 
 	.hero__lung,
@@ -231,6 +242,7 @@ const t = useTranslations(locale);
 		.hero {
 			min-height: calc(100svh - 8.5rem);
 			padding-top: var(--space-md);
+			--hero-skyline-gap: 1.25rem;
 		}
 
 		.hero__marks {

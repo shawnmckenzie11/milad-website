@@ -3,13 +3,13 @@ import { site } from '../lib/site';
 import { resolveLocale, useTranslations } from '../i18n';
 
 interface Props {
-	/** Destination mailbox for inquiries. */
+	/** Destination mailbox shown in the noscript fallback. */
 	toEmail?: string;
 }
 
 const locale = resolveLocale(Astro.currentLocale);
 const t = useTranslations(locale);
-const { toEmail = site.email } = Astro.props;
+const { toEmail = site.joinInbox } = Astro.props;
 
 const programs = [
 	{ value: 'coop', label: t.joinForm.programs.coop },
@@ -34,6 +34,7 @@ const noscriptParts = t.joinForm.noscript.split('{email}');
 	class="join-form"
 	id="join-form"
 	data-join-form
+	data-api-path={site.joinApiPath}
 	data-to-email={toEmail}
 	data-locale={locale}
 	novalidate
@@ -146,14 +147,6 @@ const noscriptParts = t.joinForm.noscript.split('{email}');
 	}
 
 	/**
-	 * Reads a program option's visible label from the select element.
-	 * @param select - Program-of-interest select
-	 */
-	function selectedOptionLabel(select: HTMLSelectElement): string {
-		return select.selectedOptions[0]?.textContent?.trim() || select.value;
-	}
-
-	/**
 	 * Sets or clears a field error and aria-invalid state.
 	 * @param input - Field control
 	 * @param errorId - Id of the associated error element
@@ -163,120 +156,103 @@ const noscriptParts = t.joinForm.noscript.split('{email}');
 		input: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement,
 		errorId: string,
 		message: string,
-	): void {
+	): boolean {
 		const errorEl = document.getElementById(errorId);
 		input.setAttribute('aria-invalid', message ? 'true' : 'false');
 		if (errorEl) {
 			errorEl.hidden = !message;
 			errorEl.textContent = message;
 		}
+		return !message;
 	}
 
 	/**
-	 * Builds a mailto URL from validated join-form fields.
-	 * @param form - Join inquiry form
-	 * @param toEmail - Destination mailbox
-	 * @param copy - Localized form strings
+	 * Updates the live status region and its tone for success or error.
+	 * @param status - Status element
+	 * @param message - Visitor-facing status text
+	 * @param tone - Visual tone for the message
 	 */
-	function buildMailtoUrl(
-		form: HTMLFormElement,
-		toEmail: string,
-		copy: (typeof messages)['en']['joinForm'],
-	): string {
-		const name = String(new FormData(form).get('name') ?? '').trim();
-		const email = String(new FormData(form).get('email') ?? '').trim();
-		const program = form.querySelector<HTMLSelectElement>('#join-program');
-		const eligibility = form.querySelector<HTMLSelectElement>('#join-eligibility');
-		const comments = String(new FormData(form).get('comments') ?? '').trim();
-		const files = form.querySelector<HTMLInputElement>('#join-attachments')?.files;
-
-		const programLabel = program ? selectedOptionLabel(program) : '';
-		const eligibilityLabel = eligibility?.value
-			? selectedOptionLabel(eligibility)
-			: copy.notSpecified;
-
-		const fileNames = files && files.length > 0
-			? Array.from(files).map((file) => file.name).join(', ')
-			: '';
-
-		const lines = [
-			`${copy.mailtoName}: ${name}`,
-			`${copy.mailtoEmail}: ${email}`,
-			`${copy.mailtoProgram}: ${programLabel}`,
-			`${copy.mailtoEligibility}: ${eligibilityLabel}`,
-			'',
-			`${copy.mailtoComments}:`,
-			comments || copy.mailtoNone,
-		];
-
-		if (fileNames) {
-			lines.push(
-				'',
-				`${copy.mailtoAttachments}: ${fileNames}`,
-				copy.mailtoAttachNote,
-			);
-		}
-
-		const subject = copy.mailtoSubject.replace(
-			'{program}',
-			programLabel || copy.mailtoSubjectFallback,
-		);
-		return `mailto:${toEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n'))}`;
+	function setStatus(
+		status: HTMLElement | null,
+		message: string,
+		tone: 'idle' | 'success' | 'error' = 'idle',
+	): void {
+		if (!status) return;
+		status.textContent = message;
+		status.dataset.tone = tone === 'idle' ? '' : tone;
 	}
 
 	/**
-	 * Wires accessible validation and mailto submission for the join form.
+	 * Wires accessible validation and POST submission for the join form.
 	 */
 	function initJoinForm(): void {
 		const form = document.querySelector<HTMLFormElement>('[data-join-form]');
 		if (!form || form.dataset.ready === 'true') return;
 		form.dataset.ready = 'true';
 
-		const toEmail = form.dataset.toEmail || '';
+		const apiPath = form.dataset.apiPath || '/api/join';
 		const copy = messages[resolveLocale(form.dataset.locale)].joinForm;
 		const status = form.querySelector<HTMLElement>('[data-join-status]');
+		const submitButton = form.querySelector<HTMLButtonElement>('button[type="submit"]');
 		const nameInput = form.querySelector<HTMLInputElement>('#join-name');
 		const emailInput = form.querySelector<HTMLInputElement>('#join-email');
 		const programInput = form.querySelector<HTMLSelectElement>('#join-program');
 
 		if (!nameInput || !emailInput || !programInput) return;
 
-		form.addEventListener('submit', (event) => {
+		form.addEventListener('submit', async (event) => {
 			event.preventDefault();
-			if (status) status.textContent = '';
+			setStatus(status, '');
 
 			const name = nameInput.value.trim();
 			const email = emailInput.value.trim();
 			const program = programInput.value.trim();
 
-			setFieldError(nameInput, 'join-name-error', name ? '' : copy.errorName);
-			setFieldError(
+			const nameOk = setFieldError(nameInput, 'join-name-error', name ? '' : copy.errorName);
+			const emailOk = setFieldError(
 				emailInput,
 				'join-email-error',
 				email && isValidEmail(email) ? '' : copy.errorEmail,
 			);
-			setFieldError(
+			const programOk = setFieldError(
 				programInput,
 				'join-program-error',
 				program ? '' : copy.errorProgram,
 			);
 
 			const firstInvalid = form.querySelector<HTMLElement>('[aria-invalid="true"]');
-			if (firstInvalid) {
-				firstInvalid.focus();
+			if (!nameOk || !emailOk || !programOk || firstInvalid) {
+				firstInvalid?.focus();
 				return;
 			}
 
-			if (!toEmail) {
-				if (status) {
-					status.textContent = copy.missingDestination;
+			if (submitButton) submitButton.disabled = true;
+			setStatus(status, copy.statusSending);
+
+			try {
+				const response = await fetch(apiPath, {
+					method: 'POST',
+					body: new FormData(form),
+				});
+				const result: { ok?: boolean; attachmentsOmitted?: boolean } = await response
+					.json()
+					.catch(() => ({}));
+
+				if (!response.ok || !result.ok) {
+					setStatus(status, copy.statusError, 'error');
+					return;
 				}
-				return;
-			}
 
-			window.location.href = buildMailtoUrl(form, toEmail, copy);
-			if (status) {
-				status.textContent = copy.statusOpened;
+				form.reset();
+				setStatus(
+					status,
+					result.attachmentsOmitted ? copy.statusSuccessAttachNote : copy.statusSuccess,
+					'success',
+				);
+			} catch {
+				setStatus(status, copy.statusError, 'error');
+			} finally {
+				if (submitButton) submitButton.disabled = false;
 			}
 		});
 	}
@@ -351,6 +327,14 @@ const noscriptParts = t.joinForm.noscript.split('{email}');
 	.join-field__error {
 		margin: 0;
 		font-size: 0.88rem;
+		color: #8a3a3a;
+	}
+
+	.join-form__status[data-tone='success'] {
+		color: var(--color-ink);
+	}
+
+	.join-form__status[data-tone='error'] {
 		color: #8a3a3a;
 	}
 

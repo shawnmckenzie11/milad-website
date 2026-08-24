@@ -5,7 +5,7 @@ import react from '@astrojs/react';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://milad.mckenzian.com',
+  site: 'https://www.miladlab.ca',
   i18n: {
     locales: ['en', 'fr'],
     defaultLocale: 'en',

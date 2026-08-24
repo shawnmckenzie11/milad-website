@@ -112,7 +112,7 @@ const PROJECT_TEXT: Record<string, Record<Locale, ProjectText>> = {
 			domains: ['Cannabis inhalé', 'Immunité antivirale', 'Co-consommation de tabac'],
 			methods: ["Modèles d'infection murine", 'Cohortes longitudinales'],
 			audience:
-				'Correspondance solide pour les stagiaires en immunologie muqueuse et en toxicologie du cannabis.',
+				'Tout indiqué pour les stagiaires en immunologie muqueuse et en toxicologie du cannabis.',
 			figureAlt:
 				"Figure en plusieurs volets montrant que la fumée de cannabis supprime des médiateurs immunitaires antiviraux après une infection par le virus de l'influenza A chez la souris.",
 			figureCaption: 'Tirée de Milad et coll., ERJ Open Research, 2023.',
@@ -210,9 +210,9 @@ const PROJECT_TEXT: Record<string, Record<Locale, ProjectText>> = {
 				'Dosages épithéliaux',
 			],
 			audience:
-				'Bonne correspondance pour les ingénieurs et les biologistes qui conçoivent des plateformes expérimentales.',
+				'Convient aux ingénieurs et aux biologistes qui conçoivent des plateformes expérimentales.',
 			figureAlt:
-				"Photographies de collecteurs open source imprimés en 3D pour plaques de 6 et 24 puits, destinés aux études d'exposition à l'interface air-liquide.",
+				"Photographies de collecteurs libres imprimés en 3D pour plaques de 6 et 24 puits, destinés aux études d'exposition à l'interface air-liquide.",
 			figureCaption: 'Tirée de Singer, Milad, et coll., ERJ Open Research, 2025.',
 		},
 	},
@@ -266,7 +266,7 @@ const PROJECT_TEXT: Record<string, Record<Locale, ProjectText>> = {
 				'Études collaboratives en physiologie respiratoire et en recherche clinique connexe.',
 			shortLabel: 'Collaborations',
 			question:
-				'Où les programmes de réparation endothéliale et les études respiratoires cliniques croisent-ils les travaux du laboratoire?',
+				'Où les programmes de réparation endothéliale et les études cliniques en physiologie respiratoire rejoignent-ils les travaux du laboratoire?',
 			domains: ['Biologie endothéliale', 'Physiologie clinique', 'Études collaboratives'],
 			methods: ['Collaborations translationnelles', 'Jeux de données tissulaires et cliniques'],
 			audience: 'Pour les visiteurs qui explorent des programmes collaboratifs connexes.',

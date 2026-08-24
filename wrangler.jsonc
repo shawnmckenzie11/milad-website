@@ -1,17 +1,30 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "milad-website",
+	"main": "worker/index.ts",
 	"compatibility_date": "2026-07-27",
 	"observability": {
 		"enabled": true
 	},
 	"assets": {
-		"directory": "./dist"
+		"directory": "./dist",
+		"binding": "ASSETS",
+		"run_worker_first": ["/api/*"]
 	},
+	// Keep destination_address in sync with site.joinInbox in src/lib/site.ts.
+	"send_email": [
+		{
+			"name": "EMAIL",
+			"destination_address": "seashell611@anglernook.com"
+		}
+	],
 	"routes": [
 		{
 			"pattern": "milad.mckenzian.com",
 			"custom_domain": true
 		}
+		// After miladlab.ca is added as a zone on this Cloudflare account, include:
+		// { "pattern": "miladlab.ca", "custom_domain": true },
+		// { "pattern": "www.miladlab.ca", "custom_domain": true }
 	]
 }

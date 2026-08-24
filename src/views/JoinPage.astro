@@ -2,7 +2,6 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import JoinForm from '../components/JoinForm.astro';
 import { emphasizeLatinTerms, resolveLocale, useTranslations } from '../i18n';
-import { site } from '../lib/site';
 
 const locale = resolveLocale(Astro.currentLocale);
 const t = useTranslations(locale);
@@ -26,7 +25,7 @@ const t = useTranslations(locale);
 		</section>
 	</article>
 
-	<JoinForm toEmail={site.email} />
+	<JoinForm />
 </BaseLayout>
 
 <style>
