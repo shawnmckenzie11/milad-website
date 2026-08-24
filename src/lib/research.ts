@@ -57,8 +57,9 @@ export function getFeaturedPublications(): Publication[] {
 }
 
 /**
- * Main-author titles for the public Publications tab, in display order.
+ * Main-author titles for the public Publications tab.
  * Matched against synced records; do not invent metadata for missing titles.
+ * Display order on /publications is newest-year-first via getMainAuthorPublications.
  */
 export const MAIN_AUTHOR_PUBLICATION_TITLES = [
 	'Revisiting the role of pulmonary surfactant in chronic inflammatory lung diseases and environmental exposure',
@@ -82,18 +83,33 @@ export function normalizePublicationTitle(title: string): string {
 }
 
 /**
- * Returns curated main-author publications in the public listing order.
- * Titles with no match in the synced dataset are omitted.
+ * Sorts publications newest-first by year, keeping the incoming order
+ * as a stable secondary key when years are equal.
+ * @param publications - Publication records to sort
+ */
+export function sortPublicationsNewestFirst(publications: Publication[]): Publication[] {
+	return publications
+		.map((publication, index) => ({ publication, index }))
+		.sort((a, b) => b.publication.year - a.publication.year || a.index - b.index)
+		.map(({ publication }) => publication);
+}
+
+/**
+ * Returns curated main-author publications, newest year first.
+ * Titles with no match in the synced dataset are omitted; same-year
+ * items keep their curated-list order.
  */
 export function getMainAuthorPublications(): Publication[] {
 	const byTitle = new Map(
 		getPublications().map((pub) => [normalizePublicationTitle(pub.title), pub]),
 	);
 
-	return MAIN_AUTHOR_PUBLICATION_TITLES.flatMap((title) => {
+	const matched = MAIN_AUTHOR_PUBLICATION_TITLES.flatMap((title) => {
 		const match = byTitle.get(normalizePublicationTitle(title));
 		return match ? [match] : [];
 	});
+
+	return sortPublicationsNewestFirst(matched);
 }
 
 /**

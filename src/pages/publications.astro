@@ -13,13 +13,13 @@ const publications = getMainAuthorPublications();
 	narrow
 >
 	<header class="page-header fade-in">
-		<h1>Publications</h1>
+		<h1>Selected Publications</h1>
 	</header>
 
 	{
 		publications.length > 0 ? (
 			<div class="fade-in-delay">
-				<PublicationList publications={publications} />
+				<PublicationList publications={publications} numbered />
 			</div>
 		) : (
 			<p class="pub-empty fade-in-delay">No publications listed yet.</p>

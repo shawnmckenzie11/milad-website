@@ -7,20 +7,25 @@ interface Props {
 	emptyMessage?: string;
 	/** When false, omit the year from each item (e.g. when grouped under a year heading). */
 	showYear?: boolean;
+	/** When true, render a numbered list (used on the selected-publications landing). */
+	numbered?: boolean;
 }
 
 const {
 	publications,
 	emptyMessage = 'No publications listed yet.',
 	showYear = true,
+	numbered = false,
 } = Astro.props;
+
+const ListTag = numbered ? 'ol' : 'ul';
 ---
 
 {
 	publications.length === 0 ? (
 		<p class="pub-empty">{emptyMessage}</p>
 	) : (
-		<ul class="pub-list">
+		<ListTag class:list={['pub-list', numbered && 'pub-list--numbered']}>
 			{publications.map((pub) => {
 				const href = publicationHref(pub);
 				return (
@@ -50,7 +55,7 @@ const {
 					</li>
 				);
 			})}
-		</ul>
+		</ListTag>
 	)
 }
 
@@ -63,10 +68,23 @@ const {
 		gap: var(--space-md);
 	}
 
+	.pub-list--numbered {
+		list-style: decimal;
+		padding-left: 1.6rem;
+		gap: var(--space-lg);
+	}
+
+	.pub-list--numbered .pub-item::marker {
+		font-family: var(--font-display);
+		font-weight: 800;
+		color: var(--color-accent);
+	}
+
 	.pub-item__title {
 		margin: 0 0 0.25rem;
 		font-family: var(--font-display);
 		font-size: 1.08rem;
+		font-weight: 700;
 		color: var(--color-ink);
 	}
 

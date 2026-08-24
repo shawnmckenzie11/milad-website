@@ -10,7 +10,10 @@ export const site = {
 	researchFocus: 'Cannabis research and evidence synthesis',
 	tagline:
 		'Building rigorous, open tools and scholarship at the intersection of cannabis science and public health.',
+	/** University banner on the homepage hero. */
 	banner: '/images/milad-lab-banner.jpg',
+	/** MILAB wordmark used in the site header. */
+	logo: '/images/milad-lab-logo.png',
 	researchGate: {
 		label: 'ResearchGate',
 		href: 'https://www.researchgate.net/profile/Nadia-Milad',

@@ -25,53 +25,53 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 			effects of cannabis use, using a combination of <i>in vitro</i> cell culture techniques, <i>in vivo</i> animal models, and clinical data.
 		</p>
 	</section>
-</BaseLayout>
 
-<script>
-	/**
-	 * Fades in the homepage biography after the visitor scrolls downward
-	 * and the paragraph intersects the viewport.
-	 */
-	function initHomeBioFade(): void {
-		const bio = document.querySelector<HTMLElement>('[data-scroll-fade]');
-		if (!bio || bio.dataset.fadeReady === 'true') return;
-		bio.dataset.fadeReady = 'true';
+	<noscript>
+		<style>
+			.home-bio {
+				opacity: 1 !important;
+				transform: none !important;
+			}
+		</style>
+	</noscript>
 
-		const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-		if (reduceMotion) {
-			bio.classList.add('is-visible');
-			return;
-		}
-
-		let lastY = window.scrollY;
-		let revealed = false;
-
+	<script is:inline>
 		/**
-		 * Reveals the biography when a downward scroll brings it into view.
+		 * Reveals the homepage biography with a translate-up fade when it
+		 * intersects the viewport. Inline so it runs on the static page
+		 * without waiting for a bundled island. Reduced-motion visitors
+		 * see the paragraph immediately.
 		 */
-		function onScroll(): void {
-			if (revealed) return;
-			const y = window.scrollY;
-			const goingDown = y > lastY;
-			lastY = y;
-			if (!goingDown) return;
+		(function initHomeBioFade() {
+			var bio = document.querySelector('[data-scroll-fade]');
+			if (!bio || bio.getAttribute('data-fade-ready') === 'true') return;
+			bio.setAttribute('data-fade-ready', 'true');
 
-			const rect = bio.getBoundingClientRect();
-			const viewportHeight = window.innerHeight;
-			const inView = rect.top < viewportHeight * 0.88 && rect.bottom > viewportHeight * 0.12;
-			if (!inView) return;
+			var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+			if (reduceMotion || typeof IntersectionObserver !== 'function') {
+				bio.setAttribute('data-visible', 'true');
+				return;
+			}
 
-			revealed = true;
-			bio.classList.add('is-visible');
-			window.removeEventListener('scroll', onScroll);
-		}
+			bio.classList.add('is-pending');
 
-		window.addEventListener('scroll', onScroll, { passive: true });
-	}
+			var observer = new IntersectionObserver(
+				function onIntersect(entries) {
+					for (var i = 0; i < entries.length; i += 1) {
+						if (!entries[i].isIntersecting) continue;
+						bio.setAttribute('data-visible', 'true');
+						bio.classList.remove('is-pending');
+						observer.disconnect();
+						return;
+					}
+				},
+				{ root: null, threshold: 0, rootMargin: '0px 0px -12% 0px' },
+			);
 
-	initHomeBioFade();
-	document.addEventListener('astro:page-load', initHomeBioFade);
-</script>
+			observer.observe(bio);
+		})();
+	</script>
+</BaseLayout>
 
 <style>
 	.hero {
@@ -91,17 +91,22 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
 	.home-bio {
 		max-width: 42rem;
+		margin-inline: auto;
 		padding: var(--space-xl) 0 var(--space-2xl);
-		opacity: 0;
-		transform: translateY(14px);
-		transition:
-			opacity 700ms var(--ease-out),
-			transform 700ms var(--ease-out);
+		text-align: center;
 	}
 
-	.home-bio.is-visible {
+	.home-bio.is-pending {
+		opacity: 0;
+		transform: translateY(2.75rem);
+	}
+
+	.home-bio[data-visible='true'] {
 		opacity: 1;
 		transform: translateY(0);
+		transition:
+			opacity 800ms var(--ease-out),
+			transform 800ms var(--ease-out);
 	}
 
 	.home-bio p {
@@ -134,7 +139,9 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.home-bio {
+		.home-bio,
+		.home-bio.is-pending,
+		.home-bio[data-visible='true'] {
 			opacity: 1;
 			transform: none;
 			transition: none;
