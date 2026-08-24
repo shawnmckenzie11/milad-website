@@ -16,6 +16,8 @@ export const en = {
 		join: 'Work With Us',
 		brandAria: 'Milad Lab home',
 		primaryAria: 'Primary',
+		menuOpen: 'Open menu',
+		menuClose: 'Close menu',
 	},
 	language: {
 		label: 'Language',
@@ -158,6 +160,8 @@ export const fr: typeof en = {
 		join: 'Nous joindre',
 		brandAria: 'Accueil du Milad Lab',
 		primaryAria: 'Navigation principale',
+		menuOpen: 'Ouvrir le menu',
+		menuClose: 'Fermer le menu',
 	},
 	language: {
 		label: 'Langue',

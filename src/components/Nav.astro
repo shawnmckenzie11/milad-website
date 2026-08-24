@@ -24,10 +24,31 @@ const links = [
 	{ href: '/projects', label: t.nav.projects },
 	{ href: '/join', label: t.nav.join },
 ] as const;
+
+const navMenuId = 'site-primary-nav';
 ---
 
-<header class="site-nav">
+<header
+	class="site-nav"
+	data-site-nav
+	data-label-open={t.nav.menuOpen}
+	data-label-close={t.nav.menuClose}
+>
 	<div class="site-nav__inner">
+		<button
+			type="button"
+			class="site-nav__toggle"
+			aria-expanded="false"
+			aria-controls={navMenuId}
+			aria-label={t.nav.menuOpen}
+			data-nav-toggle
+		>
+			<span class="site-nav__toggle-bars" aria-hidden="true">
+				<span></span>
+				<span></span>
+				<span></span>
+			</span>
+		</button>
 		<a class="site-nav__brand" href={localizePath(locale, '/')} aria-label={t.nav.brandAria}>
 			<img
 				class="site-nav__logo"
@@ -37,7 +58,7 @@ const links = [
 				height="91"
 			/>
 		</a>
-		<nav class="site-nav__links" aria-label={t.nav.primaryAria}>
+		<nav class="site-nav__links" id={navMenuId} aria-label={t.nav.primaryAria} data-nav-menu>
 			{
 				links.map((link) => (
 					<a
@@ -56,6 +77,108 @@ const links = [
 	</div>
 </header>
 
+<script>
+	const MOBILE_NAV_QUERY = '(max-width: 879.98px)';
+
+	/**
+	 * Wires the header hamburger disclosure: toggle, Escape, outside click,
+	 * viewport restore, and focus return for the primary nav on narrow screens.
+	 */
+	function initSiteNav(): void {
+		const header = document.querySelector<HTMLElement>('[data-site-nav]');
+		if (!header || header.dataset.ready === 'true') return;
+		header.dataset.ready = 'true';
+		header.dataset.enhanced = 'true';
+
+		const button = header.querySelector<HTMLButtonElement>('[data-nav-toggle]');
+		const menu = header.querySelector<HTMLElement>('[data-nav-menu]');
+		const labelOpen = header.dataset.labelOpen || 'Open menu';
+		const labelClose = header.dataset.labelClose || 'Close menu';
+		if (!button || !menu) return;
+
+		const mobileQuery = window.matchMedia(MOBILE_NAV_QUERY);
+
+		/**
+		 * Returns whether the hamburger menu is currently expanded.
+		 */
+		function isOpen(): boolean {
+			return button!.getAttribute('aria-expanded') === 'true';
+		}
+
+		/**
+		 * Returns whether the layout is in the hamburger (narrow) breakpoint.
+		 */
+		function isMobileNav(): boolean {
+			return mobileQuery.matches;
+		}
+
+		/**
+		 * Opens or closes the mobile nav, syncing aria state, labels, and focus.
+		 * @param open - Whether the menu should be visible
+		 */
+		function setOpen(open: boolean): void {
+			const wasOpen = isOpen();
+			button!.setAttribute('aria-expanded', open ? 'true' : 'false');
+			button!.setAttribute('aria-label', open ? labelClose : labelOpen);
+			header!.classList.toggle('is-open', open);
+
+			if (!isMobileNav()) {
+				return;
+			}
+
+			if (open) {
+				const firstLink = menu!.querySelector<HTMLAnchorElement>('a');
+				firstLink?.focus();
+				return;
+			}
+
+			if (wasOpen && (document.activeElement === button || menu!.contains(document.activeElement))) {
+				button!.focus();
+			}
+		}
+
+		/**
+		 * Closes an open mobile menu when the viewport grows to the desktop nav.
+		 */
+		function syncForViewport(): void {
+			if (!isMobileNav() && isOpen()) {
+				setOpen(false);
+			}
+		}
+
+		button.addEventListener('click', (event) => {
+			event.stopPropagation();
+			setOpen(!isOpen());
+		});
+
+		document.addEventListener('click', (event) => {
+			if (!isOpen()) return;
+			if (!header.contains(event.target as Node)) {
+				setOpen(false);
+			}
+		});
+
+		document.addEventListener('keydown', (event) => {
+			if (event.key === 'Escape' && isOpen() && isMobileNav()) {
+				setOpen(false);
+				button.focus();
+			}
+		});
+
+		menu.addEventListener('click', (event) => {
+			const target = event.target as HTMLElement | null;
+			if (target?.closest('a')) {
+				setOpen(false);
+			}
+		});
+
+		mobileQuery.addEventListener('change', syncForViewport);
+	}
+
+	initSiteNav();
+	document.addEventListener('astro:page-load', initSiteNav);
+</script>
+
 <style>
 	.site-nav {
 		position: sticky;
@@ -70,9 +193,85 @@ const links = [
 		margin: 0 auto;
 		padding: 0.6rem 0;
 		display: flex;
-		flex-wrap: nowrap;
+		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.65rem 0.85rem;
+		gap: 0.5rem 0.65rem;
+	}
+
+	.site-nav__toggle {
+		appearance: none;
+		display: none;
+		align-items: center;
+		justify-content: center;
+		flex: 0 0 auto;
+		width: 2.5rem;
+		height: 2.5rem;
+		margin: 0;
+		padding: 0;
+		border: 1px solid var(--color-line);
+		border-radius: var(--radius);
+		background: #ffffff;
+		color: var(--color-ink);
+		cursor: pointer;
+		line-height: 1;
+	}
+
+	.site-nav[data-enhanced='true'] .site-nav__toggle {
+		display: inline-flex;
+	}
+
+	.site-nav__toggle:hover,
+	.site-nav__toggle[aria-expanded='true'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+
+	.site-nav__toggle-bars {
+		position: relative;
+		display: block;
+		width: 1.1rem;
+		height: 0.82rem;
+	}
+
+	.site-nav__toggle-bars span {
+		position: absolute;
+		left: 0;
+		right: 0;
+		height: 2px;
+		background: currentColor;
+		border-radius: 1px;
+		transition:
+			transform 200ms var(--ease-out),
+			top 200ms var(--ease-out),
+			opacity 200ms var(--ease-out);
+	}
+
+	.site-nav__toggle-bars span:nth-child(1) {
+		top: 0;
+	}
+
+	.site-nav__toggle-bars span:nth-child(2) {
+		top: 50%;
+		transform: translateY(-50%);
+	}
+
+	.site-nav__toggle-bars span:nth-child(3) {
+		bottom: 0;
+	}
+
+	.site-nav.is-open .site-nav__toggle-bars span:nth-child(1) {
+		top: 50%;
+		transform: translateY(-50%) rotate(45deg);
+	}
+
+	.site-nav.is-open .site-nav__toggle-bars span:nth-child(2) {
+		opacity: 0;
+	}
+
+	.site-nav.is-open .site-nav__toggle-bars span:nth-child(3) {
+		top: 50%;
+		bottom: auto;
+		transform: translateY(-50%) rotate(-45deg);
 	}
 
 	.site-nav__brand {
@@ -80,13 +279,13 @@ const links = [
 		align-items: center;
 		text-decoration: none;
 		flex: 0 0 auto;
-		max-width: 9.5rem;
+		max-width: 6.25rem;
 	}
 
 	.site-nav__logo {
 		width: 100%;
 		height: auto;
-		max-height: 2.6rem;
+		max-height: 1.8rem;
 		object-fit: contain;
 		object-position: left center;
 	}
@@ -111,6 +310,7 @@ const links = [
 
 	.site-nav__tools {
 		flex: 0 0 auto;
+		margin-left: auto;
 	}
 
 	.site-nav__link {
@@ -149,9 +349,69 @@ const links = [
 		transform: scaleX(1);
 	}
 
+	@media (max-width: 879.98px) {
+		.site-nav__inner {
+			display: grid;
+			grid-template-columns: auto minmax(0, 1fr) auto;
+			grid-template-areas:
+				'toggle brand tools'
+				'links links links';
+			align-items: center;
+		}
+
+		.site-nav__toggle {
+			grid-area: toggle;
+		}
+
+		.site-nav__brand {
+			grid-area: brand;
+			justify-self: start;
+		}
+
+		.site-nav__tools {
+			grid-area: tools;
+			margin-left: 0;
+		}
+
+		.site-nav__links {
+			grid-area: links;
+			flex-direction: column;
+			flex-wrap: nowrap;
+			align-items: stretch;
+			justify-content: flex-start;
+			gap: 0.15rem;
+			flex: 1 1 auto;
+			width: 100%;
+			min-width: 0;
+			overflow: visible;
+			white-space: normal;
+			padding: 0.4rem 0 0.15rem;
+			border-top: 1px solid var(--color-line);
+		}
+
+		.site-nav[data-enhanced='true']:not(.is-open) .site-nav__links {
+			display: none;
+		}
+
+		.site-nav__link {
+			font-size: 0.82rem;
+			padding: 0.7rem 0.1rem;
+		}
+
+		.site-nav__link::after {
+			bottom: 0.45rem;
+		}
+	}
+
 	@media (min-width: 880px) {
 		.site-nav__inner {
+			display: flex;
+			flex-wrap: nowrap;
 			gap: 0.85rem 1.1rem;
+		}
+
+		.site-nav[data-enhanced='true'] .site-nav__toggle {
+			display: none;
 		}
 
 		.site-nav__brand {
@@ -172,7 +432,13 @@ const links = [
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.site-nav__link::after {
+		.site-nav__link::after,
+		.site-nav__toggle-bars span {
+			transition: none;
+		}
+
+		.site-nav.is-open .site-nav__toggle-bars span:nth-child(1),
+		.site-nav.is-open .site-nav__toggle-bars span:nth-child(3) {
 			transition: none;
 		}
 	}
