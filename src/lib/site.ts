@@ -14,6 +14,8 @@ export const site = {
 	lungLogo: '/images/lung-logo.jpg',
 	/** MILAB wordmark used in the site header and homepage hero. */
 	logo: '/images/milad-lab-logo.png',
+	/** Ottawa skyline banner used as the homepage hero backdrop. */
+	ottawaBanner: '/images/ottawa-skyline.jpg',
 	researchGate: {
 		label: 'ResearchGate',
 		href: 'https://www.researchgate.net/profile/Nadia-Milad',
