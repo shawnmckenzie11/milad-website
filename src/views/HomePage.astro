@@ -29,7 +29,16 @@ const t = useTranslations(locale);
 
 	<section class="home-bio" aria-labelledby="home-bio-heading" data-scroll-fade>
 		<h2 id="home-bio-heading" class="sr-only">{t.home.aboutHeading}</h2>
-		<p set:html={emphasizeLatinTerms(t.home.bio)} />
+		<div class="home-bio__layout">
+			<img
+				class="home-bio__portrait"
+				src={site.headshot}
+				alt={t.home.headshotAlt}
+				width="203"
+				height="203"
+			/>
+			<p set:html={emphasizeLatinTerms(t.home.bio)} />
+		</div>
 	</section>
 
 	<noscript>
@@ -80,8 +89,12 @@ const t = useTranslations(locale);
 </BaseLayout>
 
 <style>
-	.hero {
+	.hero,
+	.home-bio {
 		--hero-logo-height: min(30vh, 13.5rem);
+	}
+
+	.hero {
 		/* Pull out of .site-main so the skyline can span the viewport. */
 		width: 100vw;
 		max-width: 100vw;
@@ -129,10 +142,29 @@ const t = useTranslations(locale);
 	}
 
 	.home-bio {
-		max-width: 42rem;
+		max-width: min(100% - 2rem, 52rem);
 		margin-inline: auto;
 		padding: var(--space-xl) 0 var(--space-2xl);
-		text-align: center;
+	}
+
+	.home-bio__layout {
+		display: flex;
+		flex-direction: row;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: center;
+		gap: clamp(1.25rem, 3vw, 2rem);
+	}
+
+	.home-bio__portrait {
+		flex: 0 0 auto;
+		width: min(var(--hero-logo-height), 203px);
+		height: min(var(--hero-logo-height), 203px);
+		object-fit: cover;
+		object-position: center top;
+		border-radius: 50%;
+		border: 1px solid var(--color-line);
+		background-color: var(--color-paper-deep);
 	}
 
 	.home-bio.is-pending {
@@ -149,9 +181,12 @@ const t = useTranslations(locale);
 	}
 
 	.home-bio p {
+		flex: 1 1 22rem;
 		margin: 0;
+		max-width: 42rem;
 		font-size: 1.08rem;
 		line-height: 1.7;
+		text-align: left;
 	}
 
 	.home-bio i {
@@ -171,14 +206,29 @@ const t = useTranslations(locale);
 	}
 
 	@media (max-width: 900px) {
-		.hero {
+		.hero,
+		.home-bio {
 			--hero-logo-height: min(20vh, 9rem);
 		}
 	}
 
+	@media (max-width: 640px) {
+		.home-bio__layout {
+			flex-direction: column;
+		}
+
+		.home-bio p {
+			text-align: center;
+		}
+	}
+
 	@media (max-width: 560px) {
-		.hero {
+		.hero,
+		.home-bio {
 			--hero-logo-height: min(22vh, 9.5rem);
+		}
+
+		.hero {
 			min-height: calc(100svh - 8.5rem);
 			padding-top: var(--space-md);
 		}

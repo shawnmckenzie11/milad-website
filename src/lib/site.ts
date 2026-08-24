@@ -12,6 +12,8 @@ export const site = {
 		'Building rigorous, open tools and scholarship at the intersection of cannabis science and public health.',
 	/** Stylized lung illustration on the homepage hero. */
 	lungLogo: '/images/lung-logo.jpg',
+	/** Portrait shown beside the homepage biography. */
+	headshot: '/images/nadia-milad-headshot.jpg',
 	/** MILAB wordmark used in the site header and homepage hero. */
 	logo: '/images/milad-lab-logo.png',
 	/** Ottawa skyline banner used as the homepage hero backdrop. */
