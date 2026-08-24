@@ -81,18 +81,6 @@ function readField(formData: FormData, key: string): string {
 }
 
 /**
- * Escapes text for inclusion in an HTML email body.
- * @param value - Plain-text value
- */
-function escapeHtml(value: string): string {
-	return value
-		.replaceAll('&', '&amp;')
-		.replaceAll('<', '&lt;')
-		.replaceAll('>', '&gt;')
-		.replaceAll('"', '&quot;');
-}
-
-/**
  * Encodes a UTF-8 string as base64 for MIME bodies and headers.
  * @param value - UTF-8 text
  */
@@ -134,7 +122,11 @@ function encodeHeaderValue(value: string): string {
  * Builds the plain-text body for a join inquiry.
  * @param fields - Validated form fields
  */
-function buildPlainBody(fields: JoinFields): string {
+function buildPlainBody(fields: JoinFields, attachments: JoinAttachment[]): string {
+	const attachmentLines =
+		attachments.length > 0
+			? ['', 'Attachments:', ...attachments.map((file) => `- ${file.filename}`)]
+			: [];
 	return [
 		'Work With Us inquiry',
 		'',
@@ -145,36 +137,28 @@ function buildPlainBody(fields: JoinFields): string {
 		'',
 		'Comments:',
 		fields.comments || '(none)',
+		...attachmentLines,
 	].join('\n');
 }
 
 /**
- * Builds a simple HTML body for a join inquiry.
- * @param fields - Validated form fields
+ * Wraps base64 at 76 characters per RFC 2045.
+ * @param value - Unwrapped base64
  */
-function buildHtmlBody(fields: JoinFields): string {
-	const comments = fields.comments
-		? escapeHtml(fields.comments).replaceAll('\n', '<br />')
-		: '(none)';
-	return [
-		'<h1>Work With Us inquiry</h1>',
-		`<p><strong>Name:</strong> ${escapeHtml(fields.name)}</p>`,
-		`<p><strong>Email:</strong> ${escapeHtml(fields.email)}</p>`,
-		`<p><strong>Program of interest:</strong> ${escapeHtml(fields.programLabel)}</p>`,
-		`<p><strong>Work eligibility:</strong> ${escapeHtml(fields.eligibilityLabel || 'Not specified')}</p>`,
-		`<p><strong>Comments:</strong><br />${comments}</p>`,
-	].join('');
+function wrapBase64(value: string): string {
+	return value.replace(/(.{76})/g, '$1\r\n').trim();
 }
 
 /**
- * Builds a raw MIME message so the EmailMessage binding can send attachments.
+ * Builds a raw MIME message. Only a single text/plain body is included so
+ * clients do not render the same inquiry twice (plain + HTML).
  * @param fields - Validated form fields
  * @param attachments - Files that fit the size and type limits
  */
 function buildRawMime(fields: JoinFields, attachments: JoinAttachment[]): string {
 	const subject = `Work With Us — ${fields.programLabel}`;
-	const boundary = `milad-join-${crypto.randomUUID()}`;
-	const lines = [
+	const body = wrapBase64(utf8ToBase64(buildPlainBody(fields, attachments)));
+	const sharedHeaders = [
 		`From: ${encodeHeaderValue(site.labName)} <${site.joinFromEmail}>`,
 		`To: ${site.joinInbox}`,
 		`Reply-To: ${fields.email}`,
@@ -182,46 +166,72 @@ function buildRawMime(fields: JoinFields, attachments: JoinAttachment[]): string
 		`Date: ${new Date().toUTCString()}`,
 		`Message-ID: <${crypto.randomUUID()}@mckenzian.com>`,
 		'MIME-Version: 1.0',
-		`Content-Type: multipart/mixed; boundary="${boundary}"`,
+	];
+
+	if (attachments.length === 0) {
+		return [
+			...sharedHeaders,
+			'Content-Type: text/plain; charset="UTF-8"',
+			'Content-Transfer-Encoding: base64',
+			'',
+			body,
+			'',
+		].join('\r\n');
+	}
+
+	const mixedBoundary = `milad-mixed-${crypto.randomUUID()}`;
+	const lines = [
+		...sharedHeaders,
+		`Content-Type: multipart/mixed; boundary="${mixedBoundary}"`,
 		'',
-		`--${boundary}`,
+		`--${mixedBoundary}`,
 		'Content-Type: text/plain; charset="UTF-8"',
 		'Content-Transfer-Encoding: base64',
 		'',
-		utf8ToBase64(buildPlainBody(fields)),
-		`--${boundary}`,
-		'Content-Type: text/html; charset="UTF-8"',
-		'Content-Transfer-Encoding: base64',
-		'',
-		utf8ToBase64(buildHtmlBody(fields)),
+		body,
 	];
 
 	for (const attachment of attachments) {
 		const safeName = attachment.filename.replace(/["\r\n]/g, '_');
+		const encodedName = encodeURIComponent(attachment.filename).replace(/['()]/g, '');
 		lines.push(
-			`--${boundary}`,
+			`--${mixedBoundary}`,
 			`Content-Type: ${attachment.type || 'application/octet-stream'}; name="${safeName}"`,
 			'Content-Transfer-Encoding: base64',
-			`Content-Disposition: attachment; filename="${safeName}"`,
+			`Content-Disposition: attachment; filename="${safeName}"; filename*=UTF-8''${encodedName}`,
 			'',
 			arrayBufferToBase64(attachment.content),
 		);
 	}
 
-	lines.push(`--${boundary}--`, '');
+	lines.push(`--${mixedBoundary}--`, '');
 	return lines.join('\r\n');
 }
 
 /**
- * Reads uploaded files, skipping any that exceed type or size limits.
- * @param formData - Incoming form body
+ * Returns whether a form entry is an uploaded file with content.
+ * Avoids `instanceof File`, which can fail across Worker/runtime realms.
+ * @param value - FormData entry
  */
+function isUploadedFile(value: FormDataEntryValue): value is File {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		'arrayBuffer' in value &&
+		'name' in value &&
+		'size' in value &&
+		typeof (value as File).size === 'number' &&
+		(value as File).size > 0
+	);
+}
+
 async function readAttachments(
 	formData: FormData,
 ): Promise<{ attachments: JoinAttachment[]; omitted: boolean }> {
-	const files = formData
-		.getAll('attachments')
-		.filter((value): value is File => value instanceof File && value.size > 0);
+	const files = [
+		...formData.getAll('attachments'),
+		...formData.getAll('attachment'),
+	].filter(isUploadedFile);
 
 	const attachments: JoinAttachment[] = [];
 	let omitted = files.length > MAX_ATTACHMENT_COUNT;
