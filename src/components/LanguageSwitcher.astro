@@ -23,11 +23,15 @@ const options: Array<{ code: Locale; href: string; label: string }> = [
 		aria-expanded="false"
 		aria-haspopup="true"
 		aria-controls="lang-switcher-menu"
+		aria-label={`${t.language.label}: ${t.language[locale]}`}
 		data-lang-button
 	>
-		<span class="lang-switcher__label">{t.language.label}</span>
-		<span class="lang-switcher__current" aria-hidden="true">{t.language[locale]}</span>
-		<svg class="lang-switcher__chevron" viewBox="0 0 12 8" width="12" height="8" aria-hidden="true">
+		<svg class="lang-switcher__icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+			<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"></circle>
+			<ellipse cx="12" cy="12" rx="4" ry="9" fill="none" stroke="currentColor" stroke-width="1.6"></ellipse>
+			<path d="M3.2 9.25h17.6M3.2 14.75h17.6" fill="none" stroke="currentColor" stroke-width="1.6"></path>
+		</svg>
+		<svg class="lang-switcher__chevron" viewBox="0 0 12 8" width="10" height="7" aria-hidden="true">
 			<path d="M1 1.5 L6 6.5 L11 1.5" fill="none" stroke="currentColor" stroke-width="1.5"></path>
 		</svg>
 	</button>
@@ -120,34 +124,33 @@ const options: Array<{ code: Locale; href: string; label: string }> = [
 		appearance: none;
 		display: inline-flex;
 		align-items: center;
-		gap: 0.45rem;
+		justify-content: center;
+		gap: 0.28rem;
 		margin: 0;
-		padding: 0.35rem 0.65rem;
+		padding: 0.4rem 0.5rem;
 		border: 1px solid var(--color-line);
 		border-radius: var(--radius);
 		background: #ffffff;
 		color: var(--color-ink);
-		font-family: var(--font-display);
-		font-size: 0.72rem;
-		font-weight: 700;
-		letter-spacing: 0.1em;
-		text-transform: uppercase;
 		cursor: pointer;
-		line-height: 1.2;
+		line-height: 1;
 	}
 
 	.lang-switcher__button:hover,
 	.lang-switcher__button[aria-expanded='true'] {
 		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+
+	.lang-switcher__icon {
+		display: block;
+		flex-shrink: 0;
 		color: var(--color-ink);
 	}
 
-	.lang-switcher__label {
-		color: var(--color-muted);
-	}
-
-	.lang-switcher__current {
-		color: var(--color-ink);
+	.lang-switcher__button:hover .lang-switcher__icon,
+	.lang-switcher__button[aria-expanded='true'] .lang-switcher__icon {
+		color: var(--color-accent);
 	}
 
 	.lang-switcher__chevron {

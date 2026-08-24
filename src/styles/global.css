@@ -21,8 +21,8 @@
 	--space-xl: 3.5rem;
 	--space-2xl: 5.5rem;
 
-	--max-width: 42rem;
-	--max-width-wide: 58rem;
+	--max-width: 64rem;
+	--max-width-wide: 76rem;
 	--radius: 2px;
 
 	--shadow-soft: 0 12px 28px rgba(17, 17, 17, 0.06);
@@ -124,13 +124,13 @@ p:last-child {
 
 .site-main {
 	flex: 1;
-	width: min(100% - 2.5rem, var(--max-width-wide));
+	width: min(100% - 2rem, var(--max-width-wide));
 	margin: 0 auto;
 	padding: var(--space-xl) 0 var(--space-2xl);
 }
 
 .site-main.narrow {
-	width: min(100% - 2.5rem, var(--max-width));
+	width: min(100% - 2rem, var(--max-width));
 }
 
 .eyebrow {

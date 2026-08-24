@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { emphasizeLatinTerms, resolveLocale, useTranslations } from '../i18n';
+import { site } from '../lib/site';
 
 const locale = resolveLocale(Astro.currentLocale);
 const t = useTranslations(locale);
@@ -8,13 +9,22 @@ const t = useTranslations(locale);
 
 <BaseLayout>
 	<section class="hero fade-in">
-		<img
-			class="hero__banner"
-			src="/images/milad-lab-banner.jpg"
-			alt={t.home.bannerAlt}
-			width="1024"
-			height="455"
-		/>
+		<div class="hero__marks">
+			<img
+				class="hero__lung"
+				src={site.lungLogo}
+				alt={t.home.lungAlt}
+				width="888"
+				height="790"
+			/>
+			<img
+				class="hero__wordmark"
+				src={site.logo}
+				alt={t.home.wordmarkAlt}
+				width="1024"
+				height="290"
+			/>
+		</div>
 	</section>
 
 	<section class="home-bio" aria-labelledby="home-bio-heading" data-scroll-fade>
@@ -76,13 +86,39 @@ const t = useTranslations(locale);
 		flex-direction: column;
 		justify-content: center;
 		padding: var(--space-lg) 0 var(--space-xl);
-		max-width: min(100%, 52rem);
+		background: #ffffff;
 	}
 
-	.hero__banner {
+	.hero__marks {
+		display: flex;
+		flex-direction: row;
+		flex-wrap: nowrap;
+		align-items: center;
+		justify-content: center;
+		gap: clamp(1.25rem, 5vw, 4rem);
 		width: 100%;
+		background: #ffffff;
+	}
+
+	.hero__lung,
+	.hero__wordmark {
 		height: auto;
-		margin: 0;
+		object-fit: contain;
+		background: #ffffff;
+	}
+
+	.hero__lung {
+		flex: 0 1 36%;
+		width: auto;
+		max-width: 26rem;
+		max-height: min(62vh, 26rem);
+	}
+
+	.hero__wordmark {
+		flex: 1 1 58%;
+		width: auto;
+		max-width: 42rem;
+		max-height: min(30vh, 13.5rem);
 	}
 
 	.home-bio {
@@ -127,10 +163,28 @@ const t = useTranslations(locale);
 		border: 0;
 	}
 
-	@media (max-width: 640px) {
+	@media (max-width: 560px) {
 		.hero {
 			min-height: calc(100svh - 8.5rem);
 			padding-top: var(--space-md);
+		}
+
+		.hero__marks {
+			flex-direction: column;
+			justify-content: center;
+			gap: 1.5rem;
+		}
+
+		.hero__lung {
+			flex-basis: auto;
+			max-width: 16rem;
+			max-height: 16rem;
+		}
+
+		.hero__wordmark {
+			flex-basis: auto;
+			width: min(100%, 22rem);
+			max-height: none;
 		}
 	}
 

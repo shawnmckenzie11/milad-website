@@ -10,9 +10,9 @@ export const site = {
 	researchFocus: 'Cannabis research and evidence synthesis',
 	tagline:
 		'Building rigorous, open tools and scholarship at the intersection of cannabis science and public health.',
-	/** University banner on the homepage hero. */
-	banner: '/images/milad-lab-banner.jpg',
-	/** MILAB wordmark used in the site header. */
+	/** Stylized lung illustration on the homepage hero. */
+	lungLogo: '/images/lung-logo.jpg',
+	/** MILAB wordmark used in the site header and homepage hero. */
 	logo: '/images/milad-lab-logo.png',
 	researchGate: {
 		label: 'ResearchGate',

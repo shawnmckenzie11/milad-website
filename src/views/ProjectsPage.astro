@@ -112,11 +112,6 @@ const description = t.projects.metaDescription.replace('{name}', t.site.name);
 				</div>
 			</div>
 		</div>
-
-		<p class="tooling-note">
-			{t.projects.toolingNote}
-			<a href={site.scraper.href} target="_blank" rel="noopener noreferrer">{site.scraper.label}</a>
-		</p>
 	</section>
 </BaseLayout>
 
@@ -213,12 +208,6 @@ const description = t.projects.metaDescription.replace('{name}', t.site.name);
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.65rem;
-	}
-
-	.tooling-note {
-		margin: var(--space-lg) 0 0;
-		font-size: 0.95rem;
-		color: var(--color-muted);
 	}
 
 	@media (min-width: 820px) {

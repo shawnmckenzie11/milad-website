@@ -14,7 +14,7 @@ const description = t.publications.metaDescription
 
 <BaseLayout title={t.publications.metaTitle} description={description} narrow>
 	<header class="page-header fade-in">
-		<h1>{t.publications.heading}</h1>
+		<h1 class="page-title">{t.publications.heading}</h1>
 	</header>
 
 	{
@@ -34,7 +34,17 @@ const description = t.publications.metaDescription
 
 <style>
 	.page-header {
-		margin-bottom: var(--space-xl);
+		margin-bottom: var(--space-lg);
+	}
+
+	h1.page-title {
+		font-family: var(--font-body);
+		font-size: 1em;
+		font-weight: 600;
+		line-height: 1.65;
+		letter-spacing: 0;
+		text-transform: none;
+		margin: 0 0 var(--space-md);
 	}
 
 	.pub-empty {

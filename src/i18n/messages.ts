@@ -14,8 +14,6 @@ export const en = {
 		publications: 'Publications',
 		projects: 'Projects',
 		join: 'Work With Us',
-		scraper: 'Paper scraper',
-		opensInNewTab: '(opens in a new tab)',
 		brandAria: 'Milad Lab home',
 		primaryAria: 'Primary',
 	},
@@ -26,7 +24,8 @@ export const en = {
 	},
 	home: {
 		aboutHeading: 'About Dr. Nadia Milad',
-		bannerAlt: 'Milad Lab, University of Ottawa',
+		lungAlt: 'Stylized illustration of the lungs',
+		wordmarkAlt: 'Milad Lab',
 		bio: 'Dr. Nadia Milad completed her B.Sc., M.Sc. and PhD in pharmacology at McGill University, University of British Columbia, and Université Laval, respectively. After her postdoctoral training at McMaster University and Nagoya City University, she became an Assistant Professor in the School of Pharmaceutical Sciences at the University of Ottawa. Although her previous research spans several topics, her recent focus has been on the health impacts of smoke exposures. Currently, her translational research program will explore the lung and systemic effects of cannabis use, using a combination of in vitro cell culture techniques, in vivo animal models, and clinical data.',
 	},
 	publications: {
@@ -69,10 +68,9 @@ export const en = {
 		studentsCta: 'Work with us',
 		collaboratorsHeading: 'Scientists & collaborators',
 		collaboratorsBody:
-			'For shared experiments, methods, or cannabis literature workflows, reach out directly or use the community tooling below.',
+			'For shared experiments, methods, or cannabis literature workflows, reach out directly.',
 		emailLab: 'Email the lab',
 		readPublications: 'Read publications',
-		toolingNote: 'Cannabis researchers:',
 		approachesLabel: 'Approaches',
 		evidenceHeading: 'Evidence snapshot',
 		relatedCount: '+{count} related',
@@ -121,8 +119,7 @@ export const en = {
 		commentsHint:
 			'Tell us a little about yourself, your interest in research, your goals long-term and how we can help you.',
 		attachments: 'Attachments',
-		attachmentsHint:
-			'CV, publications, or related documents (PDF preferred). Selected files will be named in your message so you can attach them in your email client.',
+		attachmentsHint: 'CV, publications, or related documents (PDF preferred).',
 		submit: 'Send message',
 		noscript:
 			'JavaScript is required to prepare this form. Please email {email} with your name, program of interest, and CV.',
@@ -157,9 +154,7 @@ export const fr: typeof en = {
 		home: 'Accueil',
 		publications: 'Publications',
 		projects: 'Projets',
-		join: 'Travailler avec nous',
-		scraper: 'Outil de veille',
-		opensInNewTab: "(s'ouvre dans un nouvel onglet)",
+		join: 'Nous joindre',
 		brandAria: 'Accueil du Milad Lab',
 		primaryAria: 'Navigation principale',
 	},
@@ -170,7 +165,8 @@ export const fr: typeof en = {
 	},
 	home: {
 		aboutHeading: 'À propos de la Dre Nadia Milad',
-		bannerAlt: "Milad Lab, Université d'Ottawa",
+		lungAlt: 'Illustration stylisée des poumons',
+		wordmarkAlt: 'Milad Lab',
 		bio: "La Dre Nadia Milad a obtenu son B. Sc., son M. Sc. et son doctorat en pharmacologie à l'Université McGill, à l'University of British Columbia et à l'Université Laval, respectivement. Après une formation postdoctorale à McMaster University et à Nagoya City University, elle a été nommée professeure adjointe à l'École des sciences pharmaceutiques de l'Université d'Ottawa. Bien que ses travaux antérieurs portent sur plusieurs sujets, ses recherches récentes portent sur les effets de l'exposition à la fumée sur la santé. Son programme de recherche translationnelle explore actuellement les effets pulmonaires et systémiques de la consommation de cannabis, en combinant des techniques de culture cellulaire in vitro, des modèles animaux in vivo et des données cliniques.",
 	},
 	publications: {
@@ -214,10 +210,9 @@ export const fr: typeof en = {
 		studentsCta: 'Travailler avec nous',
 		collaboratorsHeading: 'Scientifiques et collaborateurs',
 		collaboratorsBody:
-			'Pour des expériences partagées, des méthodes ou des flux de travail sur la littérature cannabis, écrivez-nous directement ou utilisez l’outil communautaire ci-dessous.',
+			'Pour des expériences partagées, des méthodes ou des flux de travail sur la littérature cannabis, écrivez-nous directement.',
 		emailLab: 'Écrire au laboratoire',
 		readPublications: 'Lire les publications',
-		toolingNote: 'Chercheuses et chercheurs en cannabis :',
 		approachesLabel: 'Approches',
 		evidenceHeading: 'Aperçu des travaux',
 		relatedCount: '+{count} connexes',
@@ -267,8 +262,7 @@ export const fr: typeof en = {
 		commentsHint:
 			'Présentez-vous brièvement, votre intérêt pour la recherche, vos objectifs à long terme et la façon dont nous pouvons vous accompagner.',
 		attachments: 'Pièces jointes',
-		attachmentsHint:
-			'CV, publications ou documents connexes (PDF de préférence). Les fichiers sélectionnés seront nommés dans votre message afin que vous puissiez les joindre dans votre logiciel de courriel.',
+		attachmentsHint: 'CV, publications ou documents connexes (PDF de préférence).',
 		submit: 'Envoyer le message',
 		noscript:
 			'JavaScript est requis pour préparer ce formulaire. Veuillez écrire à {email} en indiquant votre nom, votre programme d’intérêt et votre CV.',
