@@ -3,7 +3,6 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import ProjectCard from '../components/ProjectCard.astro';
 import CurrentProjectCard from '../components/CurrentProjectCard.astro';
 import ProgramTabs from '../components/ProgramTabs.astro';
-import LungHealthVisual from '../components/LungHealthVisual';
 import { lungHealthTabProjectIds } from '../data/lungHealthVisual';
 import { getCurrentProjects } from '../data/currentProjects';
 import { getProjects } from '../lib/research';
@@ -16,7 +15,7 @@ const previous = [...projects].sort((a, b) => a.order - b.order);
 const tabProjectIdSet = new Set<string>(lungHealthTabProjectIds);
 const previousAdjacent = previous.filter((project) => !tabProjectIdSet.has(project.id));
 
-/** Pathway-linked previous programs in tab order for the visualization section. */
+/** Previous programs shown in the tabbed list, in established program order. */
 const tabProjects = lungHealthTabProjectIds
 	.map((id) => previous.find((project) => project.id === id))
 	.filter((project): project is NonNullable<typeof project> => Boolean(project));
@@ -30,15 +29,7 @@ const methodSet = [
 	title="Projects"
 	description={`Research programs led by ${site.name} — for prospective trainees and collaborators in biology and health sciences.`}
 >
-	<section
-		id="lung-health-visual"
-		class="section section--first section--visual"
-		aria-label="Lung health pathways"
-	>
-		<LungHealthVisual client:load />
-	</section>
-
-	<section id="current-projects" class="section fade-in" aria-labelledby="current-projects-heading">
+	<section id="current-projects" class="section section--first fade-in" aria-labelledby="current-projects-heading">
 		<div class="section__intro">
 			<h2 id="current-projects-heading">Current Projects</h2>
 			<p>
@@ -143,11 +134,6 @@ const methodSet = [
 	.section--first {
 		margin-top: 0;
 		padding-top: 0;
-	}
-
-	.section--visual {
-		margin-bottom: var(--space-lg);
-		scroll-margin-top: 5.5rem;
 	}
 
 	.section + .section {

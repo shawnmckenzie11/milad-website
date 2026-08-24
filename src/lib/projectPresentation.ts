@@ -40,7 +40,7 @@ const PRESENTATION: Record<string, ProjectPresentation> = {
 		domains: ['Inhaled cannabis', 'Antiviral immunity', 'Tobacco co-use'],
 		methods: ['Murine infection models', 'Longitudinal cohorts'],
 		audience: 'Strong fit for trainees in mucosal immunology and cannabis toxicology.',
-		accent: '#4a6274',
+		accent: '#00C064',
 		icon: 'lung',
 		figure: '/figures/projects/cannabis-lung.jpg',
 		figureAlt:
@@ -53,7 +53,7 @@ const PRESENTATION: Record<string, ProjectPresentation> = {
 		domains: ['Flavor chemicals', 'Glycerol toxicology', 'Airway immunity'],
 		methods: ['Aerosol exposures', 'Pulmonary immunology', 'Metabolic readouts'],
 		audience: 'Ideal for students interested in exposure science and innate immunity.',
-		accent: '#5a7386',
+		accent: '#00C064',
 		icon: 'droplet',
 		figure: '/figures/projects/vaping-immunity.jpg',
 		figureAlt:
@@ -66,7 +66,7 @@ const PRESENTATION: Record<string, ProjectPresentation> = {
 		domains: ['Emphysema genetics', 'Neutrophils', 'Surfactant biology'],
 		methods: ['Preclinical smoke models', 'Tissue transcriptomics', 'Immune phenotyping'],
 		audience: 'Suited to trainees in lung immunology, COPD biology, and host defense.',
-		accent: '#6d7f8c',
+		accent: '#00C064',
 		icon: 'alveolus',
 		figure: '/figures/projects/smoke-inflammation.jpg',
 		figureAlt:
@@ -79,7 +79,7 @@ const PRESENTATION: Record<string, ProjectPresentation> = {
 		domains: ['Airway epithelium', 'Open hardware', 'CFTR physiology'],
 		methods: ['Air–liquid interface culture', '3D-printed exposure systems', 'Epithelial assays'],
 		audience: 'Good match for engineers and biologists building experimental platforms.',
-		accent: '#4a6274',
+		accent: '#00C064',
 		icon: 'hex',
 		figure: '/figures/projects/airway-methods.jpg',
 		figureAlt:
@@ -92,7 +92,7 @@ const PRESENTATION: Record<string, ProjectPresentation> = {
 		domains: ['Marfan aortopathy', 'Muscular dystrophy', 'Lipid metabolism'],
 		methods: ['Genetic mouse models', 'Pharmacology', 'Vascular phenotyping'],
 		audience: 'Relevant to collaborators in cardiovascular and neuromuscular disease.',
-		accent: '#7a8792',
+		accent: '#00C064',
 		icon: 'vessel',
 		figure: '/figures/projects/muscle-vessels.jpg',
 		figureAlt:
@@ -105,7 +105,7 @@ const PRESENTATION: Record<string, ProjectPresentation> = {
 		domains: ['Endothelial biology', 'Clinical physiology', 'Collaborative studies'],
 		methods: ['Translational collaborations', 'Tissue and clinical datasets'],
 		audience: 'For visitors exploring adjacent collaborative programs.',
-		accent: '#5a6d7a',
+		accent: '#00C064',
 		icon: 'network',
 		figure: '/figures/projects/collaborations.jpg',
 		figureAlt:
@@ -114,7 +114,7 @@ const PRESENTATION: Record<string, ProjectPresentation> = {
 	},
 };
 
-const FALLBACK_ACCENT = '#4a6274';
+const FALLBACK_ACCENT = '#00C064';
 
 /**
  * Returns presentation metadata for a synced project, with safe fallbacks.
