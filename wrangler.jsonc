@@ -6,10 +6,15 @@
 	"observability": {
 		"enabled": true
 	},
+	"vars": {
+		// On/off switch for the public site. "false" = Coming soon page.
+		// Set to "true" and run `npm run deploy` to put the lab site live.
+		"SITE_LIVE": "false"
+	},
 	"assets": {
 		"directory": "./dist",
 		"binding": "ASSETS",
-		"run_worker_first": ["/api/*"]
+		"run_worker_first": true
 	},
 	// Keep destination_address in sync with site.joinInbox in src/lib/site.ts.
 	"send_email": [

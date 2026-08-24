@@ -358,14 +358,81 @@ async function handleJoinRequest(request: Request, env: Env): Promise<Response> 
 	return jsonResponse(200, { ok: true, attachmentsOmitted: omitted });
 }
 
+/**
+ * Returns whether the public site should be served.
+ * Set `SITE_LIVE` to `"true"` in wrangler.jsonc (then deploy) to go live.
+ * @param env - Worker bindings
+ */
+function isSiteLive(env: Env): boolean {
+	const flag = (env as Env & { SITE_LIVE?: string }).SITE_LIVE;
+	return flag === 'true' || flag === '1';
+}
+
+/**
+ * Builds a holding page shown when SITE_LIVE is off.
+ * @param french - Whether to use French copy
+ */
+function comingSoonHtml(french: boolean): string {
+	const title = french ? 'Bientôt disponible' : 'Coming soon';
+	const body = french
+		? 'Le site du Milad Lab sera bientôt en ligne.'
+		: 'The Milad Lab website will be available soon.';
+	return `<!doctype html>
+<html lang="${french ? 'fr' : 'en'}">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="robots" content="noindex" />
+	<title>${site.labName} · ${title}</title>
+	<style>
+		:root { color-scheme: light; }
+		body {
+			margin: 0;
+			min-height: 100vh;
+			display: grid;
+			place-items: center;
+			font-family: "Source Sans 3", "Segoe UI", sans-serif;
+			background: #fff;
+			color: #111;
+		}
+		main { text-align: center; padding: 2rem; }
+		p { margin: 0.35rem 0 0; color: #5c5c5c; }
+		.lab { margin: 0; font-weight: 800; letter-spacing: 0.04em; }
+		.soon { margin: 0.75rem 0 0; color: #00c064; font-weight: 700; }
+	</style>
+</head>
+<body>
+	<main>
+		<p class="lab">${site.labName}</p>
+		<p class="soon">${title}</p>
+		<p>${body}</p>
+	</main>
+</body>
+</html>`;
+}
+
 export default {
 	/**
-	 * Routes join-form POSTs to email and lets static assets handle the site.
+	 * Serves a Coming soon page when SITE_LIVE is off; otherwise routes
+	 * join-form POSTs to email and lets static assets handle the site.
 	 * @param request - Incoming request
 	 * @param env - Worker bindings
 	 */
 	async fetch(request: Request, env: Env): Promise<Response> {
 		const url = new URL(request.url);
+		if (!isSiteLive(env)) {
+			if (url.pathname === site.joinApiPath) {
+				return jsonResponse(503, { ok: false, error: 'unavailable' });
+			}
+			const french = url.pathname === '/fr' || url.pathname.startsWith('/fr/');
+			return new Response(comingSoonHtml(french), {
+				status: 200,
+				headers: {
+					'content-type': 'text/html; charset=utf-8',
+					'cache-control': 'no-store',
+				},
+			});
+		}
 		if (url.pathname === site.joinApiPath) {
 			return handleJoinRequest(request, env);
 		}
