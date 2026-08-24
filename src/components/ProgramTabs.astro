@@ -13,9 +13,11 @@ interface Props {
 	projects: Project[];
 	/** Initially selected project id; defaults to the first project. */
 	initialId?: string;
+	/** Accessible name for the tab list. */
+	listLabel?: string;
 }
 
-const { projects, initialId } = Astro.props;
+const { projects, initialId, listLabel = 'Research programs' } = Astro.props;
 const selectedId = initialId && projects.some((p) => p.id === initialId)
 	? initialId
 	: projects[0]?.id;
@@ -27,7 +29,7 @@ const selectedId = initialId && projects.some((p) => p.id === initialId)
 			<div
 				class="program-tabs__list"
 				role="tablist"
-				aria-label="Active research programs"
+				aria-label={listLabel}
 			>
 				{projects.map((project) => {
 					const presentation = getProjectPresentation(project);

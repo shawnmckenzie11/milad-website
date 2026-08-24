@@ -92,29 +92,32 @@ const isFigureLed = variant === 'primary';
 
 		{presentation.audience ? <p class="program__audience">{presentation.audience}</p> : null}
 
-		{
-			flagship ? (
-				<div class="program__evidence">
-					<p class="program__evidence-heading">
-						<span>Evidence snapshot</span>
-						{moreCount > 0 ? (
-							<span class="program__evidence-count">+{moreCount} related</span>
-						) : null}
-					</p>
-					<ol class="program__papers">
-						{related.slice(0, 3).map((paper) => (
-							<li>
-								{paper.year ? <span class="program__year">{paper.year}</span> : null}
-								<span class="program__paper-title">{paper.title}</span>
-							</li>
-						))}
-					</ol>
-					<p class="program__pubs-link">
-						<a href="/publications">Browse full publication list</a>
-					</p>
-				</div>
-			) : null
-		}
+		<div class="program__evidence">
+			{
+				flagship ? (
+					<>
+						<p class="program__evidence-heading">
+							<span>Evidence snapshot</span>
+							{moreCount > 0 ? (
+								<span class="program__evidence-count">+{moreCount} related</span>
+							) : null}
+						</p>
+						<ol class="program__papers">
+							{related.slice(0, 3).map((paper) => (
+								<li>
+									{paper.year ? <span class="program__year">{paper.year}</span> : null}
+									<span class="program__paper-title">{paper.title}</span>
+								</li>
+							))}
+						</ol>
+					</>
+				) : null
+			}
+			<p class="program__pubs-link">
+				<a href="/publications">Browse full publication list</a>
+				<a href="/join">Interested in this project? Join Us!</a>
+			</p>
+		</div>
 	</div>
 </article>
 
@@ -312,6 +315,10 @@ const isFigureLed = variant === 'primary';
 
 	.program__pubs-link {
 		margin: 0.7rem 0 0;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 0.45rem 1.15rem;
 		font-size: 0.9rem;
 	}
 

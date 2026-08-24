@@ -1,32 +1,33 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import ProjectCard from '../components/ProjectCard.astro';
+import CurrentProjectCard from '../components/CurrentProjectCard.astro';
 import ProgramTabs from '../components/ProgramTabs.astro';
 import LungHealthVisual from '../components/LungHealthVisual';
 import { lungHealthTabProjectIds } from '../data/lungHealthVisual';
+import { getCurrentProjects } from '../data/currentProjects';
 import { getProjects } from '../lib/research';
 import { getProjectPresentation } from '../lib/projectPresentation';
 import { site } from '../lib/site';
 
 const projects = getProjects();
-const active = projects.filter((project) => project.status === 'active' && project.id !== 'other-recent');
-const adjacent = projects.filter((project) => project.id === 'other-recent');
-const completed = projects.filter((project) => project.status === 'completed');
+const currentProjects = getCurrentProjects();
+const previous = [...projects].sort((a, b) => a.order - b.order);
+const tabProjectIdSet = new Set<string>(lungHealthTabProjectIds);
+const previousAdjacent = previous.filter((project) => !tabProjectIdSet.has(project.id));
 
-/** Pathway-linked programs in tab order for the visualization section. */
+/** Pathway-linked previous programs in tab order for the visualization section. */
 const tabProjects = lungHealthTabProjectIds
-	.map((id) => active.find((project) => project.id === id))
+	.map((id) => previous.find((project) => project.id === id))
 	.filter((project): project is NonNullable<typeof project> => Boolean(project));
 
 const methodSet = [
-	...new Set(
-		[...active, ...completed].flatMap((project) => getProjectPresentation(project).methods),
-	),
+	...new Set(previous.flatMap((project) => getProjectPresentation(project).methods)),
 ].slice(0, 8);
 ---
 
 <BaseLayout
-	title="Current Projects"
+	title="Projects"
 	description={`Research programs led by ${site.name} — for prospective trainees and collaborators in biology and health sciences.`}
 >
 	<section
@@ -37,13 +38,45 @@ const methodSet = [
 		<LungHealthVisual client:load />
 	</section>
 
-	<section id="active-programs" class="section fade-in" aria-label="Active programs">
+	<section id="current-projects" class="section fade-in" aria-labelledby="current-projects-heading">
+		<div class="section__intro">
+			<h2 id="current-projects-heading">Current Projects</h2>
+			<p>
+				Ongoing programs in the lab examining cannabis exposure, delivery, aging, and immune
+				modulation.
+			</p>
+		</div>
+		<div class="program-grid program-grid--compact">
+			{
+				currentProjects.map((project) => (
+					<div class="program-grid__item">
+						<CurrentProjectCard project={project} />
+					</div>
+				))
+			}
+		</div>
+	</section>
+
+	<section id="previous-projects" class="section fade-in" aria-labelledby="previous-projects-heading">
+		<div class="section__intro">
+			<h2 id="previous-projects-heading">Previous Projects</h2>
+			<p>Earlier and collaborative programs that inform current directions.</p>
+		</div>
 		{
-			tabProjects.length === 0 ? (
-				<p>Active programs will appear here as the research portfolio develops.</p>
-			) : (
-				<ProgramTabs projects={tabProjects} />
-			)
+			tabProjects.length > 0 ? (
+				<ProgramTabs projects={tabProjects} listLabel="Previous research programs" />
+			) : null
+		}
+		{
+			previousAdjacent.length > 0 ? (
+				<div class="program-grid program-grid--compact previous-adjacent">
+					{previousAdjacent.map((project) => (
+						<div class="program-grid__item">
+							<ProjectCard project={project} variant="secondary" />
+						</div>
+					))}
+				</div>
+			) : null
 		}
 	</section>
 
@@ -66,24 +99,6 @@ const methodSet = [
 		) : null
 	}
 
-	{
-		completed.length > 0 || adjacent.length > 0 ? (
-			<section class="section fade-in-delay" aria-labelledby="interdisciplinary-heading">
-				<div class="section__intro">
-					<h2 id="interdisciplinary-heading">Interdisciplinary Work</h2>
-					<p>Completed programs and collaborative threads that inform current directions.</p>
-				</div>
-				<div class="program-grid program-grid--compact">
-					{[...completed, ...adjacent].map((project) => (
-						<div class="program-grid__item">
-							<ProjectCard project={project} variant="secondary" />
-						</div>
-					))}
-				</div>
-			</section>
-		) : null
-	}
-
 	<section id="engage" class="section section--engage fade-in-delay" aria-labelledby="engage-heading">
 		<div class="section__intro">
 			<h2 id="engage-heading">Join or collaborate</h2>
@@ -94,10 +109,10 @@ const methodSet = [
 			<div class="engage-panel">
 				<h3>Prospective students</h3>
 				<p>
-					If your interests align with an active program above — especially inhaled exposures, lung
+					If your interests align with a program above — especially inhaled exposures, lung
 					immunity, or epithelial methods — start with a short note of interest.
 				</p>
-				<a class="btn btn-primary" href="/join">How to join the lab</a>
+				<a class="btn btn-primary" href="/join">Work with us</a>
 			</div>
 			<div class="engage-panel">
 				<h3>Scientists &amp; collaborators</h3>
@@ -166,6 +181,10 @@ const methodSet = [
 	.program-grid__item {
 		animation: fade-up 700ms var(--ease-out) both;
 		animation-delay: var(--delay, 0ms);
+	}
+
+	.previous-adjacent {
+		margin-top: var(--space-lg);
 	}
 
 	.approach-list {
