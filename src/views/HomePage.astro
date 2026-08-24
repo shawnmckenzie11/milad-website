@@ -107,15 +107,14 @@ const t = useTranslations(locale);
 		width: 100vw;
 		max-width: 100vw;
 		margin-inline: calc(50% - 50vw);
-		/* Cancel .site-main top padding without tucking under the sticky nav. */
+		/* Cancel .site-main top padding so the banner sits flush under the nav. */
 		margin-top: calc(-1 * var(--space-xl));
 		min-height: calc(100svh - 6.5rem);
 		display: flex;
 		flex-direction: column;
 		justify-content: flex-start;
 		align-items: center;
-		/* White inset so the Peace Tower flag is not flush with the header. */
-		padding: 2.25rem 0 var(--space-lg);
+		padding: 0 0 var(--space-lg);
 		background-color: #ffffff;
 		overflow: visible;
 	}
@@ -254,7 +253,7 @@ const t = useTranslations(locale);
 
 		.hero {
 			min-height: calc(100svh - 8.5rem);
-			padding-top: 2rem;
+			padding-top: 0;
 		}
 
 		.hero__marks {
