@@ -17,22 +17,6 @@ const t = useTranslations(locale);
 				height="409"
 			/>
 		</div>
-		<div class="hero__marks">
-			<img
-				class="hero__lung"
-				src={site.lungLogo}
-				alt={t.home.lungAlt}
-				width="888"
-				height="790"
-			/>
-			<img
-				class="hero__wordmark"
-				src={site.logo}
-				alt={t.home.wordmarkAlt}
-				width="1024"
-				height="290"
-			/>
-		</div>
 	</section>
 
 	<section class="home-bio" aria-labelledby="home-bio-heading" data-scroll-fade>
@@ -109,12 +93,11 @@ const t = useTranslations(locale);
 		margin-inline: calc(50% - 50vw);
 		/* Cancel .site-main top padding so the banner sits flush under the nav. */
 		margin-top: calc(-1 * var(--space-xl));
-		min-height: calc(100svh - 6.5rem);
 		display: flex;
 		flex-direction: column;
 		justify-content: flex-start;
 		align-items: center;
-		padding: 0 0 var(--space-lg);
+		padding: 0;
 		background-color: #ffffff;
 		overflow: visible;
 	}
@@ -133,35 +116,6 @@ const t = useTranslations(locale);
 		/* Contain the full panorama so Parliament spires are not cropped. */
 		object-fit: contain;
 		object-position: center top;
-	}
-
-	.hero__marks {
-		display: flex;
-		flex-direction: row;
-		flex-wrap: nowrap;
-		align-items: center;
-		justify-content: center;
-		gap: clamp(1.25rem, 4vw, 3rem);
-		width: min(100% - 2rem, var(--max-width-wide));
-		margin-top: var(--space-md);
-		background: transparent;
-		flex: 0 0 auto;
-	}
-
-	.hero__lung,
-	.hero__wordmark {
-		height: var(--hero-logo-height);
-		width: auto;
-		object-fit: contain;
-		background: transparent;
-	}
-
-	.hero__lung {
-		flex: 0 0 auto;
-	}
-
-	.hero__wordmark {
-		flex: 0 1 auto;
 	}
 
 	.home-bio {
@@ -252,19 +206,7 @@ const t = useTranslations(locale);
 		}
 
 		.hero {
-			min-height: calc(100svh - 8.5rem);
 			padding-top: 0;
-		}
-
-		.hero__marks {
-			flex-direction: column;
-			justify-content: flex-start;
-			gap: 1rem;
-		}
-
-		.hero__lung,
-		.hero__wordmark {
-			max-width: min(100%, 22rem);
 		}
 	}
 
