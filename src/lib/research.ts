@@ -57,9 +57,9 @@ export function getFeaturedPublications(): Publication[] {
 }
 
 /**
- * Main-author titles for the public Publications tab.
- * Matched against synced records; do not invent metadata for missing titles.
- * Display order on /publications is newest-year-first via getMainAuthorPublications.
+ * Main-author titles for the public Publications tab, in the order they
+ * should appear on /publications. Matched against synced records; do not
+ * invent metadata for missing titles.
  */
 export const MAIN_AUTHOR_PUBLICATION_TITLES = [
 	'Revisiting the role of pulmonary surfactant in chronic inflammatory lung diseases and environmental exposure',
@@ -95,21 +95,18 @@ export function sortPublicationsNewestFirst(publications: Publication[]): Public
 }
 
 /**
- * Returns curated main-author publications, newest year first.
- * Titles with no match in the synced dataset are omitted; same-year
- * items keep their curated-list order.
+ * Returns curated main-author publications in MAIN_AUTHOR_PUBLICATION_TITLES
+ * order. Titles with no match in the synced dataset are omitted.
  */
 export function getMainAuthorPublications(): Publication[] {
 	const byTitle = new Map(
 		getPublications().map((pub) => [normalizePublicationTitle(pub.title), pub]),
 	);
 
-	const matched = MAIN_AUTHOR_PUBLICATION_TITLES.flatMap((title) => {
+	return MAIN_AUTHOR_PUBLICATION_TITLES.flatMap((title) => {
 		const match = byTitle.get(normalizePublicationTitle(title));
 		return match ? [match] : [];
 	});
-
-	return sortPublicationsNewestFirst(matched);
 }
 
 /**

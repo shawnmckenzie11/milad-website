@@ -27,9 +27,9 @@ export const site = {
 	lungLogo: '/images/lung-logo.jpg',
 	/** Portrait shown beside the homepage biography. */
 	headshot: '/images/nadia-milad-headshot.jpg',
-	/** MILAB wordmark used in the site header and homepage hero. */
+	/** MILAB wordmark asset, retained for a later nav/homepage restore. */
 	logo: '/images/milad-lab-logo.png',
-	/** Ottawa skyline banner used as the homepage hero backdrop. */
+	/** Ottawa skyline asset, retained for a later homepage restore. */
 	ottawaBanner: '/images/ottawa-skyline.jpg',
 	researchGate: {
 		label: 'ResearchGate',

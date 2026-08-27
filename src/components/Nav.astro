@@ -1,7 +1,6 @@
 ---
 import LanguageSwitcher from './LanguageSwitcher.astro';
 import { localizePath, resolveLocale, stripLocalePrefix, useTranslations } from '../i18n';
-import { site } from '../lib/site';
 
 const locale = resolveLocale(Astro.currentLocale);
 const t = useTranslations(locale);
@@ -50,13 +49,7 @@ const navMenuId = 'site-primary-nav';
 			</span>
 		</button>
 		<a class="site-nav__brand" href={localizePath(locale, '/')} aria-label={t.nav.brandAria}>
-			<img
-				class="site-nav__logo"
-				src={site.logo}
-				alt={t.site.labName}
-				width="320"
-				height="91"
-			/>
+			{t.site.labName}
 		</a>
 		<nav class="site-nav__links" id={navMenuId} aria-label={t.nav.primaryAria} data-nav-menu>
 			{
@@ -279,15 +272,16 @@ const navMenuId = 'site-primary-nav';
 		align-items: center;
 		text-decoration: none;
 		flex: 0 0 auto;
-		max-width: 6.25rem;
+		font-family: var(--font-display);
+		font-size: 0.82rem;
+		font-weight: 800;
+		letter-spacing: 0.04em;
+		color: var(--color-ink);
+		white-space: nowrap;
 	}
 
-	.site-nav__logo {
-		width: 100%;
-		height: auto;
-		max-height: 1.8rem;
-		object-fit: contain;
-		object-position: left center;
+	.site-nav__brand:hover {
+		color: var(--color-accent);
 	}
 
 	.site-nav__links {
@@ -415,11 +409,7 @@ const navMenuId = 'site-primary-nav';
 		}
 
 		.site-nav__brand {
-			max-width: 14rem;
-		}
-
-		.site-nav__logo {
-			max-height: 3.1rem;
+			font-size: 0.95rem;
 		}
 
 		.site-nav__links {
