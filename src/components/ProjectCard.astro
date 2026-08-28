@@ -4,7 +4,6 @@ import { getProjectDisplayTitle, getProjectPresentation, parseRelatedPublication
 import {
 	localizePath,
 	resolveLocale,
-	translateProjectStatus,
 	useTranslations,
 } from '../i18n';
 import ProjectIcon from './ProjectIcon.astro';
@@ -76,18 +75,6 @@ const lightboxId = `figure-lightbox-${project.id}`;
 
 	<div class="program__body">
 		<header class="program__header">
-			<p class="program__meta">
-				<span class:list={['status-dot', `status-dot--${project.status}`]} aria-hidden="true" />
-				<span class="program__status">{translateProjectStatus(project.status, locale)}</span>
-				{
-					project.startYear ? (
-						<>
-							<span aria-hidden="true">·</span>
-							<span>{project.startYear}–</span>
-						</>
-					) : null
-				}
-			</p>
 			<div class="program__title-row">
 				<span class="program__icon" aria-hidden="true">
 					<ProjectIcon name={presentation.icon} size={22} />
@@ -232,37 +219,6 @@ const lightboxId = `figure-lightbox-${project.id}`;
 	.program__header {
 		display: grid;
 		gap: 0.45rem;
-	}
-
-	.program__meta {
-		margin: 0;
-		display: inline-flex;
-		align-items: center;
-		gap: 0.4rem;
-		font-size: 0.82rem;
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		color: var(--color-muted);
-	}
-
-	.program__status {
-		text-transform: uppercase;
-	}
-
-	.status-dot {
-		width: 0.45rem;
-		height: 0.45rem;
-		border-radius: 50%;
-		background: var(--color-muted);
-	}
-
-	.status-dot--active {
-		background: var(--program-accent);
-	}
-
-	.status-dot--completed {
-		background: var(--color-ink-soft);
 	}
 
 	.program__title-row {
