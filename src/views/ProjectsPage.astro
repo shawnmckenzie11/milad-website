@@ -2,11 +2,9 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import ProjectCard from '../components/ProjectCard.astro';
 import CurrentProjectCard from '../components/CurrentProjectCard.astro';
-import ProgramTabs from '../components/ProgramTabs.astro';
-import { lungHealthTabProjectIds } from '../data/lungHealthVisual';
 import { getCurrentProjects } from '../data/currentProjects';
 import { getProjects } from '../lib/research';
-import { getProjectPresentation } from '../lib/projectPresentation';
+import { getProjectPresentation, PREVIOUS_PROJECT_IDS } from '../lib/projectPresentation';
 import { site } from '../lib/site';
 import {
 	getLocalizedCurrentProjects,
@@ -19,17 +17,13 @@ const locale = resolveLocale(Astro.currentLocale);
 const t = useTranslations(locale);
 const projects = getProjects();
 const currentProjects = getLocalizedCurrentProjects(getCurrentProjects(), locale);
-const previous = [...projects].sort((a, b) => a.order - b.order);
-const tabProjectIdSet = new Set<string>(lungHealthTabProjectIds);
-const previousAdjacent = previous.filter((project) => !tabProjectIdSet.has(project.id));
-
-/** Previous programs shown in the tabbed list, in established program order. */
-const tabProjects = lungHealthTabProjectIds
-	.map((id) => previous.find((project) => project.id === id))
-	.filter((project): project is NonNullable<typeof project> => Boolean(project));
+const projectsById = new Map(projects.map((project) => [project.id, project]));
+const previousProjects = PREVIOUS_PROJECT_IDS.map((id) => projectsById.get(id)).filter(
+	(project): project is NonNullable<typeof project> => Boolean(project),
+);
 
 const methodSet = [
-	...new Set(previous.flatMap((project) => getProjectPresentation(project, locale).methods)),
+	...new Set(previousProjects.flatMap((project) => getProjectPresentation(project, locale).methods)),
 ].slice(0, 8);
 
 const description = t.projects.metaDescription.replace('{name}', t.site.name);
@@ -58,17 +52,13 @@ const description = t.projects.metaDescription.replace('{name}', t.site.name);
 			<p>{t.projects.previousIntro}</p>
 		</div>
 		{
-			tabProjects.length > 0 ? (
-				<ProgramTabs projects={tabProjects} listLabel={t.projects.previousTabsLabel} />
-			) : null
-		}
-		{
-			previousAdjacent.length > 0 ? (
-				<div class="program-grid program-grid--compact previous-adjacent">
-					{previousAdjacent.map((project) => (
-						<div class="program-grid__item">
-							<ProjectCard project={project} variant="secondary" />
-						</div>
+			previousProjects.length > 0 ? (
+				<div class="previous-list">
+					{previousProjects.map((project, index) => (
+						<ProjectCard
+							project={project}
+							figureSide={index % 2 === 0 ? 'left' : 'right'}
+						/>
 					))}
 				</div>
 			) : null
@@ -159,8 +149,9 @@ const description = t.projects.metaDescription.replace('{name}', t.site.name);
 		animation-delay: var(--delay, 0ms);
 	}
 
-	.previous-adjacent {
-		margin-top: var(--space-lg);
+	.previous-list {
+		display: grid;
+		gap: 0;
 	}
 
 	.approach-list {

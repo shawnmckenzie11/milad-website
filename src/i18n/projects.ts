@@ -99,7 +99,7 @@ const PROJECT_TEXT: Record<string, Record<Locale, ProjectText>> = {
 			methods: ['Murine infection models', 'Longitudinal cohorts'],
 			audience: 'Strong fit for trainees in mucosal immunology and cannabis toxicology.',
 			figureAlt:
-				'Multi-panel figure showing cannabis smoke suppressing antiviral immune mediators after influenza A infection in mice.',
+				'Heatmap and gene-ontology plot showing cannabis smoke suppressing influenza A–associated immune pathway upregulation in mouse lungs.',
 			figureCaption: 'From Milad et al., ERJ Open Research, 2023.',
 		},
 		fr: {
@@ -114,7 +114,7 @@ const PROJECT_TEXT: Record<string, Record<Locale, ProjectText>> = {
 			audience:
 				'Tout indiqué pour les stagiaires en immunologie muqueuse et en toxicologie du cannabis.',
 			figureAlt:
-				"Figure en plusieurs volets montrant que la fumée de cannabis supprime des médiateurs immunitaires antiviraux après une infection par le virus de l'influenza A chez la souris.",
+				"Carte de chaleur et analyse d'ontologie génique montrant que la fumée de cannabis supprime l'induction des voies immunitaires associée à l'influenza A dans le poumon de souris.",
 			figureCaption: 'Tirée de Milad et coll., ERJ Open Research, 2023.',
 		},
 	},
@@ -129,8 +129,8 @@ const PROJECT_TEXT: Record<string, Record<Locale, ProjectText>> = {
 			methods: ['Aerosol exposures', 'Pulmonary immunology', 'Metabolic readouts'],
 			audience: 'Ideal for students interested in exposure science and innate immunity.',
 			figureAlt:
-				'Figure summarizing sex-dependent hepatic triglyceride and phosphatidylcholine changes after glycerol e-cigarette aerosol exposure.',
-			figureCaption: 'From Lechasseur, Milad, et al., Physiological Reports, 2022.',
+				'TUNEL microscopy and viability assays comparing cannabidiol formulations in normal and fibrotic precision-cut lung slices.',
+			figureCaption: 'From Milad et al., Toxicol and Appl Pharmacol, unpublished.',
 		},
 		fr: {
 			title: 'Chimie des produits de vapotage et immunité des voies aériennes',
@@ -144,8 +144,8 @@ const PROJECT_TEXT: Record<string, Record<Locale, ProjectText>> = {
 			audience:
 				"Idéal pour les étudiantes et étudiants intéressés par la science des expositions et l'immunité innée.",
 			figureAlt:
-				"Figure résumant les changements hépatiques, dépendants du sexe, des triglycérides et des phosphatidylcholines après exposition à un aérosol de cigarette électronique au glycérol.",
-			figureCaption: 'Tirée de Lechasseur, Milad, et coll., Physiological Reports, 2022.',
+				"Microscopie TUNEL et dosages de viabilité comparant des formulations de cannabidiol dans des coupes de poumon de précision normales et fibrotiques.",
+			figureCaption: 'Tirée de Milad et coll., Toxicol and Appl Pharmacol, non publié.',
 		},
 	},
 	'smoke-lung-inflammation': {
@@ -159,8 +159,8 @@ const PROJECT_TEXT: Record<string, Record<Locale, ProjectText>> = {
 			methods: ['Preclinical smoke models', 'Tissue transcriptomics', 'Immune phenotyping'],
 			audience: 'Suited to trainees in lung immunology, COPD biology, and host defense.',
 			figureAlt:
-				'Summary schematic of anti-IL-1α treatment effects on neutrophils and alveolar macrophages during smoking versus cessation.',
-			figureCaption: 'From Milad et al., Frontiers in Pharmacology, 2022.',
+				'Schematic of IL-1α signaling among alveolar macrophages, epithelial cells, and neutrophils maintaining surfactant after cigarette smoke exposure.',
+			figureCaption: 'From Milad et al., J Immunol, 2021.',
 		},
 		fr: {
 			title: 'Fumée de cigarette, inflammation et homéostasie pulmonaire',
@@ -178,8 +178,8 @@ const PROJECT_TEXT: Record<string, Record<Locale, ProjectText>> = {
 			audience:
 				"Adapté aux stagiaires en immunologie pulmonaire, en biologie de la MPOC et en défense de l'hôte.",
 			figureAlt:
-				"Schéma récapitulatif des effets d'un traitement anti-IL-1α sur les neutrophiles et les macrophages alvéolaires pendant le tabagisme par rapport au sevrage.",
-			figureCaption: 'Tirée de Milad et coll., Frontiers in Pharmacology, 2022.',
+				"Schéma de la signalisation IL-1α entre macrophages alvéolaires, cellules épithéliales et neutrophiles maintenant le surfactant après exposition à la fumée de cigarette.",
+			figureCaption: 'Tirée de Milad et coll., J Immunol, 2021.',
 		},
 	},
 	'airway-methods': {
@@ -221,20 +221,20 @@ const PROJECT_TEXT: Record<string, Record<Locale, ProjectText>> = {
 			title: 'Neuromuscular and vascular disease models',
 			summary:
 				'Collaborative work on muscular dystrophy, Marfan-related vascular remodeling, and related metabolic or pharmacological interventions.',
-			shortLabel: 'Muscle & vessels',
+			shortLabel: 'Neuromuscular and vascular disease model',
 			question: 'How do metabolic and vascular pathways modify Marfan and muscular dystrophy phenotypes?',
 			domains: ['Marfan aortopathy', 'Muscular dystrophy', 'Lipid metabolism'],
 			methods: ['Genetic mouse models', 'Pharmacology', 'Vascular phenotyping'],
 			audience: 'Relevant to collaborators in cardiovascular and neuromuscular disease.',
 			figureAlt:
-				'Figure showing telmisartan attenuating Marfan-associated aortic wall remodeling and p-ERK signaling in mice.',
-			figureCaption: 'From Tehrani, Milad, et al., Scientific Reports, 2022.',
+				'Masson’s trichrome histology and composition graphs of gastrocnemius muscle in wild-type, ApoE, mdx, and mdx-ApoE mice on chow versus Western diets.',
+			figureCaption: 'From Milad et al., Skeletal Muscle, 2017.',
 		},
 		fr: {
 			title: 'Modèles de maladies neuromusculaires et vasculaires',
 			summary:
 				'Travaux collaboratifs sur la dystrophie musculaire, le remodelage vasculaire lié au syndrome de Marfan, et des interventions métaboliques ou pharmacologiques connexes.',
-			shortLabel: 'Muscle et vaisseaux',
+			shortLabel: 'Modèle de maladie neuromusculaire et vasculaire',
 			question:
 				'Comment les voies métaboliques et vasculaires modifient-elles les phénotypes du syndrome de Marfan et des dystrophies musculaires?',
 			domains: ['Aortopathie de Marfan', 'Dystrophie musculaire', 'Métabolisme lipidique'],
@@ -242,37 +242,37 @@ const PROJECT_TEXT: Record<string, Record<Locale, ProjectText>> = {
 			audience:
 				'Pertinent pour les collaborateurs en maladies cardiovasculaires et neuromusculaires.',
 			figureAlt:
-				"Figure montrant que le telmisartan atténue le remodelage de la paroi aortique associé au syndrome de Marfan et la signalisation p-ERK chez la souris.",
-			figureCaption: 'Tirée de Tehrani, Milad, et coll., Scientific Reports, 2022.',
+				"Histologie au trichrome de Masson et graphiques de composition du muscle gastrocnémien chez des souris de type sauvage, ApoE, mdx et mdx-ApoE sous régime standard ou occidental.",
+			figureCaption: 'Tirée de Milad et coll., Skeletal Muscle, 2017.',
 		},
 	},
 	'other-recent': {
 		en: {
 			title: 'Collaborative respiratory research',
 			summary: 'Collaborative studies in respiratory physiology and related clinical research.',
-			shortLabel: 'Collaborations',
+			shortLabel: 'Collaborative respiratory research',
 			question:
 				'Where do endothelial repair programs and clinical respiratory studies intersect the lab’s work?',
 			domains: ['Endothelial biology', 'Clinical physiology', 'Collaborative studies'],
 			methods: ['Translational collaborations', 'Tissue and clinical datasets'],
 			audience: 'For visitors exploring adjacent collaborative programs.',
 			figureAlt:
-				'Figure characterizing CD146⁺ endothelial and pericyte populations in rheumatoid arthritis pannus tissue.',
-			figureCaption: 'From Miura, Milad, et al., Research Square preprint, 2026.',
+				'Western blot, immunofluorescence, and quantification of γH2AX and Lamin B1 in bleomycin-treated precision-cut lung slices from normal and iUIP tissue.',
+			figureCaption: 'Miura, Milad, et al., Aging, 2025.',
 		},
 		fr: {
 			title: 'Recherche respiratoire collaborative',
 			summary:
 				'Études collaboratives en physiologie respiratoire et en recherche clinique connexe.',
-			shortLabel: 'Collaborations',
+			shortLabel: 'Recherche respiratoire collaborative',
 			question:
 				'Où les programmes de réparation endothéliale et les études cliniques en physiologie respiratoire rejoignent-ils les travaux du laboratoire?',
 			domains: ['Biologie endothéliale', 'Physiologie clinique', 'Études collaboratives'],
 			methods: ['Collaborations translationnelles', 'Jeux de données tissulaires et cliniques'],
 			audience: 'Pour les visiteurs qui explorent des programmes collaboratifs connexes.',
 			figureAlt:
-				'Figure caractérisant des populations endothéliales et péricytaires CD146⁺ dans le tissu de pannus de la polyarthrite rhumatoïde.',
-			figureCaption: 'Tirée de Miura, Milad, et coll., prépublication Research Square, 2026.',
+				"Immunobuvardage, immunofluorescence et quantification de γH2AX et de la lamine B1 dans des coupes de poumon de précision traitées à la bléomycine, à partir de tissus normaux et d'iUIP.",
+			figureCaption: 'Miura, Milad, et coll., Aging, 2025.',
 		},
 	},
 };

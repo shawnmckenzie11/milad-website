@@ -59,7 +59,6 @@ export const en = {
 			'Ongoing programs in the lab examining cannabis exposure, delivery, aging, and immune modulation.',
 		previousHeading: 'Previous Projects',
 		previousIntro: 'Earlier and collaborative programs that inform current directions.',
-		previousTabsLabel: 'Previous research programs',
 		programsLabel: 'Research programs',
 		approachesHeading: 'Approaches in the lab',
 		approachesIntro:
@@ -206,7 +205,6 @@ export const fr: typeof en = {
 			"Programmes en cours au laboratoire portant sur l'exposition au cannabis, les modes d'administration, le vieillissement et la modulation immunitaire.",
 		previousHeading: 'Projets antérieurs',
 		previousIntro: 'Programmes antérieurs et menés en collaboration qui éclairent les orientations actuelles.',
-		previousTabsLabel: 'Programmes de recherche antérieurs',
 		programsLabel: 'Programmes de recherche',
 		approachesHeading: 'Approches au laboratoire',
 		approachesIntro:
