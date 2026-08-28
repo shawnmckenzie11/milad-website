@@ -26,6 +26,7 @@ const related = parseRelatedPublications(project.body);
 const flagship = related[0];
 const moreCount = Math.max(related.length - 1, 0);
 const isFigureLed = variant === 'primary';
+const lightboxId = `figure-lightbox-${project.id}`;
 ---
 
 <article
@@ -42,17 +43,36 @@ const isFigureLed = variant === 'primary';
 	style={`--program-accent: ${presentation.accent};`}
 >
 	<figure class="program__figure">
-		<img
-			class="program__img"
-			src={presentation.figure}
-			alt={presentation.figureAlt}
-			width="960"
-			height="720"
-			loading="lazy"
-			decoding="async"
-		/>
+		<button
+			type="button"
+			class="program__figure-trigger"
+			data-figure-lightbox-trigger
+			data-figure-src={presentation.figure}
+			data-figure-alt={presentation.figureAlt}
+			aria-controls={lightboxId}
+			aria-label={t.projects.viewFigure}
+		>
+			<img
+				class="program__img"
+				src={presentation.figure}
+				alt={presentation.figureAlt}
+				width="960"
+				height="720"
+				loading="lazy"
+				decoding="async"
+			/>
+		</button>
 		<figcaption>{presentation.figureCaption}</figcaption>
 	</figure>
+
+	<dialog id={lightboxId} class="figure-lightbox" aria-label={presentation.figureAlt}>
+		<button type="button" class="figure-lightbox__close" data-figure-lightbox-close>
+			{t.projects.closeLightbox}
+		</button>
+		<div class="figure-lightbox__stage">
+			<img class="figure-lightbox__img" data-figure-lightbox-image alt="" />
+		</div>
+	</dialog>
 
 	<div class="program__body">
 		<header class="program__header">
@@ -162,6 +182,22 @@ const isFigureLed = variant === 'primary';
 		position: relative;
 		margin: 0;
 		min-width: 0;
+	}
+
+	.program__figure-trigger {
+		display: block;
+		width: 100%;
+		margin: 0;
+		padding: 0;
+		border: 0;
+		background: none;
+		cursor: zoom-in;
+		text-align: inherit;
+	}
+
+	.program__figure-trigger:focus-visible {
+		outline: 2px solid var(--program-accent);
+		outline-offset: 3px;
 	}
 
 	.program__img {
@@ -359,4 +395,75 @@ const isFigureLed = variant === 'primary';
 		}
 	}
 
+	.figure-lightbox {
+		position: fixed;
+		inset: 0;
+		width: min(100vw, 100%);
+		height: 100vh;
+		height: 100dvh;
+		max-width: none;
+		max-height: none;
+		margin: 0;
+		padding: 0;
+		border: 0;
+		background: rgba(18, 22, 28, 0.92);
+		overflow: hidden;
+	}
+
+	.figure-lightbox::backdrop {
+		background: rgba(18, 22, 28, 0.92);
+	}
+
+	.figure-lightbox__close {
+		position: fixed;
+		top: 1rem;
+		right: 1rem;
+		z-index: 2;
+		padding: 0.55rem 1rem;
+		border: 1px solid rgba(255, 255, 255, 0.35);
+		border-radius: 999px;
+		background: rgba(18, 22, 28, 0.82);
+		color: #fff;
+		font: inherit;
+		font-size: 0.92rem;
+		font-weight: 600;
+		cursor: pointer;
+	}
+
+	.figure-lightbox__close:hover {
+		background: rgba(18, 22, 28, 0.95);
+	}
+
+	.figure-lightbox__close:focus-visible {
+		outline: 2px solid #fff;
+		outline-offset: 2px;
+	}
+
+	.figure-lightbox__stage {
+		display: grid;
+		place-items: center;
+		width: 100%;
+		height: 100%;
+		padding: 4.5rem 1.25rem 1.5rem;
+		box-sizing: border-box;
+	}
+
+	.figure-lightbox__img {
+		display: block;
+		max-width: min(100%, 72rem);
+		max-height: calc(100dvh - 6rem);
+		width: auto;
+		height: auto;
+		object-fit: contain;
+	}
 </style>
+
+<style is:global>
+	body.figure-lightbox-open {
+		overflow: hidden;
+	}
+</style>
+
+<script>
+	import '../scripts/figureLightbox.ts';
+</script>
