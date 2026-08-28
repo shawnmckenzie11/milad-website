@@ -35,6 +35,16 @@ export interface ProjectPresentation {
 	figureCaption: string;
 }
 
+/** Display order for the Previous Projects list on /projects. */
+export const PREVIOUS_PROJECT_IDS = [
+	'cannabis-respiratory-health',
+	'vaping-toxicology',
+	'smoke-lung-inflammation',
+	'airway-methods',
+	'other-recent',
+	'neuromuscular-vascular',
+] as const;
+
 const PRESENTATION: Record<string, ProjectPresentation> = {
 	'cannabis-respiratory-health': {
 		shortLabel: 'Cannabis & lung',
@@ -44,9 +54,9 @@ const PRESENTATION: Record<string, ProjectPresentation> = {
 		audience: 'Strong fit for trainees in mucosal immunology and cannabis toxicology.',
 		accent: '#00C064',
 		icon: 'lung',
-		figure: '/figures/projects/cannabis-lung.jpg',
+		figure: '/figures/projects/cannabis-lung.png',
 		figureAlt:
-			'Multi-panel figure showing cannabis smoke suppressing antiviral immune mediators after influenza A infection in mice.',
+			'Heatmap and gene-ontology plot showing cannabis smoke suppressing influenza A–associated immune pathway upregulation in mouse lungs.',
 		figureCaption: 'From Milad et al., ERJ Open Research, 2023.',
 	},
 	'vaping-toxicology': {
@@ -57,10 +67,10 @@ const PRESENTATION: Record<string, ProjectPresentation> = {
 		audience: 'Ideal for students interested in exposure science and innate immunity.',
 		accent: '#00C064',
 		icon: 'droplet',
-		figure: '/figures/projects/vaping-immunity.jpg',
+		figure: '/figures/projects/vaping-chemistry.png',
 		figureAlt:
-			'Figure summarizing sex-dependent hepatic triglyceride and phosphatidylcholine changes after glycerol e-cigarette aerosol exposure.',
-		figureCaption: 'From Lechasseur, Milad, et al., Physiological Reports, 2022.',
+			'TUNEL microscopy and viability assays comparing cannabidiol formulations in normal and fibrotic precision-cut lung slices.',
+		figureCaption: 'From Milad et al., Toxicol and Appl Pharmacol, unpublished.',
 	},
 	'smoke-lung-inflammation': {
 		shortLabel: 'Smoke & inflammation',
@@ -70,10 +80,10 @@ const PRESENTATION: Record<string, ProjectPresentation> = {
 		audience: 'Suited to trainees in lung immunology, COPD biology, and host defense.',
 		accent: '#00C064',
 		icon: 'alveolus',
-		figure: '/figures/projects/smoke-inflammation.jpg',
+		figure: '/figures/projects/smoke-inflammation.png',
 		figureAlt:
-			'Summary schematic of anti-IL-1α treatment effects on neutrophils and alveolar macrophages during smoking versus cessation.',
-		figureCaption: 'From Milad et al., Frontiers in Pharmacology, 2022.',
+			'Schematic of IL-1α signaling among alveolar macrophages, epithelial cells, and neutrophils maintaining surfactant after cigarette smoke exposure.',
+		figureCaption: 'From Milad et al., J Immunol, 2021.',
 	},
 	'airway-methods': {
 		shortLabel: 'Airway methods',
@@ -89,30 +99,30 @@ const PRESENTATION: Record<string, ProjectPresentation> = {
 		figureCaption: 'From Singer, Milad, et al., ERJ Open Research, 2025.',
 	},
 	'neuromuscular-vascular': {
-		shortLabel: 'Muscle & vessels',
+		shortLabel: 'Neuromuscular and vascular disease model',
 		question: 'How do metabolic and vascular pathways modify Marfan and muscular dystrophy phenotypes?',
 		domains: ['Marfan aortopathy', 'Muscular dystrophy', 'Lipid metabolism'],
 		methods: ['Genetic mouse models', 'Pharmacology', 'Vascular phenotyping'],
 		audience: 'Relevant to collaborators in cardiovascular and neuromuscular disease.',
 		accent: '#00C064',
 		icon: 'vessel',
-		figure: '/figures/projects/muscle-vessels.jpg',
+		figure: '/figures/projects/neuromuscular-vascular.png',
 		figureAlt:
-			'Figure showing telmisartan attenuating Marfan-associated aortic wall remodeling and p-ERK signaling in mice.',
-		figureCaption: 'From Tehrani, Milad, et al., Scientific Reports, 2022.',
+			'Masson’s trichrome histology and composition graphs of gastrocnemius muscle in wild-type, ApoE, mdx, and mdx-ApoE mice on chow versus Western diets.',
+		figureCaption: 'From Milad et al., Skeletal Muscle, 2017.',
 	},
 	'other-recent': {
-		shortLabel: 'Collaborations',
+		shortLabel: 'Collaborative respiratory research',
 		question: 'Where do endothelial repair programs and clinical respiratory studies intersect the lab’s work?',
 		domains: ['Endothelial biology', 'Clinical physiology', 'Collaborative studies'],
 		methods: ['Translational collaborations', 'Tissue and clinical datasets'],
 		audience: 'For visitors exploring adjacent collaborative programs.',
 		accent: '#00C064',
 		icon: 'network',
-		figure: '/figures/projects/collaborations.jpg',
+		figure: '/figures/projects/collaborative-respiratory.png',
 		figureAlt:
-			'Figure characterizing CD146⁺ endothelial and pericyte populations in rheumatoid arthritis pannus tissue.',
-		figureCaption: 'From Miura, Milad, et al., Research Square preprint, 2026.',
+			'Western blot, immunofluorescence, and quantification of γH2AX and Lamin B1 in bleomycin-treated precision-cut lung slices from normal and iUIP tissue.',
+		figureCaption: 'Miura, Milad, et al., Aging, 2025.',
 	},
 };
 
@@ -136,7 +146,7 @@ export function getProjectPresentation(
 			audience: '',
 			accent: FALLBACK_ACCENT,
 			icon: 'network' as const,
-			figure: '/figures/projects/collaborations.jpg',
+			figure: '/figures/projects/collaborative-respiratory.png',
 			figureAlt: `Research figure for ${project.title}.`,
 			figureCaption: project.title,
 		};
