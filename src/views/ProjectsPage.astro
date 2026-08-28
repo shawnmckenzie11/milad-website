@@ -4,7 +4,7 @@ import ProjectCard from '../components/ProjectCard.astro';
 import CurrentProjectCard from '../components/CurrentProjectCard.astro';
 import { getCurrentProjects } from '../data/currentProjects';
 import { getProjects } from '../lib/research';
-import { getProjectPresentation, PREVIOUS_PROJECT_IDS } from '../lib/projectPresentation';
+import { PREVIOUS_PROJECT_IDS } from '../lib/projectPresentation';
 import { site } from '../lib/site';
 import {
 	getLocalizedCurrentProjects,
@@ -22,16 +22,12 @@ const previousProjects = PREVIOUS_PROJECT_IDS.map((id) => projectsById.get(id)).
 	(project): project is NonNullable<typeof project> => Boolean(project),
 );
 
-const methodSet = [
-	...new Set(previousProjects.flatMap((project) => getProjectPresentation(project, locale).methods)),
-].slice(0, 8);
-
 const description = t.projects.metaDescription.replace('{name}', t.site.name);
 ---
 
 <BaseLayout title={t.projects.metaTitle} description={description}>
 	<section id="current-projects" class="section section--first fade-in" aria-labelledby="current-projects-heading">
-		<div class="section__intro">
+		<div class="section__intro section__intro--current">
 			<h2 id="current-projects-heading">{t.projects.currentHeading}</h2>
 			<p>{t.projects.currentIntro}</p>
 		</div>
@@ -64,22 +60,6 @@ const description = t.projects.metaDescription.replace('{name}', t.site.name);
 			) : null
 		}
 	</section>
-
-	{
-		methodSet.length > 0 ? (
-			<section id="approaches" class="section section--band fade-in-delay" aria-labelledby="approaches-heading">
-				<div class="section__intro">
-					<h2 id="approaches-heading">{t.projects.approachesHeading}</h2>
-					<p>{t.projects.approachesIntro}</p>
-				</div>
-				<ul class="approach-list">
-					{methodSet.map((method) => (
-						<li>{method}</li>
-					))}
-				</ul>
-			</section>
-		) : null
-	}
 
 	<section id="engage" class="section section--engage fade-in-delay" aria-labelledby="engage-heading">
 		<div class="section__intro">
@@ -129,13 +109,8 @@ const description = t.projects.metaDescription.replace('{name}', t.site.name);
 		margin: 0;
 	}
 
-	.section--band {
-		padding: var(--space-lg) 1.25rem;
-		margin-left: -0.25rem;
-		margin-right: -0.25rem;
-		background: rgba(255, 255, 255, 0.4);
-		border-top: 1px solid var(--color-line);
-		border-bottom: 1px solid var(--color-line);
+	.section__intro--current {
+		max-width: none;
 	}
 
 	.program-grid {
@@ -152,32 +127,6 @@ const description = t.projects.metaDescription.replace('{name}', t.site.name);
 	.previous-list {
 		display: grid;
 		gap: 0;
-	}
-
-	.approach-list {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-		display: grid;
-		grid-template-columns: 1fr;
-		gap: 0.55rem 2rem;
-	}
-
-	.approach-list li {
-		position: relative;
-		padding-left: 1rem;
-		color: var(--color-ink-soft);
-		font-size: 1rem;
-	}
-
-	.approach-list li::before {
-		content: '';
-		position: absolute;
-		left: 0;
-		top: 0.7em;
-		width: 0.4rem;
-		height: 1px;
-		background: var(--color-accent);
 	}
 
 	.engage-grid {
@@ -201,23 +150,28 @@ const description = t.projects.metaDescription.replace('{name}', t.site.name);
 		gap: 0.65rem;
 	}
 
+	@media (min-width: 820px) and (max-width: 1023px) {
+		html[lang='fr'] .section__intro--current p {
+			white-space: normal;
+		}
+	}
+
 	@media (min-width: 820px) {
-		.program-grid--compact {
-			grid-template-columns: 1fr 1fr;
+		.section__intro--current p {
+			white-space: nowrap;
 		}
 
-		.approach-list {
+		html[lang='fr'] .section__intro--current p {
+			font-size: 0.95rem;
+		}
+
+		.program-grid--compact {
 			grid-template-columns: 1fr 1fr;
 		}
 
 		.engage-grid {
 			grid-template-columns: 1fr 1fr;
 			gap: 2.5rem;
-		}
-
-		.section--band {
-			padding-left: 1.5rem;
-			padding-right: 1.5rem;
 		}
 	}
 

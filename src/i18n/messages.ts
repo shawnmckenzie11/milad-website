@@ -60,9 +60,6 @@ export const en = {
 		previousHeading: 'Previous Projects',
 		previousIntro: 'Earlier and collaborative programs that inform current directions.',
 		programsLabel: 'Research programs',
-		approachesHeading: 'Approaches in the lab',
-		approachesIntro:
-			'Common experimental and analytic threads across programs — useful for matching skills and training goals.',
 		engageHeading: 'Join or collaborate',
 		engageIntro: 'Two clear entry points depending on whether you are seeking training or partnership.',
 		studentsHeading: 'Prospective students',
@@ -75,6 +72,8 @@ export const en = {
 		emailLab: 'Email the lab',
 		readPublications: 'Read publications',
 		approachesLabel: 'Approaches',
+		viewFigure: 'View full image',
+		closeLightbox: 'Close',
 		evidenceHeading: 'Evidence snapshot',
 		relatedCount: '+{count} related',
 		browsePublications: 'Browse full publication list',
@@ -206,9 +205,6 @@ export const fr: typeof en = {
 		previousHeading: 'Projets antérieurs',
 		previousIntro: 'Programmes antérieurs et menés en collaboration qui éclairent les orientations actuelles.',
 		programsLabel: 'Programmes de recherche',
-		approachesHeading: 'Approches au laboratoire',
-		approachesIntro:
-			'Fils conducteurs expérimentaux et analytiques communs aux programmes — utiles pour faire correspondre les compétences aux objectifs de formation.',
 		engageHeading: "Se joindre à l'équipe ou collaborer",
 		engageIntro:
 			'Deux points d’entrée distincts, selon que vous souhaitez une formation ou un partenariat.',
@@ -222,6 +218,8 @@ export const fr: typeof en = {
 		emailLab: 'Écrire au laboratoire',
 		readPublications: 'Lire les publications',
 		approachesLabel: 'Approches',
+		viewFigure: "Voir l'image en pleine résolution",
+		closeLightbox: 'Fermer',
 		evidenceHeading: 'Aperçu des travaux',
 		relatedCount: '+{count} connexes',
 		browsePublications: 'Consulter la liste complète des publications',
