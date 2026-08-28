@@ -61,7 +61,6 @@ export const en = {
 		previousIntro: 'Earlier and collaborative programs that inform current directions.',
 		programsLabel: 'Research programs',
 		engageHeading: 'Join or collaborate',
-		engageIntro: 'Two clear entry points depending on whether you are seeking training or partnership.',
 		studentsHeading: 'Prospective students',
 		studentsBody:
 			'If your interests align with a program above — especially inhaled exposures, lung immunity, or epithelial methods — start with a short note of interest.',
@@ -88,12 +87,8 @@ export const en = {
 		metaDescription: 'Opportunities to train with the lab or explore research collaborations.',
 		eyebrow: 'Prospective researchers',
 		heading: 'Work With Us',
-		teamHeading: 'Join our team',
-		teamBody:
-			'Our team is growing! We are currently recruiting motivated candidates at the following levels: undergraduate summer interns, coop students, Masters students, and doctoral students. Feel free to use the form below to contact our team and we will get back to you as soon as possible.',
-		collabHeading: 'Work with us',
-		collabBody:
-			'Our research group is always looking for collaborators and partnerships. We have the expertise and technical ability to study a variety of inhaled exposures (cigarette smoke, wood fire smoke, cannabis smoke, e-cigarettes, cannabis vapour) at the in vitro and in vivo levels. If you would like to explore how these smoke/vapour exposures affect your tissue or disease of interest, please get in touch with us through the form below.',
+		intro:
+			'Our team is growing! Our lab is currently recruiting motivated candidates at the following levels: undergraduate summer interns, coop students, Masters students, and PhD students. We have the expertise and technical ability to study a variety of inhaled exposures (cigarette smoke, wood fire smoke, cannabis smoke, e-cigarettes, cannabis vapour) at the in vitro and in vivo levels. If you would like to explore how these smoke/vapour exposures affect your tissue, pathway, or disease of interest, please get in touch with us through the form below.',
 	},
 	joinForm: {
 		requiredNote: 'Required fields are marked with an asterisk (*).',
@@ -206,8 +201,6 @@ export const fr: typeof en = {
 		previousIntro: 'Programmes antérieurs et menés en collaboration qui éclairent les orientations actuelles.',
 		programsLabel: 'Programmes de recherche',
 		engageHeading: "Se joindre à l'équipe ou collaborer",
-		engageIntro:
-			'Deux points d’entrée distincts, selon que vous souhaitez une formation ou un partenariat.',
 		studentsHeading: 'Étudiantes et étudiants',
 		studentsBody:
 			'Si vos intérêts rejoignent un programme ci-dessus — en particulier les expositions inhalées, l’immunité pulmonaire ou les méthodes épithéliales — commencez par une courte note d’intérêt.',
@@ -235,12 +228,8 @@ export const fr: typeof en = {
 			'Possibilités de formation au laboratoire ou de collaborations de recherche.',
 		eyebrow: 'Candidatures et collaborations',
 		heading: 'Travailler avec nous',
-		teamHeading: 'Se joindre à notre équipe',
-		teamBody:
-			'Notre équipe s’agrandit. Nous recrutons actuellement des candidates et candidats motivés aux niveaux suivants : stages d’été au premier cycle, régime coopératif, maîtrise et doctorat. Vous pouvez nous écrire à l’aide du formulaire ci-dessous; nous vous répondrons dès que possible.',
-		collabHeading: 'Collaborer avec nous',
-		collabBody:
-			'Notre groupe de recherche est toujours ouvert aux collaborations et aux partenariats. Nous disposons de l’expertise et des moyens techniques pour étudier diverses expositions inhalées (fumée de cigarette, fumée de bois, fumée de cannabis, cigarettes électroniques, vapeur de cannabis) aux niveaux in vitro et in vivo. Si vous souhaitez explorer les effets de ces expositions à la fumée ou à la vapeur sur un tissu ou une maladie d’intérêt, veuillez nous écrire à l’aide du formulaire ci-dessous.',
+		intro:
+			'Notre équipe s’agrandit. Le laboratoire recrute actuellement des candidates et candidats motivés aux niveaux suivants : stages d’été au premier cycle, régime coopératif, maîtrise et doctorat. Nous disposons de l’expertise et des moyens techniques pour étudier diverses expositions inhalées (fumée de cigarette, fumée de bois, fumée de cannabis, cigarettes électroniques, vapeur de cannabis) aux niveaux in vitro et in vivo. Si vous souhaitez explorer les effets de ces expositions à la fumée ou à la vapeur sur un tissu, une voie ou une maladie d’intérêt, veuillez nous écrire à l’aide du formulaire ci-dessous.',
 	},
 	joinForm: {
 		requiredNote: 'Les champs obligatoires sont indiqués par un astérisque (*).',

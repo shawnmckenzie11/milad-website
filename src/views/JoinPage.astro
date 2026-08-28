@@ -13,17 +13,7 @@ const t = useTranslations(locale);
 		<h1>{t.join.heading}</h1>
 	</header>
 
-	<article class="join-copy fade-in-delay">
-		<section aria-labelledby="join-team-heading">
-			<h2 id="join-team-heading">{t.join.teamHeading}</h2>
-			<p set:html={emphasizeLatinTerms(t.join.teamBody)} />
-		</section>
-
-		<section aria-labelledby="work-with-us-heading">
-			<h2 id="work-with-us-heading">{t.join.collabHeading}</h2>
-			<p set:html={emphasizeLatinTerms(t.join.collabBody)} />
-		</section>
-	</article>
+	<p class="join-intro fade-in-delay" set:html={emphasizeLatinTerms(t.join.intro)} />
 
 	<JoinForm />
 </BaseLayout>
@@ -33,20 +23,12 @@ const t = useTranslations(locale);
 		margin-bottom: var(--space-lg);
 	}
 
-	.join-copy {
-		display: grid;
-		gap: var(--space-lg);
+	.join-intro {
+		margin: 0 0 var(--space-lg);
+		color: var(--color-ink-soft);
 	}
 
-	.join-copy h2 {
-		margin-bottom: var(--space-sm);
-	}
-
-	.join-copy p {
-		margin: 0;
-	}
-
-	.join-copy i {
+	.join-intro i {
 		font-style: italic;
 	}
 </style>

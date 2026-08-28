@@ -28,7 +28,7 @@ const description = t.projects.metaDescription.replace('{name}', t.site.name);
 <BaseLayout title={t.projects.metaTitle} description={description}>
 	<section id="current-projects" class="section section--first fade-in" aria-labelledby="current-projects-heading">
 		<div class="section__intro section__intro--current">
-			<h2 id="current-projects-heading">{t.projects.currentHeading}</h2>
+			<h2 id="current-projects-heading" class="section-heading--page">{t.projects.currentHeading}</h2>
 			<p>{t.projects.currentIntro}</p>
 		</div>
 		<div class="program-grid program-grid--compact">
@@ -44,7 +44,7 @@ const description = t.projects.metaDescription.replace('{name}', t.site.name);
 
 	<section id="previous-projects" class="section fade-in" aria-labelledby="previous-projects-heading">
 		<div class="section__intro">
-			<h2 id="previous-projects-heading">{t.projects.previousHeading}</h2>
+			<h2 id="previous-projects-heading" class="section-heading--page">{t.projects.previousHeading}</h2>
 			<p>{t.projects.previousIntro}</p>
 		</div>
 		{
@@ -63,8 +63,7 @@ const description = t.projects.metaDescription.replace('{name}', t.site.name);
 
 	<section id="engage" class="section section--engage fade-in-delay" aria-labelledby="engage-heading">
 		<div class="section__intro">
-			<h2 id="engage-heading">{t.projects.engageHeading}</h2>
-			<p>{t.projects.engageIntro}</p>
+			<h2 id="engage-heading" class="section-heading--page">{t.projects.engageHeading}</h2>
 		</div>
 
 		<div class="engage-grid">
@@ -107,6 +106,15 @@ const description = t.projects.metaDescription.replace('{name}', t.site.name);
 
 	.section__intro p {
 		margin: 0;
+	}
+
+	.section-heading--page {
+		font-size: clamp(2rem, 4.5vw, 2.85rem);
+		margin: 0 0 var(--space-md);
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		font-weight: 900;
+		line-height: 1.15;
 	}
 
 	.section__intro--current {
