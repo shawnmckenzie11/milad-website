@@ -9,7 +9,7 @@
 	"vars": {
 		// On/off switch for the public site. "false" = Coming soon page.
 		// Set to "true" and run `npm run deploy` to put the lab site live.
-		"SITE_LIVE": "false"
+		"SITE_LIVE": "true"
 	},
 	"assets": {
 		"directory": "./dist",
