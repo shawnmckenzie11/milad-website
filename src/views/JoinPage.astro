@@ -7,7 +7,7 @@ const locale = resolveLocale(Astro.currentLocale);
 const t = useTranslations(locale);
 ---
 
-<BaseLayout title={t.join.metaTitle} description={t.join.metaDescription} narrow>
+<BaseLayout title={t.join.metaTitle} description={t.join.metaDescription}>
 	<header class="page-header fade-in">
 		<p class="eyebrow">{t.join.eyebrow}</p>
 		<h1>{t.join.heading}</h1>
@@ -36,7 +36,6 @@ const t = useTranslations(locale);
 	.join-copy {
 		display: grid;
 		gap: var(--space-lg);
-		max-width: 38rem;
 	}
 
 	.join-copy h2 {
