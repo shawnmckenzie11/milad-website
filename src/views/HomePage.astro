@@ -8,6 +8,14 @@ const t = useTranslations(locale);
 ---
 
 <BaseLayout>
+	<figure class="home-schematic fade-in">
+		<img
+			src="/images/cannabis-inhaled-exposures.jpg"
+			alt={t.home.schematicAlt}
+			width="1024"
+			height="854"
+		/>
+	</figure>
 	<section class="home-bio fade-in" aria-labelledby="home-bio-heading">
 		<h2 id="home-bio-heading" class="sr-only">{t.home.aboutHeading}</h2>
 		<div class="home-bio__layout">
@@ -24,6 +32,15 @@ const t = useTranslations(locale);
 </BaseLayout>
 
 <style>
+	.home-schematic {
+		margin: 0 0 var(--space-xl);
+	}
+
+	.home-schematic img {
+		width: 100%;
+		height: auto;
+	}
+
 	.home-bio {
 		--bio-portrait-size: min(30vh, 13.5rem);
 		max-width: min(100% - 2rem, 52rem);

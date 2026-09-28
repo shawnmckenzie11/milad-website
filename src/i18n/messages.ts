@@ -30,6 +30,8 @@ export const en = {
 		wordmarkAlt: 'Milad Lab',
 		skylineAlt: 'Ottawa skyline with Parliament Hill',
 		headshotAlt: 'Dr. Nadia Milad',
+		schematicAlt:
+			'Schematic of mechanisms linking cannabis and inhaled exposures to respiratory and systemic health: cannabis delivery by smoke, vapour, and edibles connects through the lung to development in pregnancy and early life, aging and senescence, and immunomodulation of host defence and inflammation. The lab studies these with cell models, animal models, clinical data, and inhalation exposure science.',
 		bio: 'Dr. Nadia Milad completed her B.Sc., M.Sc. and PhD in pharmacology at McGill University, University of British Columbia, and Université Laval, respectively. After her postdoctoral training at McMaster University and Nagoya City University, she became an Assistant Professor in the School of Pharmaceutical Sciences at the University of Ottawa. Although her previous research spans several topics, her recent focus has been on the health impacts of smoke exposures. Currently, her translational research program will explore the lung and systemic effects of cannabis use, using a combination of in vitro cell culture techniques, in vivo animal models, and clinical data.',
 	},
 	publications: {
@@ -170,6 +172,8 @@ export const fr: typeof en = {
 		wordmarkAlt: 'Milad Lab',
 		skylineAlt: 'Horizon d’Ottawa et Colline du Parlement',
 		headshotAlt: 'Dr. Nadia Milad',
+		schematicAlt:
+			"Schéma des mécanismes reliant le cannabis et les expositions inhalées à la santé respiratoire et systémique : les modes d'administration (fumée, vapeur et produits comestibles) passent par le poumon et rejoignent le développement pendant la grossesse et la petite enfance, le vieillissement et la sénescence, ainsi que l'immunomodulation de la défense de l'hôte et de l'inflammation. Le laboratoire étudie ces questions à l'aide de modèles cellulaires, de modèles animaux, de données cliniques et de la science des expositions par inhalation.",
 		bio: "Dr. Nadia Milad a obtenu son B. Sc., son M. Sc. et son doctorat en pharmacologie à l'Université McGill, à l'University of British Columbia et à l'Université Laval, respectivement. Après une formation postdoctorale à McMaster University et à Nagoya City University, elle a été nommée professeure adjointe à l'École des sciences pharmaceutiques de l'Université d'Ottawa. Bien que ses travaux antérieurs aient porté sur plusieurs sujets, ses recherches récentes portent sur les effets sur la santé des expositions à la fumée. Son programme de recherche translationnelle explore actuellement les effets pulmonaires et systémiques de la consommation de cannabis, en combinant des techniques de culture cellulaire in vitro, des modèles animaux in vivo et des données cliniques.",
 	},
 	publications: {
