@@ -106,8 +106,6 @@ const lightboxId = `figure-lightbox-${project.id}`;
 			) : null
 		}
 
-		{presentation.audience ? <p class="program__audience">{presentation.audience}</p> : null}
-
 		<div class="program__evidence">
 			{
 				flagship ? (
@@ -249,8 +247,7 @@ const lightboxId = `figure-lightbox-${project.id}`;
 	}
 
 	.program__domains,
-	.program__methods,
-	.program__audience {
+	.program__methods {
 		margin: 0;
 		font-size: 0.92rem;
 		color: var(--color-muted);
@@ -261,10 +258,6 @@ const lightboxId = `figure-lightbox-${project.id}`;
 		display: inline-block;
 		margin-right: 0.45rem;
 		font-weight: 600;
-		color: var(--color-ink-soft);
-	}
-
-	.program__audience {
 		color: var(--color-ink-soft);
 	}
 
