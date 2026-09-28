@@ -7,6 +7,8 @@ interface Props {
 	title?: string;
 	description?: string;
 	narrow?: boolean;
+	/** Tighter top padding so a homepage figure can fit the first desktop view. */
+	hero?: boolean;
 }
 
 const locale = resolveLocale(Astro.currentLocale);
@@ -16,6 +18,7 @@ const {
 	title,
 	description = `${t.site.name} — ${t.site.affiliation}. ${t.site.researchFocus}.`,
 	narrow = false,
+	hero = false,
 } = Astro.props;
 
 const pageTitle = title ? `${title} · ${t.site.labName}` : `${t.site.labName} · ${t.site.affiliation}`;
@@ -65,7 +68,7 @@ const siteOrigin = Astro.site ? Astro.site.origin : Astro.url.origin;
 	<body>
 		<div class="site-shell">
 			<Nav />
-			<main class:list={['site-main', { narrow }]}>
+			<main class:list={['site-main', { narrow, 'site-main--hero': hero }]}>
 				<slot />
 			</main>
 		</div>

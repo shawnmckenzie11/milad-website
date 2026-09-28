@@ -134,6 +134,10 @@ p:last-child {
 	width: min(100% - 2rem, var(--max-width));
 }
 
+.site-main--hero {
+	padding-top: var(--space-md);
+}
+
 .eyebrow {
 	margin: 0 0 var(--space-sm);
 	font-family: var(--font-display);

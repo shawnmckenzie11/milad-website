@@ -1,6 +1,6 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "milad-website",
+	"name": "milad-website-2",
 	"main": "worker/index.ts",
 	"compatibility_date": "2026-07-27",
 	"observability": {
@@ -27,9 +27,14 @@
 		{
 			"pattern": "milad.mckenzian.com",
 			"custom_domain": true
+		},
+		{
+			"pattern": "miladlab.ca",
+			"custom_domain": true
+		},
+		{
+			"pattern": "www.miladlab.ca",
+			"custom_domain": true
 		}
-		// After miladlab.ca is added as a zone on this Cloudflare account, include:
-		// { "pattern": "miladlab.ca", "custom_domain": true },
-		// { "pattern": "www.miladlab.ca", "custom_domain": true }
 	]
 }
