@@ -8,11 +8,10 @@ export const site = {
 	affiliation: 'University of Ottawa',
 	email: 'nmilad@uottawa.ca',
 	/**
-	 * Destination for Work With Us form mail. Temporary test inbox — change this
-	 * single value when the lab mailbox is ready. Keep wrangler `send_email`
-	 * `destination_address` in sync if that binding is restricted.
+	 * Destination for Work With Us form mail. Keep wrangler `send_email`
+	 * `destination_address` in sync; that binding only delivers to this address.
 	 */
-	joinInbox: 'seashell611@anglernook.com',
+	joinInbox: 'nmilad@uottawa.ca',
 	/**
 	 * From address for automated join-form mail. Must be a domain onboarded
 	 * for Cloudflare Email Sending (or Email Routing, if that binding is used).

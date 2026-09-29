@@ -244,7 +244,7 @@ const noscriptParts = t.joinForm.noscript.split('{email}');
 					.catch(() => ({}));
 
 				if (!response.ok || !result.ok) {
-					setStatus(status, copy.statusError, 'error');
+					setStatus(status, copy.statusError.replace('{email}', form.dataset.publicEmail || ''), 'error');
 					return;
 				}
 
@@ -255,7 +255,7 @@ const noscriptParts = t.joinForm.noscript.split('{email}');
 					'success',
 				);
 			} catch {
-				setStatus(status, copy.statusError, 'error');
+				setStatus(status, copy.statusError.replace('{email}', form.dataset.publicEmail || ''), 'error');
 			} finally {
 				if (submitButton) submitButton.disabled = false;
 			}

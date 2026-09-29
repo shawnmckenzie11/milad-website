@@ -131,7 +131,7 @@ export const en = {
 		statusSuccessAttachNote:
 			'Thank you. Your message has been sent. One or more attachments could not be included; please follow up by email if needed.',
 		statusError:
-			'We could not deliver your message. Please email seashell611@anglernook.com directly, or try again shortly.',
+			'We could not deliver your message. Please email {email} directly, or try again shortly.',
 		notSpecified: 'Not specified',
 		mailtoName: 'Name',
 		mailtoEmail: 'Email',
@@ -274,7 +274,7 @@ export const fr: typeof en = {
 		statusSuccessAttachNote:
 			'Merci. Votre message a bien été envoyé. Une ou plusieurs pièces jointes n’ont pas pu être incluses; le cas échéant, veuillez les transmettre par courriel.',
 		statusError:
-			'Nous n’avons pas pu remettre votre message. Écrivez directement à seashell611@anglernook.com, ou réessayez sous peu.',
+			'Nous n’avons pas pu remettre votre message. Écrivez directement à {email}, ou réessayez sous peu.',
 		notSpecified: 'Non précisé',
 		mailtoName: 'Nom',
 		mailtoEmail: 'Courriel',
