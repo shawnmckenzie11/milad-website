@@ -2,7 +2,7 @@
 
 Static academic site for **Dr. Nadia Milad** (University of Ottawa), built with [Astro](https://astro.build) and TypeScript.
 
-- **Contact (placeholder):** [miladn1@mcmaster.ca](mailto:miladn1@mcmaster.ca)
+- **Contact (placeholder):** [nmilad@uottawa.ca](nmilad@uottawa.ca)
 - **ResearchGate:** [https://www.researchgate.net/profile/Nadia-Milad](https://www.researchgate.net/profile/Nadia-Milad)
 - **ORCID:** [https://orcid.org/0000-0002-1497-8224](https://orcid.org/0000-0002-1497-8224)
 - **Cannabis Research Intelligence Tool:** [https://cannabis-paper-scraper.fly.dev](https://cannabis-paper-scraper.fly.dev)

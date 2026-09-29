@@ -6,7 +6,7 @@ export const site = {
 	labName: 'Milad Lab',
 	shortName: 'Nadia Milad',
 	affiliation: 'University of Ottawa',
-	email: 'miladn1@mcmaster.ca',
+	email: 'nmilad@uottawa.ca',
 	/**
 	 * Destination for Work With Us form mail. Temporary test inbox — change this
 	 * single value when the lab mailbox is ready. Keep wrangler `send_email`

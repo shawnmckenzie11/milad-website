@@ -21,7 +21,7 @@ const DATA_DIR = path.join(ROOT, 'src', 'data');
 const ORCID_ID = '0000-0002-1497-8224';
 const OPENALEX_AUTHOR_ID = 'A5085320633';
 const RESEARCHGATE_URL = 'https://www.researchgate.net/profile/Nadia-Milad';
-const USER_AGENT = 'milad-website/0.1 (mailto:miladn1@mcmaster.ca; academic site sync)';
+const USER_AGENT = 'milad-website/0.1 (mailto:nmilad@uottawa.ca; academic site sync)';
 const MAILTO = 'miladn1@mcmaster.ca';
 
 /**
