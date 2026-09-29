@@ -36,6 +36,7 @@ const noscriptParts = t.joinForm.noscript.split('{email}');
 	data-join-form
 	data-api-path={site.joinApiPath}
 	data-to-email={toEmail}
+	data-public-email={site.email}
 	data-locale={locale}
 	novalidate
 >
@@ -228,6 +229,10 @@ const noscriptParts = t.joinForm.noscript.split('{email}');
 
 			if (submitButton) submitButton.disabled = true;
 			setStatus(status, copy.statusSending);
+
+			// #region agent log
+			fetch('http://127.0.0.1:7868/ingest/724760d6-ef5a-4796-9efe-f15dc9586e38',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'49fc00'},body:JSON.stringify({sessionId:'49fc00',runId:'pre-fix',hypothesisId:'H1',location:'JoinForm.astro:submit',message:'join form destination before POST',data:{toEmail:form.dataset.toEmail||'',publicEmail:form.dataset.publicEmail||'',sameInbox:form.dataset.toEmail===form.dataset.publicEmail,apiPath,host:location.host},timestamp:Date.now()})}).catch(()=>{});
+			// #endregion
 
 			try {
 				const response = await fetch(apiPath, {

@@ -311,6 +311,9 @@ async function sendJoinEmail(
 	attachments: JoinAttachment[],
 ): Promise<void> {
 	const raw = buildRawMime(fields, attachments);
+	// #region agent log
+	fetch('http://127.0.0.1:7868/ingest/724760d6-ef5a-4796-9efe-f15dc9586e38',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'49fc00'},body:JSON.stringify({sessionId:'49fc00',runId:'pre-fix',hypothesisId:'H2',location:'worker/index.ts:sendJoinEmail',message:'join email recipient',data:{to:site.joinInbox,publicEmail:site.email,from:site.joinFromEmail,sameInbox:site.joinInbox===site.email},timestamp:Date.now()})}).catch(()=>{});
+	// #endregion
 	const result = await env.EMAIL.send(
 		new EmailMessage(site.joinFromEmail, site.joinInbox, raw),
 	);
