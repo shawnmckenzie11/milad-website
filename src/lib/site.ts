@@ -16,7 +16,7 @@ export const site = {
 	 * From address for automated join-form mail. Must be a domain onboarded
 	 * for Cloudflare Email Sending (or Email Routing, if that binding is used).
 	 */
-	joinFromEmail: 'join@mckenzian.com',
+	joinFromEmail: 'join@miladlab.ca',
 	/** Worker endpoint that accepts join-form POSTs. */
 	joinApiPath: '/api/join',
 	researchFocus: 'Cannabis research and evidence synthesis',
