@@ -20,7 +20,7 @@
 	"send_email": [
 		{
 			"name": "EMAIL",
-			"destination_address": "nmilad@uottawa.ca"
+			"destination_address": "nadiadalim@gmail.com"
 		}
 	],
 	"routes": [
