@@ -11,7 +11,7 @@ export const site = {
 	 * Destination for Work With Us form mail. Keep wrangler `send_email`
 	 * `destination_address` in sync; that binding only delivers to this address.
 	 */
-	joinInbox: 'nmilad@uottawa.ca',
+	joinInbox: 'nadiadalim@gmail.com',
 	/**
 	 * From address for automated join-form mail. Must be a domain onboarded
 	 * for Cloudflare Email Sending (or Email Routing, if that binding is used).
